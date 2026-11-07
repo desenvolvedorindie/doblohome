@@ -23,6 +23,7 @@ export interface CargoBoxConfig {
 export interface B2BChargerConfig {
   enabled: boolean;
   isEngineRunning: boolean; // Alternador da Doblò em funcionamento
+  engineHoursPerDay: number; // Tempo diário com motor ligado / rodando (em horas)
   chargingAmps: number;     // 30A nominal
   voltageIn: number;        // Tensão do alternador (~13.8V–14.4V)
   voltageOut: number;       // Tensão de carga LiFePO4 (~14.4V)
@@ -49,6 +50,33 @@ export interface LevelConfig {
   orientation: PanelOrientation;
 }
 
+export interface SolarPanelPreset {
+  id: string;
+  name: string;
+  brand?: string;
+  model?: string;
+  powerWatts: number;
+  vmp: number;
+  imp: number;
+  voc: number;
+  isc: number;
+  maxSystemVoltage?: number;
+  efficiencyPercent: number;
+  cellType: string;
+  cellCount?: number;
+  cols?: number;
+  rows?: number;
+  material: string;
+  width: number;       // em metros (ex: 0.590 ou 0.880)
+  length: number;      // em metros (ex: 0.875 ou 1.145)
+  thickness: number;   // em metros (ex: 0.003)
+  weightKg: number;    // em kg (ex: 1.8 ou 4.0)
+  connector?: string;
+  features?: string[];
+  description?: string;
+  isDefault?: boolean;
+}
+
 export interface SavedConfig {
   stackLevels: StackLevels;
   level1: LevelConfig;
@@ -59,6 +87,8 @@ export interface SavedConfig {
   offsetZ?: number;
   offsetY?: number;
   expansionProgress?: number;
+  b2bEngineHours?: number;
+  panelPresetId?: string;
 }
 
 export interface ApplianceItem {
@@ -82,15 +112,20 @@ export interface LoadsSummary {
 
 export interface BatteryPerformance {
   dailyWhGenerated: number;
+  solarDailyWh?: number;
+  b2bDailyWh?: number;
   dailyConsumptionWh: number;
   surplusWh: number;
   isAutonomous: boolean;
   percent: number;
   solarAmps12V: number;
   dailyAhInjected: number;
+  solarDailyAh?: number;
+  b2bDailyAh?: number;
   solarHoursToFull: number;
   solarDaysToFull: number;
   daysRainAutonomy: number;
+  daysRainAutonomyWithEngine?: number;
   batCapacityWh: number;
   batUsableWh: number;
   appliances: ApplianceItem[];
@@ -105,6 +140,10 @@ export interface EnergyStats {
   efficiencyPercent: number;
   systemVoltage: number;
   mpptCurrentAmps: number;
+  voc?: string;
+  vmp?: string;
+  isc?: string;
+  presetName?: string;
   level1Panels: number;
   level2Panels: number;
   stackLevels: StackLevels;
@@ -121,5 +160,14 @@ export interface BarMeasurementData {
   quantity?: number;
   purpose?: string;
   level?: string;
+  isElectrical?: boolean;
+  electricalType?: 'battery' | 'mppt' | 'b2b' | 'usina';
+  voltage?: string;
+  capacity?: string;
+  current?: string;
+  power?: string;
+  efficiency?: string;
+  statusText?: string;
+  features?: string[];
 }
 

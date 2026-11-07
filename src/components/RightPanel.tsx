@@ -40,7 +40,7 @@ export const RightPanel: React.FC = () => {
     clearCollisions,
     flashToast,
     b2bCharger,
-    toggleB2BEngine,
+    setB2BEngineHours,
     usinaCharger,
     toggleUsinaAC,
     setUsinaModel
@@ -675,19 +675,80 @@ export const RightPanel: React.FC = () => {
               <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: 700 }}>📶 Bluetooth 5.0:</span>
               <span style={{ fontSize: '10px', color: '#4ade80' }}>Conectado</span>
             </div>
-            <button
-              className="btn-compact primary"
-              onClick={toggleB2BEngine}
+            <span
               style={{
                 fontSize: '10px',
-                padding: '3px 8px',
-                background: b2bCharger.isEngineRunning ? 'rgba(239, 68, 68, 0.25)' : 'rgba(34, 197, 94, 0.25)',
-                borderColor: b2bCharger.isEngineRunning ? 'rgba(239, 68, 68, 0.5)' : 'rgba(34, 197, 94, 0.5)',
-                color: b2bCharger.isEngineRunning ? '#fca5a5' : '#86efac'
+                fontWeight: 700,
+                color: b2bCharger.isEngineRunning ? '#4ade80' : '#94a3b8',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
               }}
             >
-              {b2bCharger.isEngineRunning ? '⏹️ Parar Motor' : '▶️ Ligar Alternador (+30A)'}
-            </button>
+              <span>{b2bCharger.isEngineRunning ? '🚗⚡' : '🅿️'}</span>
+              <span>{b2bCharger.isEngineRunning ? 'Alternador Ativo' : 'Motor Desligado'}</span>
+            </span>
+          </div>
+
+          {/* Configuração rápida de tempo de motor ligado / rodagem */}
+          <div
+            style={{
+              margin: '6px 0',
+              padding: '6px 8px',
+              background: 'rgba(15, 23, 42, 0.4)',
+              borderRadius: '6px',
+              border: '1px solid rgba(56, 189, 248, 0.18)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>⏱️</span> Rodagem com motor:
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <button
+                  type="button"
+                  className="btn-compact"
+                  onClick={() => setB2BEngineHours(Math.max(0, b2bCharger.engineHoursPerDay - 0.5))}
+                  title="Diminuir 30 min"
+                  style={{ padding: '0 6px', fontSize: '11px', height: '18px', minWidth: '18px', lineHeight: '16px' }}
+                >
+                  -
+                </button>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: b2bCharger.engineHoursPerDay > 0 ? '#4ade80' : '#94a3b8',
+                    minWidth: '40px',
+                    textAlign: 'center'
+                  }}
+                >
+                  {b2bCharger.engineHoursPerDay.toFixed(1)}h/d
+                </span>
+                <button
+                  type="button"
+                  className="btn-compact"
+                  onClick={() => setB2BEngineHours(Math.min(12, b2bCharger.engineHoursPerDay + 0.5))}
+                  title="Aumentar 30 min"
+                  style={{ padding: '0 6px', fontSize: '11px', height: '18px', minWidth: '18px', lineHeight: '16px' }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '9.5px' }}>
+              <span style={{ color: 'var(--text-muted)' }}>
+                {b2bCharger.engineHoursPerDay > 0
+                  ? `+${Math.round(b2bCharger.engineHoursPerDay * 30)} Ah/dia injetados`
+                  : '0 Ah (modo estacionado)'}
+              </span>
+              <span style={{ color: '#fbbf24', fontWeight: 600 }}>
+                {b2bCharger.engineHoursPerDay > 0
+                  ? `+${Math.round(b2bCharger.engineHoursPerDay * 390)} Wh/dia`
+                  : '0 Wh/dia'}
+              </span>
+            </div>
           </div>
 
           <div className="mppt-detail-chips">
@@ -841,7 +902,14 @@ export const RightPanel: React.FC = () => {
             <div className="bat-metric">
               <span className="lbl">Autonomia na Chuva:</span>
               <span className="val highlight" id="stat-rain-autonomy">
-                {batteryPerformance.daysRainAutonomy} dias sem sol!
+                {batteryPerformance.daysRainAutonomyWithEngine && batteryPerformance.daysRainAutonomyWithEngine >= 999
+                  ? 'Infinita (com motor diário)'
+                  : `${batteryPerformance.daysRainAutonomyWithEngine ?? batteryPerformance.daysRainAutonomy} dias`}
+                {b2bCharger.engineHoursPerDay > 0 && (
+                  <span style={{ fontSize: '9px', display: 'block', fontWeight: 400, color: 'var(--text-muted)' }}>
+                    ({batteryPerformance.daysRainAutonomy}d van parada)
+                  </span>
+                )}
               </span>
             </div>
           </div>
@@ -852,6 +920,11 @@ export const RightPanel: React.FC = () => {
           {batteryPerformance.isAutonomous
             ? `Sistema 100% autossustentável com superávit de +${batteryPerformance.surplusWh} Wh/dia!`
             : `Déficit de ${Math.abs(batteryPerformance.surplusWh)} Wh/dia; a bateria de 7.168 kWh supre por ${batteryPerformance.daysRainAutonomy} dias.`}
+          {b2bCharger.engineHoursPerDay > 0 && (
+            <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '3px' }}>
+              🚗 Inclui {b2bCharger.engineHoursPerDay}h/dia de motor ligado (+{batteryPerformance.b2bDailyWh} Wh · +{batteryPerformance.b2bDailyAh} Ah)
+            </div>
+          )}
         </div>
 
         <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>

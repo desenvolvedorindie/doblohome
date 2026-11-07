@@ -31,8 +31,8 @@ export class SceneManager {
 
   raycaster: THREE.Raycaster;
   mouse: THREE.Vector2;
-  hoveredBarMesh: THREE.Mesh | null = null;
-  hoveredBarOriginalMaterials: THREE.Material | THREE.Material[] | null = null;
+  hoveredObject: THREE.Object3D | null = null;
+  hoveredOriginalMaterials: Map<THREE.Mesh, THREE.Material | THREE.Material[]> = new Map();
   onBarHoverChange?: (data: BarMeasurementData | null, screenX: number, screenY: number) => void;
   onExpansionChange?: (progress: number) => void;
 
@@ -331,7 +331,7 @@ export class SceneManager {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.scene.children, true);
 
-    let target: THREE.Mesh | null = null;
+    let target: THREE.Object3D | null = null;
     for (const hit of intersects) {
       const obj = hit.object;
       if (!obj.visible) continue;
@@ -341,38 +341,68 @@ export class SceneManager {
 
       // Ignora hitboxes transparentes (não bloqueiam o scan)
       if (obj.name === '__hitbox') {
-        // Verifica se o pai é uma barra
-        if (obj.parent && obj.parent.userData && obj.parent.userData.isBar) {
-          target = obj.parent as unknown as THREE.Mesh;
+        if (obj.parent && obj.parent.userData && (obj.parent.userData.isBar || obj.parent.userData.isElectrical)) {
+          target = obj.parent.userData.electricalRoot || obj.parent;
           break;
         }
-        continue; // hitbox sem barra associada — passa para o próximo
+        continue; // hitbox sem componente associado
       }
 
-      // Checa o próprio objeto
-      if (obj.userData && obj.userData.isBar) {
-        target = obj as THREE.Mesh;
+      // 1. Checa se o objeto ou algum ancestral é componente elétrico
+      let electricalNode: THREE.Object3D | null = null;
+      if (obj.userData && obj.userData.isElectrical) {
+        electricalNode = obj;
+      } else {
+        let p: THREE.Object3D | null = obj.parent;
+        for (let depth = 0; depth < 6 && p && p !== this.scene; depth++, p = p.parent) {
+          if (p.userData && p.userData.isElectrical) {
+            electricalNode = p;
+            break;
+          }
+        }
+      }
+
+      if (electricalNode) {
+        // Encontra o grupo raiz do componente elétrico para iluminar o conjunto como um todo unificado
+        let root: THREE.Object3D = electricalNode.userData?.electricalRoot || electricalNode;
+        let curr: THREE.Object3D | null = electricalNode;
+        while (curr && curr !== this.scene) {
+          if (curr.userData && curr.userData.isElectricalRoot) {
+            root = curr;
+            break;
+          }
+          if (curr.userData && curr.userData.isElectrical) {
+            root = curr;
+          }
+          curr = curr.parent;
+        }
+        target = root;
         break;
       }
 
-      // Checa até 3 níveis de hierarquia (pai -> avô -> bisavô)
+      // 2. Checa se é barra estrutural
+      if (obj.userData && obj.userData.isBar) {
+        target = obj;
+        break;
+      }
+
+      // Checa a cadeia de pais (até 5 níveis) para encontrar se pertence a uma barra estrutural
       let p: THREE.Object3D | null = obj.parent;
       let found = false;
-      for (let depth = 0; depth < 3 && p; depth++, p = p.parent) {
+      for (let depth = 0; depth < 5 && p && p !== this.scene; depth++, p = p.parent) {
         if (p.userData && p.userData.isBar) {
-          target = p as unknown as THREE.Mesh;
+          target = p;
           found = true;
           break;
         }
       }
       if (found) break;
 
-      // Objeto opaco sem isBar bloqueia (evita hover em barras atrás da carroceria)
+      // Objeto opaco sem isBar/isElectrical bloqueia o raycast (ex: lataria externa do veículo)
       const mesh = obj as THREE.Mesh;
       if (mesh.isMesh && mesh.material) {
         const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
         const matAny = mat as any;
-        // Pula materiais invisíveis (ex: a própria hitbox com opacity=0)
         if (matAny.opacity === 0) continue;
         const transparent = matAny.transparent === true;
         const opacity = typeof matAny.opacity === 'number' ? matAny.opacity : 1;
@@ -383,54 +413,112 @@ export class SceneManager {
     }
 
     if (target) {
-      if (this.hoveredBarMesh !== target) {
+      if (this.hoveredObject !== target) {
         this.clearBarHover();
-        this.highlightBar(target);
+        this.highlightObject(target);
       }
       if (this.onBarHoverChange) {
         const d = target.userData;
-        this.onBarHoverChange({
-          name: d.barLabel || target.name || 'Barra Estrutural',
-          barLength: d.barLength,
-          barProfile: d.profileSpec,
-          cutAngle: d.cutAngle,
-          material: d.material,
-          level: d.level
-        }, screenX, screenY);
+        if (d.isElectrical) {
+          this.onBarHoverChange({
+            name: d.name || target.name || 'Componente Elétrico',
+            category: d.category || 'Componente Elétrico',
+            isElectrical: true,
+            electricalType: d.electricalType,
+            voltage: d.voltage,
+            capacity: d.capacity,
+            current: d.current,
+            power: d.power,
+            efficiency: d.efficiency,
+            material: d.material,
+            purpose: d.purpose,
+            features: d.features
+          }, screenX, screenY);
+        } else {
+          this.onBarHoverChange({
+            name: d.barLabel || target.name || 'Barra Estrutural',
+            barLength: d.barLength,
+            barProfile: d.profileSpec,
+            cutAngle: d.cutAngle,
+            material: d.material,
+            level: d.level
+          }, screenX, screenY);
+        }
       }
     } else {
       this.clearBarHover();
     }
   }
 
-  highlightBar(mesh: THREE.Mesh) {
-    this.hoveredBarMesh = mesh;
-    this.hoveredBarOriginalMaterials = mesh.material;
+  highlightObject(target: THREE.Object3D) {
+    this.hoveredObject = target;
+    this.hoveredOriginalMaterials.clear();
 
-    if (Array.isArray(mesh.material)) {
-      mesh.material = mesh.material.map(m => {
-        const clone = (m as any).clone();
+    const d = target.userData || {};
+    let emissiveColor = 0x38bdf8; // Azul padrão para perfis
+    let emissiveIntensity = 0.55;
+
+    if (d.isElectrical) {
+      if (d.electricalType === 'battery') {
+        emissiveColor = 0x10b981; // Verde esmeralda Kingbo LiFePO4
+        emissiveIntensity = 0.65;
+      } else if (d.electricalType === 'mppt') {
+        emissiveColor = 0x0ea5e9; // Ciano MPPT
+        emissiveIntensity = 0.65;
+      } else if (d.electricalType === 'b2b') {
+        emissiveColor = 0x38bdf8; // Azul B2B
+        emissiveIntensity = 0.65;
+      } else if (d.electricalType === 'usina') {
+        emissiveColor = 0xef4444; // Vermelho Usina
+        emissiveIntensity = 0.65;
+      }
+    }
+
+    const applyHighlightToMesh = (mesh: THREE.Mesh) => {
+      if (!mesh.isMesh || !mesh.material) return;
+      if (this.hoveredOriginalMaterials.has(mesh)) return;
+      this.hoveredOriginalMaterials.set(mesh, mesh.material);
+
+      const makeHighlight = (m: any) => {
+        const clone = m.clone();
         if (clone.emissive) {
-          clone.emissive.setHex(0x38bdf8);
-          clone.emissiveIntensity = 0.55;
+          clone.emissive.setHex(emissiveColor);
+          clone.emissiveIntensity = emissiveIntensity;
         }
         return clone;
-      });
-    } else if (mesh.material) {
-      const clone = (mesh.material as any).clone();
-      if (clone.emissive) {
-        clone.emissive.setHex(0x38bdf8);
-        clone.emissiveIntensity = 0.55;
+      };
+
+      if (Array.isArray(mesh.material)) {
+        mesh.material = mesh.material.map(makeHighlight);
+      } else {
+        mesh.material = makeHighlight(mesh.material);
       }
-      mesh.material = clone;
+    };
+
+    if ((target as any).isMesh) {
+      applyHighlightToMesh(target as THREE.Mesh);
+    } else {
+      target.traverse((child: any) => {
+        if (child.isMesh) {
+          applyHighlightToMesh(child);
+        }
+      });
     }
   }
 
+  highlightBar(mesh: THREE.Mesh) {
+    this.highlightObject(mesh);
+  }
+
   clearBarHover() {
-    if (this.hoveredBarMesh && this.hoveredBarOriginalMaterials) {
-      this.hoveredBarMesh.material = this.hoveredBarOriginalMaterials;
-      this.hoveredBarMesh = null;
-      this.hoveredBarOriginalMaterials = null;
+    if (this.hoveredOriginalMaterials.size > 0) {
+      this.hoveredOriginalMaterials.forEach((origMat, mesh) => {
+        if (mesh && origMat) {
+          mesh.material = origMat;
+        }
+      });
+      this.hoveredOriginalMaterials.clear();
+      this.hoveredObject = null;
     }
     if (this.onBarHoverChange) {
       this.onBarHoverChange(null, 0, 0);

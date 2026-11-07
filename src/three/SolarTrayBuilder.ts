@@ -97,7 +97,8 @@ export class SolarTrayBuilder {
     labelText: string,
     structureMaterial: StructureMaterial = 'aluminum',
     aluminumColor: AluminumColor = 'silver',
-    panelThickness: number = 0.003
+    panelThickness: number = 0.003,
+    panelSpecs?: any
   ) {
     const mats = MaterialLibrary.materials;
     const tray = new THREE.Group();
@@ -240,7 +241,8 @@ export class SolarTrayBuilder {
           pW,
           pL,
           panelThickness,
-          `PainelFlexivel_${levelIndex}_${r}_${c}`
+          `PainelFlexivel_${levelIndex}_${r}_${c}`,
+          panelSpecs
         );
 
         panelMesh.position.set(posX, yLevel + 0.015 + (panelThickness / 2), posZ);
@@ -294,7 +296,8 @@ export class SolarTrayBuilder {
         `Nível ${levelNumber} (Fixo)`,
         structureMaterial,
         aluminumColor,
-        panelSpecs.thickness
+        panelSpecs.thickness,
+        panelSpecs
       );
       return { dir: 'fixed', travelA: 0, travelB: 0 };
     }
@@ -324,7 +327,8 @@ export class SolarTrayBuilder {
           `Nível ${levelNumber} (Gaveta Dianteira)`,
           structureMaterial,
           aluminumColor,
-          panelSpecs.thickness
+          panelSpecs.thickness,
+          panelSpecs
         );
         TelescopicRailsBuilder.addLongitudinalRails(
           fixedFrameGroup,
@@ -353,7 +357,8 @@ export class SolarTrayBuilder {
           `Nível ${levelNumber} (Gaveta Traseira)`,
           structureMaterial,
           aluminumColor,
-          panelSpecs.thickness
+          panelSpecs.thickness,
+          panelSpecs
         );
         TelescopicRailsBuilder.addLongitudinalRails(
           fixedFrameGroup,
@@ -398,7 +403,8 @@ export class SolarTrayBuilder {
           `Nível ${levelNumber} (Gaveta Esquerda)`,
           structureMaterial,
           aluminumColor,
-          panelSpecs.thickness
+          panelSpecs.thickness,
+          panelSpecs
         );
         TelescopicRailsBuilder.addLateralRails(
           fixedFrameGroup,
@@ -427,7 +433,8 @@ export class SolarTrayBuilder {
           `Nível ${levelNumber} (Gaveta Direita)`,
           structureMaterial,
           aluminumColor,
-          panelSpecs.thickness
+          panelSpecs.thickness,
+          panelSpecs
         );
         TelescopicRailsBuilder.addLateralRails(
           fixedFrameGroup,
@@ -459,7 +466,8 @@ export class SolarTrayBuilder {
         `Nível ${levelNumber} (Extensão Traseira)`,
         structureMaterial,
         aluminumColor,
-        panelSpecs.thickness
+        panelSpecs.thickness,
+        panelSpecs
       );
       TelescopicRailsBuilder.addLongitudinalRails(
         fixedFrameGroup,
@@ -489,7 +497,8 @@ export class SolarTrayBuilder {
         `Nível ${levelNumber} (Extensão Dianteira)`,
         structureMaterial,
         aluminumColor,
-        panelSpecs.thickness
+        panelSpecs.thickness,
+        panelSpecs
       );
       TelescopicRailsBuilder.addLongitudinalRails(
         fixedFrameGroup,

@@ -92,6 +92,7 @@ interface SolarContextType {
   // Carregador Inteligente DC-DC B2B1230
   setB2BEnabled: (enabled: boolean) => void;
   toggleB2BEngine: () => void;
+  setB2BEngineHours: (hours: number) => void;
 
   // Fonte e Carregador Usina 70A/120A/150A/200A Smart Connect
   toggleUsinaAC: () => void;
@@ -166,12 +167,16 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [b2bCharger, setB2BCharger] = useState<B2BChargerConfig>({
     enabled: true,
     isEngineRunning: false, // Inicia desligado (estacionado)
+    engineHoursPerDay: 1.5, // Padrão 1.5h/dia de rodagem com van ligada
     chargingAmps: 30,       // 30A contínuos
     voltageIn: 14.1,        // Alternador da Doblò
     voltageOut: 14.4,       // Curva LiFePO4
     watts: 390,             // ~390W
     bluetoothConnected: true
   });
+
+  const b2bChargerRef = useRef<B2BChargerConfig>(b2bCharger);
+  b2bChargerRef.current = b2bCharger;
 
   // Fonte e Carregador Automotivo Usina Smart Connect (70A/120A/150A/200A · 12V Bivolt)
   const [usinaCharger, setUsinaCharger] = useState<UsinaChargerConfig>({
@@ -737,11 +742,36 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const isRunning = !prev.isEngineRunning;
       if (isRunning) {
         flashToast('🚗 Alternador Doblò LIGADO! Injetando 30A (390W) na LiFePO4');
+        if (sceneManager) {
+          sceneManager.audio.startEngineSound();
+        }
       } else {
         flashToast('🅿️ Motor Doblò DESLIGADO (modo estacionado / apenas solar)');
+        if (sceneManager) {
+          sceneManager.audio.stopEngineSound();
+        }
       }
-      return { ...prev, isEngineRunning: isRunning };
+      const updated = { ...prev, isEngineRunning: isRunning };
+      b2bChargerRef.current = updated;
+      return updated;
     });
+  };
+
+  const setB2BEngineHours = (hours: number) => {
+    const clamped = Math.max(0, Math.min(24, Math.round(hours * 10) / 10));
+    setB2BCharger(prev => {
+      const next = { ...prev, engineHoursPerDay: clamped };
+      b2bChargerRef.current = next;
+      return next;
+    });
+    b2bChargerRef.current = { ...b2bChargerRef.current, engineHoursPerDay: clamped };
+    updateCalculations();
+    saveConfig({ b2bEngineHours: clamped });
+    if (clamped === 0) {
+      flashToast('🅿️ Van estacionada (0h motor ligado): apenas geração solar considerada');
+    } else {
+      flashToast(`🚗 Motor Doblò configurado: ${clamped}h/dia (+${Math.round(clamped * 30)} Ah/dia)`);
+    }
   };
 
   // ─── Fonte Usina Smart Connect (70A/120A/150A/200A · Shore Power / Camping) ─
@@ -859,6 +889,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         retractAndTilt,
         setB2BEnabled,
         toggleB2BEngine,
+        setB2BEngineHours,
         toggleUsinaAC,
         setUsinaAmps,
         setUsinaVoltage,

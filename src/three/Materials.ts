@@ -265,6 +265,64 @@ export const MaterialLibrary = {
       linewidth: 2
     });
 
+    // 8.9 Bateria LiFePO4 Kingbo 12.8V 560Ah (7.168 kWh com JK BMS 4.3")
+    const kingboFrontTex = TextureGenerator.createKingboBatteryFrontTexture();
+    const kingboScreenTex = TextureGenerator.createKingboBmsScreenTexture();
+    const kingboTopTex = TextureGenerator.createKingboBatteryTopTexture();
+
+    this.materials.kingboCase = new THREE.MeshStandardMaterial({
+      color: 0x181e26, // Carcaça em aço carbono preto fosco / grafite eletrostático
+      metalness: 0.62,
+      roughness: 0.38,
+      envMapIntensity: 1.2
+    });
+
+    this.materials.kingboFrontLabel = new THREE.MeshStandardMaterial({
+      map: kingboFrontTex,
+      roughness: 0.28,
+      metalness: 0.25,
+      bumpMap: kingboFrontTex,
+      bumpScale: 0.001
+    });
+
+    this.materials.kingboTop = new THREE.MeshStandardMaterial({
+      map: kingboTopTex,
+      roughness: 0.32,
+      metalness: 0.35
+    });
+
+    this.materials.kingboScreen = new THREE.MeshStandardMaterial({
+      map: kingboScreenTex,
+      emissive: new THREE.Color(0x0ea5e9),
+      emissiveIntensity: 0.65,
+      roughness: 0.05,
+      metalness: 0.05
+    });
+
+    this.materials.kingboTerminalPos = new THREE.MeshStandardMaterial({
+      color: 0xef4444, // Borne positivo (+) vermelho vivo
+      metalness: 0.75,
+      roughness: 0.22
+    });
+
+    this.materials.kingboTerminalNeg = new THREE.MeshStandardMaterial({
+      color: 0x18181b, // Borne negativo (-) preto
+      metalness: 0.75,
+      roughness: 0.22
+    });
+
+    this.materials.kingboBrass = new THREE.MeshStandardMaterial({
+      color: 0xf59e0b, // Parafusos M8 de latão / cobre de alta condutividade
+      metalness: 0.95,
+      roughness: 0.15
+    });
+
+    this.materials.kingboHandle = new THREE.MeshStandardMaterial({
+      color: 0x64748b, // Alças de transporte em aço inoxidável escovado
+      metalness: 0.88,
+      roughness: 0.22
+    });
+
     this.materials.mpptCase = new THREE.MeshStandardMaterial({
       color: 0x1a1f2e,
       metalness: 0.55,

@@ -8,10 +8,20 @@ import { MaterialLibrary } from './Materials';
  * caixa de junção e cabos solares com conectores MC4.
  */
 export class SolarPanelBuilder {
-  static createFlexiblePanelMesh(width: number, length: number, thickness: number, labelText?: string): THREE.Group {
+  static createFlexiblePanelMesh(
+    width: number,
+    length: number,
+    thickness: number,
+    labelText?: string,
+    panelSpecs?: any
+  ): THREE.Group {
     const mats = MaterialLibrary.materials;
     const panelGroup = new THREE.Group();
-    panelGroup.name = labelText || "FlexibleSolarPanel100W";
+    panelGroup.name = labelText || "FlexibleSolarPanel";
+
+    const powerW = panelSpecs?.powerWatts || (width > 0.7 ? 200 : 100);
+    const weight = panelSpecs?.weightKg || (width > 0.7 ? 4.0 : 1.8);
+    const label = panelSpecs?.name || labelText || `Painel Solar Flexível ${powerW}W`;
 
     // 1. Substrato Laminado Polimérico Branco (Base física do painel)
     const baseGeo = new THREE.BoxGeometry(width, thickness, length);
@@ -22,15 +32,35 @@ export class SolarPanelBuilder {
       isPanel: true,
       panelLength: length,
       panelWidth: width,
-      panelLabel: 'Painel Solar Flexível 100W',
-      spec: `${Math.round(width * 100)} x ${Math.round(length * 100)} cm • 100Wp Monocristalino • 1.6kg`
+      panelLabel: label,
+      spec: `${Math.round(width * 1000)} x ${Math.round(length * 1000)} mm • ${powerW}Wp • ${weight}kg`
     };
     panelGroup.add(baseMesh);
 
     // 2. Dimensões e Posicionamento da Matriz de Células de Silício em 3D
-    const cols = 4;
-    const rows = 8;
-    const totalCells = cols * rows; // 32 células monocristalinas
+    let cols = 4;
+    let rows = 8;
+    if (panelSpecs?.cols && panelSpecs?.rows) {
+      cols = panelSpecs.cols;
+      rows = panelSpecs.rows;
+    } else if (panelSpecs?.cellCount === 60) {
+      cols = 6;
+      rows = 10;
+    } else if (panelSpecs?.cellCount === 72) {
+      cols = 6;
+      rows = 12;
+    } else if (panelSpecs?.cellCount === 36) {
+      cols = 4;
+      rows = 9;
+    } else if (panelSpecs?.cellCount === 32) {
+      cols = 4;
+      rows = 8;
+    } else if (width > 0.75 || length > 1.05) {
+      cols = 6;
+      rows = 10;
+    }
+
+    const totalCells = cols * rows; // Células monocristalinas configuradas paramétricamente
 
     const marginX = 0.026;
     const marginTop = 0.048; // Margem superior maior para a junction box

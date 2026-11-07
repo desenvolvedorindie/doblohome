@@ -11,6 +11,7 @@ import { MpptModal } from './components/modals/MpptModal';
 import { B2bModal } from './components/modals/B2bModal';
 import { UsinaModal } from './components/modals/UsinaModal';
 import { BomModal } from './components/modals/BomModal';
+import { PanelPresetsModal } from './components/modals/PanelPresetsModal';
 
 export const App: React.FC = () => {
   return (
@@ -29,6 +30,7 @@ export const App: React.FC = () => {
       <B2bModal />
       <UsinaModal />
       <BomModal />
+      <PanelPresetsModal />
     </>
   );
 };

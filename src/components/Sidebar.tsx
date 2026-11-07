@@ -28,7 +28,6 @@ export const Sidebar: React.FC = () => {
     setCargoBoxHingeSide,
     openModal,
     b2bCharger,
-    toggleB2BEngine,
     setB2BEngineHours,
     usinaCharger,
     toggleUsinaAC,
@@ -595,26 +594,16 @@ export const Sidebar: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button
-              className={`btn-compact ${b2bCharger.isEngineRunning ? 'active' : ''}`}
-              onClick={toggleB2BEngine}
-              style={{
-                flex: 1,
-                fontSize: '10px',
-                background: b2bCharger.isEngineRunning ? 'rgba(239, 68, 68, 0.25)' : 'rgba(34, 197, 94, 0.25)',
-                borderColor: b2bCharger.isEngineRunning ? 'rgba(239, 68, 68, 0.5)' : 'rgba(34, 197, 94, 0.5)',
-                color: b2bCharger.isEngineRunning ? '#fca5a5' : '#86efac'
-              }}
-            >
-              {b2bCharger.isEngineRunning ? '⏹️ Desligar Motor' : '▶️ Ligar Alternador (+30A)'}
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+            <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>
+              Controle de ignição no topo ⬆️
+            </span>
             <button
               className="btn-compact primary"
               onClick={() => openModal('b2b')}
-              style={{ fontSize: '10px', padding: '4px 8px' }}
+              style={{ fontSize: '10px', padding: '4px 10px' }}
             >
-              📱 App / Specs
+              📱 App / Specs B2B
             </button>
           </div>
         </div>
