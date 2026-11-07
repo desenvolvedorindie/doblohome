@@ -38,3 +38,7 @@ npm run build
   - `src/context/`: `SolarContext` para estado compartilhado reativo e persistência no LocalStorage.
   - `src/components/`: Componentes React decompostos (Header, Sidebar, RightPanel, CanvasViewport, BarTooltip, Toast e Modais).
   - `src/components/modals/`: LoadsModal (Editor de Cargas & Balanço), BatteryModal (Kingbo 560Ah), MpptModal (MPPT 60A) e BomModal (Lista de Materiais e Cortes).
+
+# CorreçÕes a serem feitas
+ - A corrediça não precisa expandir desde o centro, pode expandir a partir do contraido
+ - Corrigir colisão da base, está tendo colisão que nem tá sendo verificada

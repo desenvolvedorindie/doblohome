@@ -29,6 +29,7 @@ export const Sidebar: React.FC = () => {
     openModal,
     b2bCharger,
     toggleB2BEngine,
+    setB2BEngineHours,
     usinaCharger,
     toggleUsinaAC,
     setUsinaModel
@@ -552,6 +553,47 @@ export const Sidebar: React.FC = () => {
           <p style={{ fontSize: '10.5px', color: 'var(--text-muted)', margin: '0 0 8px 0', lineHeight: 1.45 }}>
             Recarrega a bateria de serviço Kingbo 560Ah através do alternador do motor da van com curva de carga de 4 estágios.
           </p>
+
+          {/* Configuração de tempo de rodagem diária */}
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.4)',
+              border: '1px solid rgba(56, 189, 248, 0.18)',
+              borderRadius: '6px',
+              padding: '6px 8px',
+              marginBottom: '8px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600 }}>⏱️ Rodagem diária:</span>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: b2bCharger.engineHoursPerDay > 0 ? '#4ade80' : '#94a3b8' }}>
+                {b2bCharger.engineHoursPerDay.toFixed(1)} h/dia
+              </span>
+            </div>
+
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.25"
+              value={b2bCharger.engineHoursPerDay}
+              onChange={(e) => setB2BEngineHours(parseFloat(e.target.value))}
+              style={{ width: '100%', accentColor: '#38bdf8', height: '4px', cursor: 'pointer', margin: '2px 0 6px 0' }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '9px', color: 'var(--text-muted)' }}>
+              <span>
+                {b2bCharger.engineHoursPerDay > 0
+                  ? `+${Math.round(b2bCharger.engineHoursPerDay * 30)} Ah/dia injetados`
+                  : '0 Ah (sem rodar)'}
+              </span>
+              <span style={{ color: '#fbbf24', fontWeight: 600 }}>
+                {b2bCharger.engineHoursPerDay > 0
+                  ? `+${Math.round(b2bCharger.engineHoursPerDay * 390)} Wh/dia`
+                  : '0 Wh'}
+              </span>
+            </div>
+          </div>
 
           <div style={{ display: 'flex', gap: '6px' }}>
             <button
