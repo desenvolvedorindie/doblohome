@@ -32,6 +32,8 @@
 body, html {
   width: 100%;
   height: 100%;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   background-color: var(--bg-primary);
   font-family: var(--font-sans);
@@ -39,13 +41,20 @@ body, html {
   -webkit-font-smoothing: antialiased;
 }
 
-#canvas-container {
-  position: absolute;
-  top: 0;
-  left: 0;
+#root {
   width: 100%;
   height: 100%;
-  z-index: 1;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+#canvas-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
 }
 
 canvas {
@@ -289,22 +298,46 @@ canvas {
   padding: 14px;
 }
 
-/* Widget flutuante: Expandir / Contrair + Visibilidade (top-right) */
+/* Painel Direito Unificado com Scroll */
+.right-panel,
 .expansion-widget {
   position: fixed;
-  top: 80px;
-  right: 20px;
-  width: 360px;
-  max-height: calc(100vh - 100px);
+  top: 76px;
+  right: 18px;
+  bottom: 18px;
+  width: 380px;
+  max-width: calc(100vw - 36px);
   overflow-y: auto;
-  padding: 14px;
-  border-radius: var(--radius-md);
-  z-index: 200;
+  overflow-x: hidden;
+  z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 1px rgba(255, 255, 255, 0.15);
 }
 
+.right-panel::-webkit-scrollbar,
+.expansion-widget::-webkit-scrollbar {
+  width: 6px;
+}
+.right-panel::-webkit-scrollbar-track,
+.expansion-widget::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 4px;
+}
+.right-panel::-webkit-scrollbar-thumb,
+.expansion-widget::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.35);
+  border-radius: 4px;
+}
+.right-panel::-webkit-scrollbar-thumb:hover,
+.expansion-widget::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.6);
+}
+
+.right-panel .custom-slider,
 .expansion-widget .custom-slider {
   margin-bottom: 0;
 }
@@ -513,17 +546,21 @@ canvas {
   border-color: var(--primary);
 }
 
-/* Bottom Right Dashboard: Energy & Stats */
+/* Bottom Right Dashboard: Energy & Stats (incorporado na coluna com scroll) */
 .energy-card {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  width: 360px;
-  z-index: 20;
-  padding: 16px 18px;
+  position: relative;
+  bottom: auto;
+  right: auto;
+  width: 100%;
+  z-index: 1;
+  padding: 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.55);
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
 }
 
 .energy-header {

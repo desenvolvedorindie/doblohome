@@ -10,12 +10,14 @@ import {
   SteelProfileUnit,
   AluminumColor,
   ViewMode,
+  PartsGroupFilter,
   CameraPreset,
   LevelConfig,
   SavedConfig,
   CargoBoxConfig,
   CargoBoxPreset,
   WaterTankConfig,
+  AwningConfig,
   SolarPanelPreset,
   B2BChargerConfig,
   UsinaChargerConfig,
@@ -24,8 +26,16 @@ import {
   LoadsSummary,
   BatteryPerformance,
   EnergyStats,
-  BarMeasurementData
+  BarMeasurementData,
+  InternalBoxItem,
+  InternalGridConfig,
+  InternalBoxesPreset
 } from '../types';
+import {
+  DEFAULT_INTERNAL_GRID,
+  INTERNAL_BOXES_PRESETS
+} from '../data/internalBoxesPresets';
+import { dbGet, dbSet } from '../data/db';
 import {
   loadPanelPresets,
   savePanelPresets,
@@ -59,6 +69,11 @@ interface SolarContextType {
   // Caixa d'Água Lateral (2× Canos PVC 200mm — 1 de cada lado)
   waterTank: WaterTankConfig;
 
+  // Toldo Retrátil Overland (Traseiro ou Asa de Morcego 270°)
+  awning: AwningConfig;
+  setAwning: (updates: Partial<AwningConfig>) => void;
+  toggleAwningOpen: () => void;
+
   // Carregador Inteligente DC-DC B2B1230 (Alternador Doblò -> LiFePO4)
   b2bCharger: B2BChargerConfig;
 
@@ -66,12 +81,15 @@ interface SolarContextType {
   usinaCharger: UsinaChargerConfig;
 
   isVehicleVisible: boolean;
+  vehicleOpacity: number;
+  setVehicleOpacity: (opacity: number) => void;
   isDimensionsVisible: boolean;
   isChainVisible: boolean;
   isTransparent: boolean;
   isSoundEnabled: boolean;
   isAutoAnimating: boolean;
   viewMode: ViewMode;
+  partsFilter: PartsGroupFilter;
   activeCameraPreset: CameraPreset;
   sunHour: number;
 
@@ -101,6 +119,23 @@ interface SolarContextType {
   batteryPerformance: BatteryPerformance;
   loadsSummary: LoadsSummary;
   appliances: ApplianceItem[];
+
+  // Armazenadores e Caixas Internas (Grid Camper)
+  internalGrid: InternalGridConfig;
+  setInternalGrid: (grid: InternalGridConfig | ((prev: InternalGridConfig) => InternalGridConfig)) => void;
+  internalBoxes: InternalBoxItem[];
+  setInternalBoxes: (boxes: InternalBoxItem[] | ((prev: InternalBoxItem[]) => InternalBoxItem[])) => void;
+  selectedBoxId: string | null;
+  setSelectedBoxId: (id: string | null) => void;
+  isolatedBoxId: string | null;
+  setIsolatedBoxId: (id: string | null) => void;
+  isOpenPreview: boolean;
+  setIsOpenPreview: (open: boolean | ((prev: boolean) => boolean)) => void;
+  applyInternalBoxesPreset: (presetId: string) => void;
+  addInternalBox: (box: Omit<InternalBoxItem, 'id'>) => string;
+  updateInternalBox: (id: string, updates: Partial<InternalBoxItem>) => void;
+  removeInternalBox: (id: string) => void;
+  clearInternalBoxes: () => void;
 
   setStackLevels: (levels: StackLevels) => void;
   setLevel1Panels: (count: number) => void;
@@ -164,6 +199,7 @@ interface SolarContextType {
   toggleSound: () => void;
   toggleAutoAnim: () => void;
   setViewMode: (mode: ViewMode) => void;
+  setPartsFilter: (filter: PartsGroupFilter) => void;
   toggleViewMode: () => void;
 
   expand: () => void;
@@ -228,6 +264,17 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     diameterMm: 200
   });
 
+  // Toldo Retrátil Overland (Traseiro ou Asa de Morcego 270°)
+  const [awning, setAwningState] = useState<AwningConfig>({
+    enabled: false,
+    type: 'rear',
+    side: 'passenger',
+    lengthMm: 1400,
+    extensionMm: 2000,
+    isOpen: false,
+    fabricColor: '#374151'
+  });
+
   // Carregador Inteligente DC-DC B2B1230 (Alternador Doblò -> LiFePO4)
   const [b2bCharger, setB2BCharger] = useState<B2BChargerConfig>({
     enabled: true,
@@ -257,12 +304,14 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Visual toggles
   const [isVehicleVisible, setIsVehicleVisible] = useState<boolean>(true);
+  const [vehicleOpacity, setVehicleOpacityState] = useState<number>(1.0);
   const [isDimensionsVisible, setIsDimensionsVisible] = useState<boolean>(true);
   const [isChainVisible, setIsChainVisible] = useState<boolean>(false);
   const [isTransparent, setIsTransparent] = useState<boolean>(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(true);
   const [isAutoAnimating, setIsAutoAnimating] = useState<boolean>(false);
   const [viewMode, setViewModeState] = useState<ViewMode>('assembled');
+  const [partsFilter, setPartsFilterState] = useState<PartsGroupFilter>('all');
   const [activeCameraPreset, setActiveCameraPreset] = useState<CameraPreset>('iso');
   const [sunHour, setSunHourState] = useState<number>(12.0);
 
@@ -281,6 +330,13 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [cargoBoxPresets, setCargoBoxPresetsState] = useState<CargoBoxPreset[]>(() => loadCargoBoxPresets());
   const [activeCargoPresetId, setActiveCargoPresetIdState] = useState<string>(() => loadActiveCargoPresetId());
   const activeCargoBoxPreset = cargoBoxPresets.find(p => p.id === activeCargoPresetId) || cargoBoxPresets[0];
+
+  // Armazenadores e Caixas Internas (Grid Camper)
+  const [internalGrid, setInternalGridState] = useState<InternalGridConfig>(DEFAULT_INTERNAL_GRID);
+  const [internalBoxes, setInternalBoxesState] = useState<InternalBoxItem[]>(INTERNAL_BOXES_PRESETS[0].boxes);
+  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+  const [isolatedBoxId, setIsolatedBoxIdState] = useState<string | null>(null);
+  const [isOpenPreview, setIsOpenPreview] = useState<boolean>(false);
 
   // Métricas
   const [energyStats, setEnergyStats] = useState<EnergyStats>({
@@ -363,42 +419,60 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setAppliances([...sceneManager.solarSim.APPLIANCES]);
   };
 
-  // Carrega configurações do LocalStorage ao montar
+  const isDbLoadedRef = useRef<boolean>(false);
+
+  // Carrega configurações do Banco de Dados (IndexedDB) ao montar
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('doblo_solar_config');
-      if (raw) {
-        const cfg: SavedConfig = JSON.parse(raw);
-        if (cfg.stackLevels) setStackLevelsState(cfg.stackLevels);
-        if (cfg.level1) setLevel1State(cfg.level1);
-        if (cfg.level2) setLevel2State(cfg.level2);
-        if (cfg.structureMaterial) setStructureMaterialState(cfg.structureMaterial);
-        if (cfg.steelProfileUnit) setSteelProfileUnitState(cfg.steelProfileUnit);
-        if (cfg.aluminumColor) setAluminumColorState(cfg.aluminumColor);
-        if (cfg.cargoBox) {
-          const maxLift = Math.max(60, Math.floor(((cfg.cargoBox.height || 330) - 100) / 10) * 10);
-          setCargoBoxState({
-            ...cfg.cargoBox,
-            verticalLiftMm: Math.max(0, Math.min(maxLift, cfg.cargoBox.verticalLiftMm || 0))
-          });
+    (async () => {
+      try {
+        const cfg = await dbGet<SavedConfig>('doblo_solar_config');
+        if (cfg) {
+          if (cfg.stackLevels) setStackLevelsState(cfg.stackLevels);
+          if (cfg.level1) setLevel1State(cfg.level1);
+          if (cfg.level2) setLevel2State(cfg.level2);
+          if (cfg.structureMaterial) setStructureMaterialState(cfg.structureMaterial);
+          if (cfg.steelProfileUnit) setSteelProfileUnitState(cfg.steelProfileUnit);
+          if (cfg.aluminumColor) setAluminumColorState(cfg.aluminumColor);
+          if (cfg.cargoBox) {
+            const maxLift = Math.max(60, Math.floor(((cfg.cargoBox.height || 330) - 100) / 10) * 10);
+            setCargoBoxState({
+              ...cfg.cargoBox,
+              verticalLiftMm: Math.max(0, Math.min(maxLift, cfg.cargoBox.verticalLiftMm || 0))
+            });
+          }
+          if (cfg.waterTank) {
+            setWaterTankState({
+              enabled: Boolean(cfg.waterTank.enabled),
+              lengthMm: Math.max(400, Math.min(2200, Math.round(cfg.waterTank.lengthMm || 2200))),
+              diameterMm: Math.max(80, Math.min(350, Math.round(cfg.waterTank.diameterMm || 200)))
+            });
+          }
+          if (cfg.awning) {
+            setAwningState(cfg.awning);
+          }
+          if (cfg.offsetZ !== undefined) setOffsetZState(cfg.offsetZ);
+          if (cfg.offsetY !== undefined) {
+            const safeOffsetY = Math.max(0, cfg.offsetY);
+            setOffsetYState(safeOffsetY);
+          }
+          if (cfg.expansionProgress !== undefined) setExpansionProgressState(cfg.expansionProgress);
         }
-        if (cfg.waterTank) {
-          setWaterTankState({
-            enabled: Boolean(cfg.waterTank.enabled),
-            lengthMm: Math.max(400, Math.min(2200, Math.round(cfg.waterTank.lengthMm || 2200))),
-            diameterMm: Math.max(80, Math.min(350, Math.round(cfg.waterTank.diameterMm || 200)))
-          });
+
+        const savedGrid = await dbGet<InternalGridConfig>('doblo_internal_grid');
+        if (savedGrid && savedGrid.colsX && savedGrid.rowsZ) {
+          setInternalGridState(savedGrid);
         }
-        if (cfg.offsetZ !== undefined) setOffsetZState(cfg.offsetZ);
-        if (cfg.offsetY !== undefined) {
-          const safeOffsetY = Math.max(0, cfg.offsetY);
-          setOffsetYState(safeOffsetY);
+
+        const savedBoxes = await dbGet<InternalBoxItem[]>('doblo_internal_boxes');
+        if (savedBoxes && Array.isArray(savedBoxes)) {
+          setInternalBoxesState(savedBoxes);
         }
-        if (cfg.expansionProgress !== undefined) setExpansionProgressState(cfg.expansionProgress);
+      } catch (e) {
+        console.warn('Erro ao restaurar configurações do banco de dados:', e);
+      } finally {
+        isDbLoadedRef.current = true;
       }
-    } catch (e) {
-      console.warn('Erro ao restaurar configurações:', e);
-    }
+    })();
   }, []);
 
   // Quando o sceneManager estiver disponível, aplica as configurações restauradas
@@ -407,6 +481,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     sceneManager.solarSystem.setCargoBox(cargoBox);
     sceneManager.solarSystem.setWaterTank(waterTank);
+    sceneManager.solarSystem.setAwningConfig(awning);
     if (activePanelPreset) {
       sceneManager.solarSystem.setPanelSpecs({
         width: activePanelPreset.width,
@@ -452,10 +527,155 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       updateCalculations();
     };
 
+    sceneManager.onBoxSelect = (boxId: string | null) => {
+      setSelectedBoxId(boxId);
+    };
+
+    sceneManager.onBoxDoubleClick = (boxId: string | null) => {
+      setIsolatedBoxId(boxId);
+    };
+
     updateCalculations();
   }, [sceneManager]);
 
-  // Salva configurações
+  const setIsolatedBoxId = (id: string | null) => {
+    setIsolatedBoxIdState(id);
+    if (id) {
+      setSelectedBoxId(id);
+      if (viewMode !== 'internal_boxes') {
+        setViewModeState('internal_boxes');
+        if (sceneManager) sceneManager.setViewMode('internal_boxes', isVehicleVisible);
+      }
+      const targetBox = internalBoxes.find((b) => b.id === id);
+      flashToast(`🎯 Modo Foco: Visualizando apenas "${targetBox?.name || 'Baú'}"`);
+      if (sceneManager) {
+        sceneManager.focusOnBox(id);
+      }
+    } else {
+      flashToast('👁️ Exibindo todos os baús');
+      if (sceneManager) {
+        sceneManager.focusOnBox(null);
+      }
+    }
+  };
+
+  // Sincroniza o sistema 3D de caixas internas sempre que mudar
+  useEffect(() => {
+    if (!sceneManager) return;
+    sceneManager.updateInternalBoxes(internalGrid, internalBoxes, selectedBoxId, isOpenPreview, isolatedBoxId);
+  }, [sceneManager, internalGrid, internalBoxes, selectedBoxId, isOpenPreview, isolatedBoxId]);
+
+  // Tecla ESC para sair do modo de foco isolado
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isolatedBoxId) {
+        setIsolatedBoxId(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isolatedBoxId]);
+
+  // Persiste caixas e grid no IndexedDB apenas após a carga inicial
+  useEffect(() => {
+    if (!isDbLoadedRef.current) return;
+    dbSet('doblo_internal_grid', internalGrid);
+  }, [internalGrid]);
+
+  useEffect(() => {
+    if (!isDbLoadedRef.current) return;
+    dbSet('doblo_internal_boxes', internalBoxes);
+  }, [internalBoxes]);
+
+  // Funções de manipulação das caixas internas com persistência direta imediata
+  const setInternalGrid = (newGrid: InternalGridConfig | ((prev: InternalGridConfig) => InternalGridConfig)) => {
+    setInternalGridState(prev => {
+      const next = typeof newGrid === 'function' ? newGrid(prev) : newGrid;
+      if (isDbLoadedRef.current) {
+        dbSet('doblo_internal_grid', next);
+      }
+      return next;
+    });
+  };
+
+  const setInternalBoxes = (newBoxes: InternalBoxItem[] | ((prev: InternalBoxItem[]) => InternalBoxItem[])) => {
+    setInternalBoxesState(prev => {
+      const next = typeof newBoxes === 'function' ? newBoxes(prev) : newBoxes;
+      if (isDbLoadedRef.current) {
+        dbSet('doblo_internal_boxes', next);
+      }
+      return next;
+    });
+  };
+
+  const applyInternalBoxesPreset = (presetId: string) => {
+    const preset = INTERNAL_BOXES_PRESETS.find(p => p.id === presetId);
+    if (preset) {
+      setInternalGridState(preset.grid);
+      setInternalBoxesState(preset.boxes);
+      setSelectedBoxId(null);
+      setIsolatedBoxIdState(null);
+      if (isDbLoadedRef.current) {
+        dbSet('doblo_internal_grid', preset.grid);
+        dbSet('doblo_internal_boxes', preset.boxes);
+      }
+      flashToast(`📐 Layout Aplicado: ${preset.name}`);
+    }
+  };
+
+  const addInternalBox = (box: Omit<InternalBoxItem, 'id'>): string => {
+    const id = `box_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const newBox: InternalBoxItem = { ...box, id };
+    setInternalBoxesState(prev => {
+      const next = [...prev, newBox];
+      if (isDbLoadedRef.current) {
+        dbSet('doblo_internal_boxes', next);
+      }
+      return next;
+    });
+    setSelectedBoxId(id);
+    flashToast(`📦 Caixa "${newBox.name}" adicionada ao grid`);
+    return id;
+  };
+
+  const updateInternalBox = (id: string, updates: Partial<InternalBoxItem>) => {
+    setInternalBoxesState(prev => {
+      const next = prev.map(b => (b.id === id ? { ...b, ...updates } : b));
+      if (isDbLoadedRef.current) {
+        dbSet('doblo_internal_boxes', next);
+      }
+      return next;
+    });
+  };
+
+  const removeInternalBox = (id: string) => {
+    setInternalBoxesState(prev => {
+      const next = prev.filter(b => b.id !== id);
+      if (isDbLoadedRef.current) {
+        dbSet('doblo_internal_boxes', next);
+      }
+      return next;
+    });
+    if (selectedBoxId === id) setSelectedBoxId(null);
+    if (isolatedBoxId === id) {
+      setIsolatedBoxIdState(null);
+      if (sceneManager) sceneManager.focusOnBox(null);
+    }
+    flashToast('🗑️ Caixa removida do grid');
+  };
+
+  const clearInternalBoxes = () => {
+    setInternalBoxesState([]);
+    setSelectedBoxId(null);
+    setIsolatedBoxIdState(null);
+    if (sceneManager) sceneManager.focusOnBox(null);
+    if (isDbLoadedRef.current) {
+      dbSet('doblo_internal_boxes', []);
+    }
+    flashToast('🧹 Grid limpo: todas as caixas foram removidas');
+  };
+
+  // Salva configurações no Banco de Dados (IndexedDB)
   const saveConfig = (overrides?: Partial<SavedConfig>) => {
     const configToSave: SavedConfig = {
       stackLevels: overrides?.stackLevels ?? stackLevels,
@@ -470,12 +690,8 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       offsetY: overrides?.offsetY ?? offsetY,
       expansionProgress: overrides?.expansionProgress ?? expansionProgress
     };
-    try {
-      localStorage.setItem('doblo_solar_config', JSON.stringify(configToSave));
-      flashToast('✅ Configuração Salva');
-    } catch (e) {
-      console.warn('Erro ao salvar no LocalStorage:', e);
-    }
+    dbSet('doblo_solar_config', configToSave);
+    flashToast('✅ Configuração Salva no Banco de Dados');
   };
 
   const setStackLevels = (levels: StackLevels) => {
@@ -630,6 +846,11 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const next = !isVehicleVisible;
     setIsVehicleVisible(next);
     if (sceneManager) sceneManager.vehicle.setVisible(next);
+  };
+
+  const setVehicleOpacity = (op: number) => {
+    setVehicleOpacityState(op);
+    if (sceneManager) sceneManager.setVehicleOpacity(op);
   };
 
   const toggleDimensions = () => {
@@ -1064,6 +1285,30 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setWaterTank({ diameterMm: clampedRadius * 2 });
   };
 
+  // ─── Toldo Retrátil Overland (Traseiro ou Asa de Morcego 270°) ────────
+  const setAwning = (updates: Partial<AwningConfig>) => {
+    setAwningState((prev) => {
+      const next = { ...prev, ...updates };
+      if (sceneManager) {
+        sceneManager.solarSystem.setAwningConfig(next);
+      }
+      saveConfig({ awning: next } as any);
+      return next;
+    });
+  };
+
+  const toggleAwningOpen = () => {
+    setAwningState((prev) => {
+      const next = { ...prev, isOpen: !prev.isOpen };
+      if (sceneManager) {
+        sceneManager.solarSystem.setAwningConfig(next);
+      }
+      flashToast(next.isOpen ? '⛺ Toldo Overland Aberto / Desdobrado!' : '⛺ Toldo Recolhido no Estojo');
+      saveConfig({ awning: next } as any);
+      return next;
+    });
+  };
+
   // ─── Carregador Inteligente DC-DC B2B1230 ──────────────────────────────────
   const setB2BEnabled = (enabled: boolean) => {
     setB2BCharger(prev => ({ ...prev, enabled }));
@@ -1186,13 +1431,30 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const setViewMode = (mode: ViewMode) => {
     setViewModeState(mode);
+    if (mode !== 'internal_boxes' && isolatedBoxId) {
+      setIsolatedBoxIdState(null);
+    }
     if (sceneManager) {
       sceneManager.setViewMode(mode, isVehicleVisible);
-      if (mode === 'bars_lineup') {
+      if (mode === 'internal_boxes') {
+        flashToast('📦 Modo 1: Caixas Internas (Grid & Armazenadores Camper)');
+      } else if (mode === 'bars_lineup') {
         const total = sceneManager.barsLineupGroup.userData.totalBars || 0;
-        flashToast(`📏 Modo Bancada: ${total} barras alinhadas da maior para a menor!`);
+        flashToast(`📏 Modo 3: Bancada de Peças (${total} peças alinhadas)`);
       } else {
-        flashToast('🚐 Modo Montado: Doblò + Estrutura Solar Completa');
+        flashToast('🚐 Modo 2: Doblò + Estrutura Solar Completa');
+      }
+    }
+  };
+
+  const setPartsFilter = (filter: PartsGroupFilter) => {
+    setPartsFilterState(filter);
+    if (sceneManager) {
+      sceneManager.setBarsLineupFilter(filter);
+      if (viewMode === 'bars_lineup') {
+        const total = sceneManager.barsLineupGroup.userData.totalBars || 0;
+        const label = filter === 'metal' ? '🔩 Ferragens' : filter === 'wood' ? '🪵 Madeira' : '📦 Todas as Peças';
+        flashToast(`${label}: ${total} peças alinhadas`);
       }
     }
   };
@@ -1217,15 +1479,19 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         expansionProgress,
         cargoBox,
         waterTank,
+        awning,
         b2bCharger,
         usinaCharger,
         isVehicleVisible,
+        vehicleOpacity,
+        setVehicleOpacity,
         isDimensionsVisible,
         isChainVisible,
         isTransparent,
         isSoundEnabled,
         isAutoAnimating,
         viewMode,
+        partsFilter,
         activeCameraPreset,
         sunHour,
         hoveredBar,
@@ -1248,6 +1514,21 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         batteryPerformance,
         loadsSummary,
         appliances,
+        internalGrid,
+        setInternalGrid,
+        internalBoxes,
+        setInternalBoxes,
+        selectedBoxId,
+        setSelectedBoxId,
+        isolatedBoxId,
+        setIsolatedBoxId,
+        isOpenPreview,
+        setIsOpenPreview,
+        applyInternalBoxesPreset,
+        addInternalBox,
+        updateInternalBox,
+        removeInternalBox,
+        clearInternalBoxes,
         setStackLevels,
         setLevel1Panels,
         setLevel1Direction,
@@ -1277,6 +1558,8 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setWaterTankEnabled,
         setWaterTankLength,
         setWaterTankRadius,
+        setAwning,
+        toggleAwningOpen,
         setB2BEnabled,
         toggleB2BEngine,
         setB2BEngineHours,
@@ -1297,6 +1580,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toggleSound,
         toggleAutoAnim,
         setViewMode,
+        setPartsFilter,
         toggleViewMode,
         expand,
         retract,

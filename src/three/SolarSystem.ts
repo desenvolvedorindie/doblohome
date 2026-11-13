@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import { SlideDirection, PanelOrientation, StructureMaterial, AluminumColor, SteelProfileUnit, StackLevels, CargoBoxConfig, WaterTankConfig } from '../types';
+import { SlideDirection, PanelOrientation, StructureMaterial, AluminumColor, SteelProfileUnit, StackLevels, CargoBoxConfig, WaterTankConfig, AwningConfig } from '../types';
 import { CargoBoxSystem } from './CargoBox';
 import { BaseRackBuilder } from './BaseRackBuilder';
 import { SolarTrayBuilder, MotionPlan, TrayDimensions } from './SolarTrayBuilder';
 import { SpacerPostsBuilder } from './SpacerPosts';
 import { PowerStorageBuilder } from './PowerStorage';
 import { DimensionOverlayBuilder } from './DimensionOverlay';
+import { AwningSystem } from './AwningSystem';
 
 /**
  * Sistema Mecânico do Rack Solar Retrátil para Fiat Doblò
@@ -65,6 +66,10 @@ export class SolarSystem {
   // Caixa d'Água Lateral (2× Canos PVC 200mm — 1 de cada lado)
   waterTankConfig: WaterTankConfig;
   waterTankGroup: THREE.Group;
+
+  // Toldo Retrátil Overland (Traseiro ou Asa de Morcego 270°)
+  awningConfig: AwningConfig;
+  awningSystem: AwningSystem;
 
   fixedFrameGroup: THREE.Group;
   upperLayerGroup: THREE.Group;
@@ -227,6 +232,19 @@ export class SolarSystem {
       this.steelProfileUnit
     );
     this.group.add(this.cargoBoxSystem.group);
+
+    // Toldo Retrátil Overland (Traseiro Reto ou Asa de Morcego 270°)
+    this.awningConfig = {
+      enabled: false,
+      type: 'rear',
+      side: 'passenger',
+      lengthMm: 1400,
+      extensionMm: 2000,
+      isOpen: false,
+      fabricColor: '#374151'
+    };
+    this.awningSystem = new AwningSystem(this.awningConfig, this.BASE_Y, this.RACK_OFFSET_Z);
+    this.group.add(this.awningSystem.group);
 
     this.slidingLayers = [
       this.slidingLayerGroup1,
@@ -484,6 +502,15 @@ export class SolarSystem {
     };
     this.buildSystem();
     this.updateExpansion(this.expansionProgress);
+  }
+
+  // --- CONTROLES DO TOLDO RETRÁTIL OVERLAND ---
+
+  setAwningConfig(config: Partial<AwningConfig>) {
+    this.awningConfig = { ...this.awningConfig, ...config };
+    if (this.awningSystem) {
+      this.awningSystem.setConfig(this.awningConfig);
+    }
   }
 
   // --- RECONSTRUÇÃO DO SISTEMA COMPLETO ---

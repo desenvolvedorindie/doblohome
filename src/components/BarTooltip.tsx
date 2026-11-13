@@ -34,6 +34,12 @@ export const BarTooltip: React.FC = () => {
       accentColor = '#f59e0b';
       icon = '☀️';
     }
+  } else if (hoveredBar.category?.includes('🪵') || hoveredBar.name?.includes('Compensado')) {
+    accentColor = '#f59e0b';
+    icon = '🪵';
+  } else if (hoveredBar.category?.includes('📦') || hoveredBar.category?.includes('🧰')) {
+    accentColor = '#38bdf8';
+    icon = hoveredBar.category.includes('📦') ? '📦' : '🧰';
   }
 
   const isWater = hoveredBar.electricalType === 'water';
@@ -162,10 +168,21 @@ export const BarTooltip: React.FC = () => {
               <span style={{ color: '#cbd5e1' }}>{hoveredBar.cutAngle}</span>
             </div>
           )}
+          {hoveredBar.capacity && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span style={{ color: '#94a3b8' }}>Capacidade / Volume:</span>
+              <span style={{ fontWeight: 700, color: '#4ade80' }}>{hoveredBar.capacity}</span>
+            </div>
+          )}
           {hoveredBar.material && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span style={{ color: '#94a3b8' }}>Material:</span>
               <span style={{ color: '#cbd5e1' }}>{hoveredBar.material}</span>
+            </div>
+          )}
+          {hoveredBar.purpose && (
+            <div style={{ marginTop: '4px', fontSize: '10px', color: '#cbd5e1', lineHeight: 1.4, fontStyle: 'italic', background: 'rgba(255, 255, 255, 0.04)', padding: '5px 8px', borderRadius: '4px' }}>
+              💡 {hoveredBar.purpose}
             </div>
           )}
         </div>

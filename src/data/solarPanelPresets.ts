@@ -1,4 +1,5 @@
 import { SolarPanelPreset } from '../types';
+import { dbGet, dbSet } from './db';
 
 export const DEFAULT_SOLAR_PANEL_PRESETS: SolarPanelPreset[] = [
   {
@@ -75,62 +76,54 @@ const PRESETS_STORAGE_KEY = 'doblo_solar_panel_presets';
 const ACTIVE_PRESET_KEY = 'doblo_solar_active_preset_id';
 const LEGACY_DEFAULT_IDS = new Set(['flex-100w-padrao', 'resun-100w-flex', 'flex-200w-inmetro']);
 
-/**
- * Carrega a lista de presets salvos no LocalStorage mantendo apenas os 2 padrões Inohouse + customizados do usuário
- */
-export function loadPanelPresets(): SolarPanelPreset[] {
-  try {
-    const raw = localStorage.getItem(PRESETS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const defaultIds = new Set(DEFAULT_SOLAR_PANEL_PRESETS.map(d => d.id));
-        const customOnly = parsed.filter(
-          (p: SolarPanelPreset) => !p.isDefault && !defaultIds.has(p.id) && !LEGACY_DEFAULT_IDS.has(p.id)
-        );
-        return [...DEFAULT_SOLAR_PANEL_PRESETS, ...customOnly];
-      }
+let memoryPanelPresets: SolarPanelPreset[] = [...DEFAULT_SOLAR_PANEL_PRESETS];
+let memoryActivePresetId: string = DEFAULT_SOLAR_PANEL_PRESETS[0].id;
+
+if (typeof window !== 'undefined') {
+  dbGet<SolarPanelPreset[]>(PRESETS_STORAGE_KEY).then((data) => {
+    if (data && Array.isArray(data) && data.length > 0) {
+      const defaultIds = new Set(DEFAULT_SOLAR_PANEL_PRESETS.map(d => d.id));
+      const customOnly = data.filter(
+        (p: SolarPanelPreset) => !p.isDefault && !defaultIds.has(p.id) && !LEGACY_DEFAULT_IDS.has(p.id)
+      );
+      memoryPanelPresets = [...DEFAULT_SOLAR_PANEL_PRESETS, ...customOnly];
     }
-  } catch (e) {
-    console.warn('Erro ao carregar presets de placas do localStorage:', e);
-  }
-  return [...DEFAULT_SOLAR_PANEL_PRESETS];
+  });
+
+  dbGet<string>(ACTIVE_PRESET_KEY).then((id) => {
+    if (id === 'flex-200w-inmetro') memoryActivePresetId = 'inohouse-200w';
+    else if (id && LEGACY_DEFAULT_IDS.has(id)) memoryActivePresetId = 'inohouse-100w';
+    else if (id) memoryActivePresetId = id;
+  });
 }
 
 /**
- * Salva a lista de presets no LocalStorage
+ * Carrega a lista de presets salvos no banco de dados
+ */
+export function loadPanelPresets(): SolarPanelPreset[] {
+  return [...memoryPanelPresets];
+}
+
+/**
+ * Salva a lista de presets no banco de dados (IndexedDB)
  */
 export function savePanelPresets(presets: SolarPanelPreset[]): void {
-  try {
-    localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
-  } catch (e) {
-    console.warn('Erro ao salvar presets de placas no localStorage:', e);
-  }
+  memoryPanelPresets = presets;
+  dbSet(PRESETS_STORAGE_KEY, presets);
 }
 
 /**
  * Carrega o ID do preset ativo salvo
  */
 export function loadActivePresetId(): string {
-  try {
-    const id = localStorage.getItem(ACTIVE_PRESET_KEY);
-    if (id === 'flex-200w-inmetro') return 'inohouse-200w';
-    if (id && LEGACY_DEFAULT_IDS.has(id)) return 'inohouse-100w';
-    if (id) return id;
-  } catch (e) {
-    console.warn('Erro ao ler active preset id:', e);
-  }
-  return DEFAULT_SOLAR_PANEL_PRESETS[0].id;
+  return memoryActivePresetId;
 }
 
 /**
- * Salva o ID do preset ativo
+ * Salva o ID do preset ativo no banco de dados (IndexedDB)
  */
 export function saveActivePresetId(id: string): void {
-  try {
-    localStorage.setItem(ACTIVE_PRESET_KEY, id);
-  } catch (e) {
-    console.warn('Erro ao salvar active preset id:', e);
-  }
+  memoryActivePresetId = id;
+  dbSet(ACTIVE_PRESET_KEY, id);
 }
 

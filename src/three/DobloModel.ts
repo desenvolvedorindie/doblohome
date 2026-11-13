@@ -212,5 +212,29 @@ export class DobloVehicle {
   setVisible(visible: boolean) {
     this.group.visible = visible;
   }
+
+  setOpacity(opacity: number) {
+    const isTranslucent = opacity < 0.99;
+    this.group.traverse((child: any) => {
+      if (child.isMesh && child.name !== '__roof_collider') {
+        const mat = child.material;
+        if (mat) {
+          const updateMat = (m: any) => {
+            if (m.userData?.origOpacity === undefined) {
+              m.userData = { ...m.userData, origOpacity: m.opacity ?? 1 };
+            }
+            m.transparent = isTranslucent;
+            m.opacity = isTranslucent ? opacity : m.userData.origOpacity;
+            m.depthWrite = !isTranslucent;
+          };
+          if (Array.isArray(mat)) {
+            mat.forEach(updateMat);
+          } else {
+            updateMat(mat);
+          }
+        }
+      }
+    });
+  }
 }
 

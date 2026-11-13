@@ -1,4 +1,5 @@
 import { CargoBoxPreset } from '../types';
+import { dbGet, dbSet } from './db';
 
 export const DEFAULT_CARGO_BOX_PRESETS: CargoBoxPreset[] = [
   {
@@ -95,53 +96,46 @@ export const DEFAULT_CARGO_BOX_PRESETS: CargoBoxPreset[] = [
 const CARGO_PRESETS_STORAGE_KEY = 'doblo_cargo_box_presets';
 const ACTIVE_CARGO_PRESET_KEY = 'doblo_active_cargo_preset_id';
 
-export function loadCargoBoxPresets(): CargoBoxPreset[] {
-  try {
-    const raw = localStorage.getItem(CARGO_PRESETS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const merged = [...parsed];
-        DEFAULT_CARGO_BOX_PRESETS.forEach(def => {
-          const idx = merged.findIndex(p => p.id === def.id);
-          if (idx === -1) {
-            merged.push(def);
-          } else {
-            merged[idx] = { ...def, ...merged[idx], isDefault: true };
-          }
-        });
-        return merged;
-      }
+let memoryCargoPresets: CargoBoxPreset[] = [...DEFAULT_CARGO_BOX_PRESETS];
+let memoryActivePresetId: string = DEFAULT_CARGO_BOX_PRESETS[0].id;
+
+// Inicializa a carga a partir do IndexedDB
+if (typeof window !== 'undefined') {
+  dbGet<CargoBoxPreset[]>(CARGO_PRESETS_STORAGE_KEY).then((data) => {
+    if (data && Array.isArray(data) && data.length > 0) {
+      const merged = [...data];
+      DEFAULT_CARGO_BOX_PRESETS.forEach(def => {
+        const idx = merged.findIndex(p => p.id === def.id);
+        if (idx === -1) {
+          merged.push(def);
+        } else {
+          merged[idx] = { ...def, ...merged[idx], isDefault: true };
+        }
+      });
+      memoryCargoPresets = merged;
     }
-  } catch (e) {
-    console.warn('Erro ao carregar presets de baú do localStorage:', e);
-  }
-  return [...DEFAULT_CARGO_BOX_PRESETS];
+  });
+
+  dbGet<string>(ACTIVE_CARGO_PRESET_KEY).then((id) => {
+    if (id) memoryActivePresetId = id;
+  });
+}
+
+export function loadCargoBoxPresets(): CargoBoxPreset[] {
+  return [...memoryCargoPresets];
 }
 
 export function saveCargoBoxPresets(presets: CargoBoxPreset[]): void {
-  try {
-    localStorage.setItem(CARGO_PRESETS_STORAGE_KEY, JSON.stringify(presets));
-  } catch (e) {
-    console.warn('Erro ao salvar presets de baú no localStorage:', e);
-  }
+  memoryCargoPresets = presets;
+  dbSet(CARGO_PRESETS_STORAGE_KEY, presets);
 }
 
 export function loadActiveCargoPresetId(): string {
-  try {
-    const id = localStorage.getItem(ACTIVE_CARGO_PRESET_KEY);
-    if (id) return id;
-  } catch (e) {
-    console.warn('Erro ao ler active cargo preset id:', e);
-  }
-  return DEFAULT_CARGO_BOX_PRESETS[0].id;
+  return memoryActivePresetId;
 }
 
 export function saveActiveCargoPresetId(id: string): void {
-  try {
-    localStorage.setItem(ACTIVE_CARGO_PRESET_KEY, id);
-  } catch (e) {
-    console.warn('Erro ao salvar active cargo preset id:', e);
-  }
+  memoryActivePresetId = id;
+  dbSet(ACTIVE_CARGO_PRESET_KEY, id);
 }
 

@@ -23,6 +23,9 @@ export const RightPanel: React.FC = () => {
     toggleSound,
     viewMode,
     setViewMode,
+    partsFilter,
+    setPartsFilter,
+    sceneManager,
     activeCameraPreset,
     setCameraPreset,
     energyStats,
@@ -31,6 +34,9 @@ export const RightPanel: React.FC = () => {
     cargoBox,
     setCargoBoxEnabled,
     setCargoBoxVerticalLift,
+    awning,
+    setAwning,
+    toggleAwningOpen,
     setTiltAngle,
     setBoxLidAngle,
     tiltSolarRack,
@@ -91,7 +97,7 @@ export const RightPanel: React.FC = () => {
 
   return (
     <>
-      {/* Barra Flutuante Central no Topo da Tela: Alternar entre Modo 1 (Doblò + Estrutura) e Modo 2 (Só Barras) */}
+      {/* Barra Flutuante Central no Topo da Tela: Alternar entre Modo 1 (Caixas Internas), Modo 2 (Doblò + Estrutura) e Modo 3 (Peças) */}
       <div
         className="glass-panel"
         style={{
@@ -111,6 +117,23 @@ export const RightPanel: React.FC = () => {
         }}
       >
         <button
+          onClick={() => setViewMode('internal_boxes')}
+          style={{
+            border: 'none',
+            borderRadius: '999px',
+            padding: '7px 16px',
+            fontSize: '12px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            background: viewMode === 'internal_boxes' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'transparent',
+            color: viewMode === 'internal_boxes' ? '#ffffff' : '#94a3b8',
+            boxShadow: viewMode === 'internal_boxes' ? '0 2px 10px rgba(245, 158, 11, 0.45)' : 'none'
+          }}
+        >
+          📦 1. Caixas Internas
+        </button>
+        <button
           onClick={() => setViewMode('assembled')}
           style={{
             border: 'none',
@@ -125,7 +148,7 @@ export const RightPanel: React.FC = () => {
             boxShadow: viewMode === 'assembled' ? '0 2px 10px rgba(14, 165, 233, 0.45)' : 'none'
           }}
         >
-          🚐 1. Doblò + Estrutura
+          🚐 2. Doblò + Estrutura
         </button>
         <button
           onClick={() => setViewMode('bars_lineup')}
@@ -142,18 +165,18 @@ export const RightPanel: React.FC = () => {
             boxShadow: viewMode === 'bars_lineup' ? '0 2px 10px rgba(16, 185, 129, 0.45)' : 'none'
           }}
         >
-          📏 2. Só Barras
+          📏 3. Peças
         </button>
       </div>
 
-      {/* Widget flutuante: Expandir / Contrair Gavetas + Visibilidade (top-right) */}
-      <div className="expansion-widget glass-panel" id="expansion-widget">
+      {/* Painel Direito Unificado com Scroll: Expansão + Acessórios + Dashboard Elétrico */}
+      <aside className="right-panel glass-panel" id="right-panel">
         {/* Seletor de Modo de Visualização no topo do painel direito */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '6px',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gap: '4px',
             marginBottom: '10px',
             padding: '4px',
             background: 'rgba(15, 23, 42, 0.65)',
@@ -162,22 +185,147 @@ export const RightPanel: React.FC = () => {
           }}
         >
           <button
+            className={`cam-btn ${viewMode === 'internal_boxes' ? 'active' : ''}`}
+            onClick={() => setViewMode('internal_boxes')}
+            style={{ fontWeight: 800, fontSize: '9.5px', padding: '6px 2px' }}
+          >
+            📦 Caixas
+          </button>
+          <button
             className={`cam-btn ${viewMode === 'assembled' ? 'active' : ''}`}
             onClick={() => setViewMode('assembled')}
-            style={{ fontWeight: 800, fontSize: '10.5px', padding: '6px 4px' }}
+            style={{ fontWeight: 800, fontSize: '9.5px', padding: '6px 2px' }}
           >
-            🚐 Doblò + Estrutura
+            🚐 Doblò
           </button>
           <button
             className={`cam-btn ${viewMode === 'bars_lineup' ? 'active' : ''}`}
             onClick={() => setViewMode('bars_lineup')}
-            style={{ fontWeight: 800, fontSize: '10.5px', padding: '6px 4px' }}
+            style={{ fontWeight: 800, fontSize: '9.5px', padding: '6px 2px' }}
           >
-            📏 Só Barras
+            📏 Peças
           </button>
         </div>
 
-        <div className="expansion-widget-header">
+        {viewMode === 'bars_lineup' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '9px', marginBottom: '4px' }}>
+            <div className="expansion-widget-header" style={{ marginBottom: '2px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#10b981', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                📏 BANCADA DE PEÇAS 3D
+              </span>
+              <span
+                className="status-badge"
+                style={{
+                  background: 'rgba(16, 185, 129, 0.2)',
+                  color: '#34d399',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  fontSize: '9.5px',
+                  fontWeight: 700
+                }}
+              >
+                {sceneManager?.barsLineupGroup?.userData?.totalBars ?? 0} Peças no Solo
+              </span>
+            </div>
+
+            {/* Abas dos 2 Grupos: Ferragens e Madeira */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+              <button
+                className={`btn-compact ${partsFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setPartsFilter('all')}
+                style={{
+                  fontSize: '9.5px',
+                  padding: '6px 2px',
+                  fontWeight: 800,
+                  background: partsFilter === 'all' ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.35))' : undefined,
+                  borderColor: partsFilter === 'all' ? '#10b981' : undefined
+                }}
+              >
+                📦 Ambos
+              </button>
+              <button
+                className={`btn-compact ${partsFilter === 'metal' ? 'active' : ''}`}
+                onClick={() => setPartsFilter('metal')}
+                style={{
+                  fontSize: '9.5px',
+                  padding: '6px 2px',
+                  fontWeight: 800,
+                  background: partsFilter === 'metal' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(37, 99, 235, 0.35))' : undefined,
+                  borderColor: partsFilter === 'metal' ? '#38bdf8' : undefined,
+                  color: partsFilter === 'metal' ? '#38bdf8' : undefined
+                }}
+              >
+                🔩 Ferragens ({sceneManager?.barsLineupGroup?.userData?.metalCount ?? '...'})
+              </button>
+              <button
+                className={`btn-compact ${partsFilter === 'wood' ? 'active' : ''}`}
+                onClick={() => setPartsFilter('wood')}
+                style={{
+                  fontSize: '9.5px',
+                  padding: '6px 2px',
+                  fontWeight: 800,
+                  background: partsFilter === 'wood' ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.35))' : undefined,
+                  borderColor: partsFilter === 'wood' ? '#f59e0b' : undefined,
+                  color: partsFilter === 'wood' ? '#f59e0b' : undefined
+                }}
+              >
+                🪵 Madeira ({sceneManager?.barsLineupGroup?.userData?.woodCount ?? '...'})
+              </button>
+            </div>
+
+            {/* Descrição do Grupo Ativo */}
+            <div
+              style={{
+                fontSize: '10px',
+                color: '#cbd5e1',
+                lineHeight: 1.4,
+                background: 'rgba(15, 23, 42, 0.7)',
+                padding: '8px 10px',
+                borderRadius: '6px',
+                border: '1px solid rgba(148, 163, 184, 0.2)'
+              }}
+            >
+              {partsFilter === 'metal' ? (
+                <div>
+                  <div style={{ color: '#38bdf8', fontWeight: 800, marginBottom: '2px' }}>🔩 GRUPO 1: FERRAGENS & ESTRUTURA METÁLICA</div>
+                  Perfis T-Slot 40×40 e 30×30, metalon soldado e trilhos telescópicos do rack organizados da maior para a menor barra.
+                </div>
+              ) : partsFilter === 'wood' ? (
+                <div>
+                  <div style={{ color: '#f59e0b', fontWeight: 800, marginBottom: '2px' }}>🪵 GRUPO 2: MARCENARIA & PEÇAS DE MADEIRA</div>
+                  Chapas de compensado naval 15mm, assoalho, gavetas, baús e ripas da cama retrátil organizadas por área de corte.
+                </div>
+              ) : (
+                <div>
+                  <div style={{ color: '#10b981', fontWeight: 800, marginBottom: '2px' }}>📦 BANCADAS LADO A LADO COM CORREDOR</div>
+                  <strong>À Esquerda (Ciano):</strong> Grupo 1 Ferragens Metálicas.<br/>
+                  <strong>À Direita (Âmbar):</strong> Grupo 2 Peças de Marcenaria.
+                </div>
+              )}
+            </div>
+
+            <button
+              className="btn-compact primary"
+              onClick={() => openModal('bom')}
+              style={{
+                width: '100%',
+                padding: '7px 10px',
+                fontSize: '11px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                background: 'rgba(16, 185, 129, 0.2)',
+                borderColor: '#10b981',
+                color: '#34d399'
+              }}
+            >
+              📋 Ver Lista & Plano de Corte (BOM)
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="expansion-widget-header">
           <span>📐 GAVETAS</span>
           <div className="expansion-status">
             {cargoBox.enabled && cargoBox.tiltAngle > 0 ? (
@@ -466,6 +614,155 @@ export const RightPanel: React.FC = () => {
             </button>
           </div>
         )}
+
+        {/* ⛺ CONTROLE DO TOLDO OVERLAND (TRASEIRO OU ASA DE MORCEGO 270°) */}
+        <div className="expansion-widget-divider"></div>
+        <div
+          className="cargo-box-panel"
+          style={{
+            borderColor: awning.enabled ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255, 255, 255, 0.08)',
+            background: awning.enabled ? 'rgba(15, 23, 42, 0.85)' : 'rgba(15, 23, 42, 0.4)'
+          }}
+        >
+          <div className="expansion-widget-header">
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 800,
+                color: awning.enabled ? '#38bdf8' : 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              ⛺ TOLDO RETRÁTIL OVERLAND
+            </span>
+            <button
+              className={`btn-compact ${awning.enabled ? 'active' : ''}`}
+              onClick={() => setAwning({ enabled: !awning.enabled })}
+              style={{
+                fontSize: '10px',
+                padding: '3px 8px',
+                fontWeight: 700,
+                color: awning.enabled ? '#38bdf8' : '#94a3b8',
+                borderColor: awning.enabled ? '#38bdf8' : undefined
+              }}
+            >
+              {awning.enabled ? 'Ativado' : 'Desativado'}
+            </button>
+          </div>
+
+          {awning.enabled && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+              {/* Modelo do Toldo: Traseiro Reto vs Asa de Morcego 270° */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                <button
+                  className={`btn-compact ${awning.type === 'rear' ? 'active' : ''}`}
+                  onClick={() => setAwning({ type: 'rear' })}
+                  style={{
+                    fontSize: '10px',
+                    padding: '6px 4px',
+                    fontWeight: 700,
+                    background: awning.type === 'rear' ? 'rgba(56, 189, 248, 0.2)' : undefined,
+                    borderColor: awning.type === 'rear' ? '#38bdf8' : undefined
+                  }}
+                >
+                  🚗 Traseiro Reto
+                </button>
+                <button
+                  className={`btn-compact ${awning.type === 'batwing_270' ? 'active' : ''}`}
+                  onClick={() => setAwning({ type: 'batwing_270' })}
+                  style={{
+                    fontSize: '10px',
+                    padding: '6px 4px',
+                    fontWeight: 700,
+                    background: awning.type === 'batwing_270' ? 'rgba(245, 158, 11, 0.2)' : undefined,
+                    borderColor: awning.type === 'batwing_270' ? '#f59e0b' : undefined,
+                    color: awning.type === 'batwing_270' ? '#fbbf24' : undefined
+                  }}
+                >
+                  🦇 Asa Morcego 270°
+                </button>
+              </div>
+
+              {/* Lado de Fixação se for Asa de Morcego */}
+              {awning.type === 'batwing_270' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: '#94a3b8' }}>
+                    <span>Montagem do Case:</span>
+                    <span style={{ color: '#38bdf8', fontWeight: 700 }}>
+                      {awning.side === 'passenger' ? 'Passageiro (Direita)' : 'Motorista (Esquerda)'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                    <button
+                      className={`btn-compact ${awning.side === 'passenger' ? 'active' : ''}`}
+                      onClick={() => setAwning({ side: 'passenger' })}
+                      style={{ fontSize: '9.5px', padding: '4px' }}
+                    >
+                      Direita (Passageiro)
+                    </button>
+                    <button
+                      className={`btn-compact ${awning.side === 'driver' ? 'active' : ''}`}
+                      onClick={() => setAwning({ side: 'driver' })}
+                      style={{ fontSize: '9.5px', padding: '4px' }}
+                    >
+                      Esquerda (Motorista)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Botão de Abrir / Desdobrar Lona */}
+              <button
+                className={`btn-compact primary ${awning.isOpen ? 'active' : ''}`}
+                onClick={toggleAwningOpen}
+                style={{
+                  width: '100%',
+                  padding: '7px 8px',
+                  fontWeight: 800,
+                  fontSize: '11px',
+                  background: awning.isOpen
+                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.4))'
+                    : 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(37, 99, 235, 0.3))',
+                  borderColor: awning.isOpen ? '#10b981' : '#38bdf8',
+                  color: awning.isOpen ? '#34d399' : '#38bdf8'
+                }}
+              >
+                {awning.isOpen ? '⛺ Recolher Toldo no Estojo' : '⛺ Desdobrar Lona (Abrir Toldo)'}
+              </button>
+
+              {/* Seleção de cor da lona */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '9.5px', color: '#94a3b8', paddingTop: '2px' }}>
+                <span>Cor da Lona Ripstop:</span>
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  {[
+                    { label: 'Safari', color: '#c2b280' },
+                    { label: 'Grafite', color: '#374151' },
+                    { label: 'Oliva', color: '#4b5320' },
+                    { label: 'Preto', color: '#18181b' }
+                  ].map(c => (
+                    <button
+                      key={c.color}
+                      onClick={() => setAwning({ fabricColor: c.color })}
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        backgroundColor: c.color,
+                        border: awning.fabricColor === c.color ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.3)',
+                        cursor: 'pointer'
+                      }}
+                      title={c.label}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </>
+    )}
 
         <div className="expansion-widget-divider"></div>
 
@@ -791,11 +1088,13 @@ export const RightPanel: React.FC = () => {
             🔬 Inspecionar Perfil T-Slot 40x40
           </button>
         </div>
-      </div>
 
-      {/* Card Inferior Direito: Dashboard Elétrico & Bateria Kingbo */}
-      <div className="energy-card glass-panel">
-        <div className="energy-header">
+        {/* Divisor Visual de Seção */}
+        <div className="expansion-widget-divider" style={{ margin: '14px 0 8px 0' }} />
+
+        {/* Dashboard Elétrico & Bateria Kingbo (incorporado no mesmo painel com scroll) */}
+        <div className="energy-card" style={{ marginTop: '0', background: 'rgba(15, 23, 42, 0.45)' }}>
+          <div className="energy-header">
           <div className="energy-title">
             <span>☀️ GERAÇÃO FOTOVOLTAICA</span>
           </div>
@@ -850,10 +1149,10 @@ export const RightPanel: React.FC = () => {
           style={
             isNominalOverMppt || isEffectiveOverMppt
               ? {
-                  borderColor: 'rgba(239, 68, 68, 0.65)',
-                  background: 'rgba(127, 29, 29, 0.22)',
-                  boxShadow: '0 0 14px rgba(239, 68, 68, 0.25)'
-                }
+                borderColor: 'rgba(239, 68, 68, 0.65)',
+                background: 'rgba(127, 29, 29, 0.22)',
+                boxShadow: '0 0 14px rgba(239, 68, 68, 0.25)'
+              }
               : undefined
           }
         >
@@ -868,11 +1167,11 @@ export const RightPanel: React.FC = () => {
               style={
                 isEffectiveOverMppt || isNominalOverMppt
                   ? {
-                      background: 'rgba(239, 68, 68, 0.28)',
-                      color: '#fca5a5',
-                      border: '1px solid rgba(239, 68, 68, 0.65)',
-                      fontWeight: 800
-                    }
+                    background: 'rgba(239, 68, 68, 0.28)',
+                    color: '#fca5a5',
+                    border: '1px solid rgba(239, 68, 68, 0.65)',
+                    fontWeight: 800
+                  }
                   : undefined
               }
             >
@@ -1306,6 +1605,7 @@ export const RightPanel: React.FC = () => {
           </button>
         </div>
       </div>
+    </aside>
     </>
   );
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSolar } from '../context/SolarContext';
 import { SlideDirection, PanelOrientation } from '../types';
+import { InternalBoxesPlanner } from './InternalBoxesPlanner';
 
 export const Sidebar: React.FC = () => {
   const {
@@ -44,8 +45,24 @@ export const Sidebar: React.FC = () => {
     waterTank,
     setWaterTankEnabled,
     setWaterTankLength,
-    setWaterTankRadius
+    setWaterTankRadius,
+    viewMode,
+    setViewMode,
+    internalBoxes,
+    internalGrid,
+    setInternalGrid,
+    updateInternalBox,
+    selectedBoxId,
+    setSelectedBoxId,
+    isOpenPreview,
+    setIsOpenPreview,
+    isVehicleVisible,
+    toggleVehicle,
+    vehicleOpacity,
+    setVehicleOpacity
   } = useSolar();
+
+  const selectedBox = internalBoxes.find(b => b.id === selectedBoxId);
 
   const panelW = activePanelPreset.powerWatts;
   const panelCmW = Math.round(activePanelPreset.width * 100);
@@ -74,8 +91,71 @@ export const Sidebar: React.FC = () => {
   const litersPerMeterTotal = +(litersPerMeterSingle * 2).toFixed(1);
   const baseLengthOccupationPct = Math.round((waterTank.lengthMm / baseMaxLengthMm) * 100);
 
+  if (viewMode === 'internal_boxes') {
+    return (
+      <aside className="sidebar-panel glass-panel" style={{ width: '420px', maxWidth: 'calc(100vw - 40px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid rgba(56, 189, 248, 0.3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px' }}>📦</span>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 900, color: '#f59e0b', letterSpacing: '0.5px' }}>
+                1. CAIXAS INTERNAS
+              </div>
+              <div style={{ fontSize: '10px', color: '#94a3b8' }}>
+                Sistema de Grid & Armazenadores Camper da Doblò
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setViewMode('assembled')}
+            className="btn-compact primary"
+            style={{ fontSize: '10px', padding: '4px 8px' }}
+            title="Ir para o Modo 2: Doblò + Estrutura Solar"
+          >
+            Avançar para 2. Doblò ➔
+          </button>
+        </div>
+
+        <InternalBoxesPlanner />
+      </aside>
+    );
+  }
+
   return (
     <aside className="sidebar-panel glass-panel">
+      {/* Atalho para Modo 1: Caixas Internas */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.25))',
+          border: '1px solid rgba(245, 158, 11, 0.45)',
+          borderRadius: '8px',
+          padding: '10px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          marginBottom: '4px'
+        }}
+        onClick={() => setViewMode('internal_boxes')}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '20px' }}>📦</span>
+          <div>
+            <div style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b' }}>
+              1. CAIXAS & ARMAZENADORES INTERNOS
+            </div>
+            <div style={{ fontSize: '9.5px', color: '#cbd5e1' }}>
+              {internalBoxes.length} caixas configuradas no assoalho da Doblò
+            </div>
+          </div>
+        </div>
+        <button
+          className="btn-compact"
+          style={{ fontSize: '10px', background: '#f59e0b', color: '#000', fontWeight: 800, border: 'none' }}
+        >
+          Editar Grid
+        </button>
+      </div>
       {/* 1. Configurador Paramétrico do Stack de Painéis Solares Flexíveis */}
       <div className="panel-section">
         <div className="section-label">
@@ -545,7 +625,276 @@ export const Sidebar: React.FC = () => {
         />
       </div>
 
-      {/* 8. Baú de Teto Motobul Off Road & Subchassi */}
+      {/* 8. Posição dos Armazenadores & Caixas Internas dentro da Doblò */}
+      <div className="panel-section" style={{ borderLeft: '3px solid #f59e0b' }}>
+        <div className="section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+          <span style={{ color: '#f59e0b' }}>📦 POSIÇÃO DAS CAIXAS NA DOBLÒ</span>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              className="btn-compact"
+              onClick={() => setIsOpenPreview(!isOpenPreview)}
+              style={{
+                fontSize: '10px',
+                padding: '3px 7px',
+                color: isOpenPreview ? '#34d399' : '#94a3b8',
+                borderColor: isOpenPreview ? 'rgba(52, 211, 153, 0.5)' : 'rgba(148, 163, 184, 0.3)'
+              }}
+              title="Simula abertura de gavetões deslizantes e tampas de baús"
+            >
+              {isOpenPreview ? '🔓 Abertos' : '🔒 Fechados'}
+            </button>
+            <button
+              className="btn-compact"
+              onClick={() => setViewMode('internal_boxes')}
+              style={{ fontSize: '10px', padding: '3px 7px', color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.45)' }}
+              title="Abrir o Editor de Grid 2D Completo (Modo 1)"
+            >
+              ✏️ Modo Grid ➔
+            </button>
+          </div>
+        </div>
+
+        {/* Sliders de Posição Tridimensional do Conjunto */}
+        {/* Slider Z: Frente ↔ Traseira */}
+        <div className="rack-pos-row">
+          <span className="rack-pos-lbl">↔ Frente / Trás (Z)</span>
+          <span className="rack-pos-val" style={{ color: '#f59e0b' }}>
+            {(internalGrid.offsetZ || 0) >= 0 ? '+' : ''}{(internalGrid.offsetZ || 0).toFixed(2)} m ({Math.round((internalGrid.offsetZ || 0) * 100)} cm)
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', fontSize: '9px', color: 'var(--text-muted)', marginBottom: '3px' }}>
+          <span>⬅ Traseira / Porta-Malas</span>
+          <span style={{ flex: 1 }}></span>
+          <span>Bancos Dianteiros ➡</span>
+        </div>
+        <input
+          type="range"
+          className="custom-slider"
+          min="-0.80"
+          max="0.80"
+          step="0.01"
+          value={internalGrid.offsetZ || 0}
+          onChange={(e) => {
+            const val = parseFloat(e.target.value);
+            setInternalGrid(prev => ({ ...prev, offsetZ: val }));
+          }}
+        />
+
+        {/* Slider Y: Altura do Assoalho / Estrado */}
+        <div className="rack-pos-row" style={{ marginTop: '10px' }}>
+          <span className="rack-pos-lbl">↕ Altura do Estrado (Y)</span>
+          <span className="rack-pos-val" style={{ color: '#f59e0b' }}>
+            {(internalGrid.offsetY || 0) >= 0 ? '+' : ''}{(internalGrid.offsetY || 0).toFixed(2)} m ({Math.round((internalGrid.offsetY || 0) * 100)} cm)
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', fontSize: '9px', color: 'var(--text-muted)', marginBottom: '3px' }}>
+          <span>⬇ Rebaixar Piso</span>
+          <span style={{ flex: 1 }}></span>
+          <span>Elevar Estrado ⬆</span>
+        </div>
+        <input
+          type="range"
+          className="custom-slider"
+          min="-0.20"
+          max="0.40"
+          step="0.01"
+          value={internalGrid.offsetY || 0}
+          onChange={(e) => {
+            const val = parseFloat(e.target.value);
+            setInternalGrid(prev => ({ ...prev, offsetY: val }));
+          }}
+        />
+
+        {/* Slider X: Alinhamento Lateral */}
+        <div className="rack-pos-row" style={{ marginTop: '10px' }}>
+          <span className="rack-pos-lbl">⬅ Lateralidade Esq / Dir (X)</span>
+          <span className="rack-pos-val" style={{ color: '#f59e0b' }}>
+            {(internalGrid.offsetX || 0) >= 0 ? '+' : ''}{(internalGrid.offsetX || 0).toFixed(2)} m ({Math.round((internalGrid.offsetX || 0) * 100)} cm)
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', fontSize: '9px', color: 'var(--text-muted)', marginBottom: '3px' }}>
+          <span>Passageiro (-X)</span>
+          <span style={{ flex: 1 }}></span>
+          <span>Motorista (+X)</span>
+        </div>
+        <input
+          type="range"
+          className="custom-slider"
+          min="-0.30"
+          max="0.30"
+          step="0.01"
+          value={internalGrid.offsetX || 0}
+          onChange={(e) => {
+            const val = parseFloat(e.target.value);
+            setInternalGrid(prev => ({ ...prev, offsetX: val }));
+          }}
+        />
+
+        {/* Botão Reset de Posição */}
+        {((internalGrid.offsetZ || 0) !== 0 || (internalGrid.offsetY || 0) !== 0 || (internalGrid.offsetX || 0) !== 0) && (
+          <div style={{ textAlign: 'right', marginTop: '6px' }}>
+            <button
+              className="btn-compact"
+              onClick={() => setInternalGrid(prev => ({ ...prev, offsetX: 0, offsetY: 0, offsetZ: 0 }))}
+              style={{ fontSize: '9.5px', padding: '2px 8px', color: '#94a3b8' }}
+            >
+              ↺ Resetar Posição Original
+            </button>
+          </div>
+        )}
+
+        {/* Visualização da Lataria do Veículo */}
+        <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(148, 163, 184, 0.15)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 700 }}>
+              👁️ Visibilidade da Doblò:
+            </span>
+            <span style={{ fontSize: '9.5px', color: '#cbd5e1' }}>
+              {isVehicleVisible ? (vehicleOpacity < 0.99 ? 'Translúcida (30%)' : 'Opaca (100%)') : 'Oculta'}
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+            <button
+              className={`btn-compact ${isVehicleVisible && vehicleOpacity >= 0.99 ? 'active' : ''}`}
+              onClick={() => {
+                setVehicleOpacity(1.0);
+                if (!isVehicleVisible) toggleVehicle();
+              }}
+              style={{ fontSize: '10px', padding: '4px' }}
+            >
+              🚐 Opaca
+            </button>
+            <button
+              className={`btn-compact ${isVehicleVisible && vehicleOpacity < 0.99 ? 'active' : ''}`}
+              onClick={() => {
+                setVehicleOpacity(0.30);
+                if (!isVehicleVisible) toggleVehicle();
+              }}
+              style={{ fontSize: '10px', padding: '4px' }}
+            >
+              👻 Raio-X
+            </button>
+            <button
+              className={`btn-compact ${!isVehicleVisible ? 'active' : ''}`}
+              onClick={() => {
+                if (isVehicleVisible) toggleVehicle();
+              }}
+              style={{ fontSize: '10px', padding: '4px' }}
+            >
+              👁️ Ocultar
+            </button>
+          </div>
+        </div>
+
+        {/* Resumo e Seleção Rápida de Caixas */}
+        {internalBoxes.length > 0 && (
+          <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(148, 163, 184, 0.15)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 700 }}>
+                📦 Selecionar Caixa ({internalBoxes.length}):
+              </span>
+              {selectedBoxId && (
+                <button
+                  onClick={() => setSelectedBoxId(null)}
+                  style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '9px', cursor: 'pointer', padding: 0 }}
+                >
+                  Desmarcar
+                </button>
+              )}
+            </div>
+
+            <select
+              value={selectedBoxId || ''}
+              onChange={(e) => setSelectedBoxId(e.target.value || null)}
+              style={{
+                width: '100%',
+                background: 'rgba(30, 41, 59, 0.9)',
+                border: selectedBoxId ? '1px solid #38bdf8' : '1px solid rgba(148, 163, 184, 0.3)',
+                color: '#ffffff',
+                padding: '6px 8px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                marginBottom: selectedBoxId ? '8px' : '0'
+              }}
+            >
+              <option value="">-- Clique em uma caixa no 3D ou selecione aqui --</option>
+              {internalBoxes.map(b => (
+                <option key={b.id} value={b.id}>
+                  {b.name} ({b.type === 'drawer' ? 'Gavetão' : b.type === 'open' ? 'Nicho' : b.type === 'slat_bed' ? 'Cama Ripas' : 'Baú'}) - {b.heightMm}mm
+                </option>
+              ))}
+            </select>
+
+            {/* Ajuste rápido da caixa selecionada */}
+            {selectedBox && (
+              <div style={{ background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '6px', padding: '8px', marginTop: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8' }}>{selectedBox.name}</span>
+                  <span style={{ fontSize: '9.5px', color: '#4ade80', fontWeight: 700 }}>
+                    {Math.round((selectedBox.colSpan * (internalGrid.widthMm / Math.max(1, internalGrid.colsX)) * selectedBox.rowSpan * (internalGrid.lengthMm / Math.max(1, internalGrid.rowsZ)) * selectedBox.heightMm) / 1_000_000)} L
+                  </span>
+                </div>
+
+                {/* Altura da caixa selecionada */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: '#94a3b8', marginBottom: '2px' }}>
+                  <span>Altura:</span>
+                  <span style={{ fontWeight: 800, color: '#38bdf8' }}>{selectedBox.heightMm} mm</span>
+                </div>
+                <input
+                  type="range"
+                  min={200}
+                  max={700}
+                  step={10}
+                  value={selectedBox.heightMm}
+                  onChange={(e) => updateInternalBox(selectedBox.id, { heightMm: Number(e.target.value) })}
+                  style={{ width: '100%', marginBottom: '8px' }}
+                />
+
+                {/* Mover caixa no grid */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 700 }}>Mover no Grid:</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+                  <button
+                    disabled={selectedBox.colStart <= 0}
+                    onClick={() => updateInternalBox(selectedBox.id, { colStart: selectedBox.colStart - 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '9.5px', padding: '3px 4px' }}
+                  >
+                    ⬅ Esq
+                  </button>
+                  <button
+                    disabled={selectedBox.colStart + selectedBox.colSpan >= Math.max(1, internalGrid.colsX)}
+                    onClick={() => updateInternalBox(selectedBox.id, { colStart: selectedBox.colStart + 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '9.5px', padding: '3px 4px' }}
+                  >
+                    Dir ➡
+                  </button>
+                  <button
+                    disabled={selectedBox.rowStart <= 0}
+                    onClick={() => updateInternalBox(selectedBox.id, { rowStart: selectedBox.rowStart - 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '9.5px', padding: '3px 4px' }}
+                  >
+                    ⬆ Diant
+                  </button>
+                  <button
+                    disabled={selectedBox.rowStart + selectedBox.rowSpan >= Math.max(1, internalGrid.rowsZ)}
+                    onClick={() => updateInternalBox(selectedBox.id, { rowStart: selectedBox.rowStart + 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '9.5px', padding: '3px 4px' }}
+                  >
+                    Tras ⬇
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 9. Baú de Teto Motobul Off Road & Subchassi */}
       <div className="panel-section">
         <div className="section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
           <span>🧰 BAÚ DE TETO / BAGAGEIRO</span>

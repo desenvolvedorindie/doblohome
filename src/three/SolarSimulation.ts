@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ApplianceItem, BatteryPerformance, LoadsSummary } from '../types';
+import { dbGet, dbSet } from '../data/db';
 
 /**
  * Simulador Solar, Iluminação e Autonomia Energética
@@ -44,37 +45,30 @@ export class SolarSimulation {
   }
 
   loadAppliances() {
-    try {
-      const raw = localStorage.getItem('doblo_solar_loads');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          this.APPLIANCES = parsed.map((item: any, idx: number) => ({
-            id: item.id || `app_${Date.now()}_${idx}`,
-            name: String(item.name || 'Equipamento'),
-            watts: Math.max(0, parseFloat(item.watts) || 0),
-            hours: Math.max(0, Math.min(24, parseFloat(item.hours) || 0)),
-            qty: Math.max(1, parseInt(item.qty) || 1),
-            enabled: item.enabled !== false,
-            whPerDay: Math.round((parseFloat(item.watts) || 0) * (parseFloat(item.hours) || 0) * (parseInt(item.qty) || 1))
-          }));
-          this.recalculateConsumption();
-          return;
-        }
+    // Carrega assincronamente do IndexedDB
+    dbGet<any[]>('doblo_solar_loads').then((parsed) => {
+      if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+        this.APPLIANCES = parsed.map((item: any, idx: number) => ({
+          id: item.id || `app_${Date.now()}_${idx}`,
+          name: String(item.name || 'Equipamento'),
+          watts: Math.max(0, parseFloat(item.watts) || 0),
+          hours: Math.max(0, Math.min(24, parseFloat(item.hours) || 0)),
+          qty: Math.max(1, parseInt(item.qty) || 1),
+          enabled: item.enabled !== false,
+          whPerDay: Math.round((parseFloat(item.watts) || 0) * (parseFloat(item.hours) || 0) * (parseInt(item.qty) || 1))
+        }));
+        this.recalculateConsumption();
       }
-    } catch (e) {
-      console.warn('Erro ao carregar lista de consumo do localStorage:', e);
-    }
+    }).catch((e) => {
+      console.warn('Erro ao carregar lista de consumo do banco de dados:', e);
+    });
+
     this.APPLIANCES = this.getDefaultAppliances();
     this.recalculateConsumption();
   }
 
   saveAppliances() {
-    try {
-      localStorage.setItem('doblo_solar_loads', JSON.stringify(this.APPLIANCES));
-    } catch (e) {
-      console.warn('Erro ao salvar lista de consumo no localStorage:', e);
-    }
+    dbSet('doblo_solar_loads', this.APPLIANCES);
   }
 
   recalculateConsumption() {
