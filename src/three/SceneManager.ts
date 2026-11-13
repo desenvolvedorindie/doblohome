@@ -5,8 +5,9 @@ import { MechanicalAudio } from './Audio';
 import { DobloVehicle } from './DobloModel';
 import { SolarSystem } from './SolarSystem';
 import { SolarSimulation } from './SolarSimulation';
-import { BarMeasurementData, CameraPreset } from '../types';
+import { BarMeasurementData, CameraPreset, ViewMode } from '../types';
 import { CollisionChecker, CollisionSummary } from './CollisionChecker';
+import { FloatingChecker, FloatingSummary } from './FloatingChecker';
 
 export class SceneManager {
   container: HTMLElement;
@@ -20,6 +21,10 @@ export class SceneManager {
   vehicle: DobloVehicle;
   solarSystem: SolarSystem;
   solarSim: SolarSimulation;
+
+  viewMode: ViewMode = 'assembled';
+  barsLineupGroup: THREE.Group;
+  savedVehicleVisible: boolean = true;
 
   activeExpansionAnim: number | null = null;
   rewindTimeout: any = null;
@@ -68,6 +73,19 @@ export class SceneManager {
 
     this.solarSystem = new SolarSystem(this.scene);
     this.solarSim = new SolarSimulation(this.scene);
+
+    this.barsLineupGroup = new THREE.Group();
+    this.barsLineupGroup.name = 'BarsLineupGroup';
+    this.barsLineupGroup.visible = false;
+    this.scene.add(this.barsLineupGroup);
+
+    const origBuildSystem = this.solarSystem.buildSystem.bind(this.solarSystem);
+    this.solarSystem.buildSystem = () => {
+      origBuildSystem();
+      if (this.viewMode === 'bars_lineup') {
+        this.buildBarsLineup();
+      }
+    };
 
     this.onWindowResize = this.onWindowResize.bind(this);
     window.addEventListener('resize', this.onWindowResize);
@@ -245,7 +263,7 @@ export class SceneManager {
         targetPos.set(0.01, 7.5, 0);
         break;
       case 'front':
-        targetPos.set(0, 2.2, 5.8);
+        targetPos.set(0, 2.2, -5.8);
         break;
       case 'side':
         targetPos.set(5.5, 2.2, 0);
@@ -329,15 +347,28 @@ export class SceneManager {
     this.mouse.y = -((screenY - rect.top) / rect.height) * 2 + 1;
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+    const activeRoots = this.viewMode === 'bars_lineup'
+      ? [this.barsLineupGroup]
+      : [this.solarSystem.group, this.vehicle.group];
+    const intersects = this.raycaster.intersectObjects(activeRoots, true);
+
+    const isAncestorVisible = (node: THREE.Object3D): boolean => {
+      let cur: THREE.Object3D | null = node;
+      while (cur) {
+        if (!cur.visible) return false;
+        cur = cur.parent;
+      }
+      return true;
+    };
 
     let target: THREE.Object3D | null = null;
     for (const hit of intersects) {
       const obj = hit.object;
-      if (!obj.visible) continue;
+      if (!isAncestorVisible(obj)) continue;
 
-      // Ignora sprites, linhas e helpers
+      // Ignora sprites, linhas, colisores invisíveis do teto e helpers
       if ((obj as any).isSprite || (obj as any).isLine || (obj as any).isLineSegments) continue;
+      if (obj.name === '__roof_collider' || obj.userData?.isRoofCollider) continue;
 
       // Ignora hitboxes transparentes (não bloqueiam o scan)
       if (obj.name === '__hitbox') {
@@ -471,6 +502,9 @@ export class SceneManager {
       } else if (d.electricalType === 'usina') {
         emissiveColor = 0xef4444; // Vermelho Usina
         emissiveIntensity = 0.65;
+      } else if (d.electricalType === 'panel') {
+        emissiveColor = 0xf59e0b; // Dourado âmbar solar brilhante
+        emissiveIntensity = 0.80;
       }
     }
 
@@ -525,6 +559,174 @@ export class SceneManager {
     }
   }
 
+  // ─── Modo de Visualização: Montado vs Bancada de Barras Ordenadas ──────────
+
+  setViewMode(mode: ViewMode, currentVehicleVisible: boolean = true) {
+    this.clearBarHover();
+    this.viewMode = mode;
+
+    if (mode === 'bars_lineup') {
+      this.savedVehicleVisible = currentVehicleVisible;
+      this.solarSystem.group.visible = false;
+      this.vehicle.setVisible(false);
+      this.buildBarsLineup();
+      this.barsLineupGroup.visible = true;
+
+      const count = this.barsLineupGroup.userData.totalBars || 30;
+      const spanX = Math.max(2.5, count * 0.085);
+      const camDist = Math.max(3.6, spanX * 0.68);
+      this.animateCameraTo(
+        new THREE.Vector3(0, camDist * 0.72, camDist * 0.78),
+        new THREE.Vector3(0, 0.05, 0)
+      );
+    } else {
+      this.barsLineupGroup.visible = false;
+      this.solarSystem.group.visible = true;
+      this.vehicle.setVisible(currentVehicleVisible);
+      this.setCameraPreset('iso');
+    }
+  }
+
+  buildBarsLineup(): number {
+    while (this.barsLineupGroup.children.length > 0) {
+      const child = this.barsLineupGroup.children[0];
+      this.barsLineupGroup.remove(child);
+    }
+
+    const collected: {
+      mesh: THREE.Mesh;
+      barLength: number;
+      barLabel: string;
+      profileSpec: string;
+    }[] = [];
+
+    const cargoDisabled = !this.solarSystem.cargoBoxConfig?.enabled;
+    const cargoGroup = this.solarSystem.cargoBoxSystem?.group;
+
+    this.solarSystem.group.traverse((obj: any) => {
+      if (!obj.isMesh || !obj.userData || !obj.userData.isBar) return;
+
+      if (cargoDisabled && cargoGroup) {
+        let p = obj.parent;
+        while (p) {
+          if (p === cargoGroup) return;
+          p = p.parent;
+        }
+      }
+
+      const len = Number(obj.userData.barLength) || 0.1;
+      collected.push({
+        mesh: obj as THREE.Mesh,
+        barLength: len,
+        barLabel: obj.userData.barLabel || 'Barra Estrutural',
+        profileSpec: obj.userData.profileSpec || 'Perfil Estrutural'
+      });
+    });
+
+    collected.sort((a, b) => {
+      if (Math.abs(b.barLength - a.barLength) > 0.0005) {
+        return b.barLength - a.barLength;
+      }
+      return a.barLabel.localeCompare(b.barLabel);
+    });
+
+    const total = collected.length;
+    this.barsLineupGroup.userData.totalBars = total;
+    if (total === 0) return 0;
+
+    const maxLen = collected[0].barLength;
+    const spacingX = 0.085;
+    const totalSpanX = (total - 1) * spacingX;
+    const startX = -totalSpanX / 2;
+    const zBaseline = -maxLen / 2;
+
+    const baseLinePts = [
+      new THREE.Vector3(startX - 0.15, 0.006, zBaseline),
+      new THREE.Vector3(-startX + 0.15, 0.006, zBaseline)
+    ];
+    const baseLineGeo = new THREE.BufferGeometry().setFromPoints(baseLinePts);
+    const baseLineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.75 });
+    const baseLine = new THREE.Line(baseLineGeo, baseLineMat);
+    this.barsLineupGroup.add(baseLine);
+
+    collected.forEach((item, idx) => {
+      const clone = item.mesh.clone(true);
+
+      if (!item.mesh.geometry.boundingBox) {
+        item.mesh.geometry.computeBoundingBox();
+      }
+      const bb = item.mesh.geometry.boundingBox;
+      let crossHeight = 0.04;
+      if (bb) {
+        const dx = bb.max.x - bb.min.x;
+        const dy = bb.max.y - bb.min.y;
+        const dz = bb.max.z - bb.min.z;
+
+        if (dx > dz && dx > dy) {
+          clone.rotation.set(0, Math.PI / 2, 0);
+          crossHeight = dy;
+        } else if (dy > dz && dy > dx) {
+          clone.rotation.set(Math.PI / 2, 0, 0);
+          crossHeight = dz;
+        } else {
+          clone.rotation.set(0, 0, 0);
+          crossHeight = dy;
+        }
+      }
+
+      const xPos = startX + idx * spacingX;
+      const yPos = Math.max(0.015, crossHeight / 2);
+      const zPos = zBaseline + item.barLength / 2;
+
+      clone.position.set(xPos, yPos, zPos);
+      clone.visible = true;
+      clone.userData = {
+        ...item.mesh.userData,
+        barLabel: `#${idx + 1} • ${item.barLabel}`,
+        barLength: item.barLength,
+        profileSpec: item.profileSpec
+      };
+
+      this.barsLineupGroup.add(clone);
+
+      const labelSprite = this.createBarLengthSprite(idx + 1, item.barLength);
+      labelSprite.position.set(xPos, yPos + 0.045, zBaseline + item.barLength + 0.04);
+      this.barsLineupGroup.add(labelSprite);
+    });
+
+    return total;
+  }
+
+  private createBarLengthSprite(rank: number, lengthM: number): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    canvas.width = 160;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(4, 4, 152, 56, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`#${rank}`, 80, 24);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText(`${Math.round(lengthM * 1000)}mm`, 80, 48);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(0.075, 0.03, 1);
+    return sprite;
+  }
+
   // ─── Verificação Estrutural de Colisões ────────────────────────────────────
 
   checkStructuralCollisions(): CollisionSummary {
@@ -537,6 +739,20 @@ export class SceneManager {
 
   hasStructuralCollisions(): boolean {
     return CollisionChecker.hasCollisions();
+  }
+
+  // ─── Verificação de Peças Flutuantes (Sustentação da Base) ──────────────────
+
+  checkFloatingProfiles(): FloatingSummary {
+    return FloatingChecker.checkAll(this.scene);
+  }
+
+  clearFloatingHighlights(): void {
+    FloatingChecker.clearAll();
+  }
+
+  hasFloatingProfiles(): boolean {
+    return FloatingChecker.hasFloating();
   }
 
   takeScreenshot() {

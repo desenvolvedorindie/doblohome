@@ -1,16 +1,22 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { SceneManager } from '../three/SceneManager';
 import { CollisionSummary } from '../three/CollisionChecker';
+import { FloatingSummary } from '../three/FloatingChecker';
 import {
   StackLevels,
   SlideDirection,
   PanelOrientation,
   StructureMaterial,
+  SteelProfileUnit,
   AluminumColor,
+  ViewMode,
   CameraPreset,
   LevelConfig,
   SavedConfig,
   CargoBoxConfig,
+  CargoBoxPreset,
+  WaterTankConfig,
+  SolarPanelPreset,
   B2BChargerConfig,
   UsinaChargerConfig,
   UsinaModelRating,
@@ -20,6 +26,18 @@ import {
   EnergyStats,
   BarMeasurementData
 } from '../types';
+import {
+  loadPanelPresets,
+  savePanelPresets,
+  loadActivePresetId,
+  saveActivePresetId
+} from '../data/solarPanelPresets';
+import {
+  loadCargoBoxPresets,
+  saveCargoBoxPresets,
+  loadActiveCargoPresetId,
+  saveActiveCargoPresetId
+} from '../data/cargoBoxPresets';
 
 interface SolarContextType {
   sceneManager: SceneManager | null;
@@ -29,6 +47,7 @@ interface SolarContextType {
   level1: LevelConfig;
   level2: LevelConfig;
   structureMaterial: StructureMaterial;
+  steelProfileUnit: SteelProfileUnit;
   aluminumColor: AluminumColor;
   offsetZ: number;
   offsetY: number;
@@ -36,6 +55,9 @@ interface SolarContextType {
 
   // Baú de Teto Motobul Off Road & Basculamento
   cargoBox: CargoBoxConfig;
+
+  // Caixa d'Água Lateral (2× Canos PVC 200mm — 1 de cada lado)
+  waterTank: WaterTankConfig;
 
   // Carregador Inteligente DC-DC B2B1230 (Alternador Doblò -> LiFePO4)
   b2bCharger: B2BChargerConfig;
@@ -49,14 +71,31 @@ interface SolarContextType {
   isTransparent: boolean;
   isSoundEnabled: boolean;
   isAutoAnimating: boolean;
+  viewMode: ViewMode;
   activeCameraPreset: CameraPreset;
   sunHour: number;
 
   hoveredBar: BarMeasurementData | null;
   hoverPos: { x: number; y: number };
 
-  activeModal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'help' | null;
+  activeModal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'help' | null;
   toastMessage: string | null;
+
+  // Presets de Placas Solares (100W / 200W / Custom)
+  panelPresets: SolarPanelPreset[];
+  activePanelPreset: SolarPanelPreset;
+  selectPanelPreset: (id: string) => void;
+  addPanelPreset: (preset: Omit<SolarPanelPreset, 'id' | 'isDefault'>) => void;
+  updatePanelPreset: (id: string, updates: Partial<SolarPanelPreset>) => void;
+  removePanelPreset: (id: string) => void;
+
+  // Presets de Baús de Teto
+  cargoBoxPresets: CargoBoxPreset[];
+  activeCargoBoxPreset: CargoBoxPreset;
+  selectCargoBoxPreset: (id: string) => void;
+  addCargoBoxPreset: (preset: Omit<CargoBoxPreset, 'id' | 'isDefault'>) => void;
+  updateCargoBoxPreset: (id: string, updates: Partial<CargoBoxPreset>) => void;
+  removeCargoBoxPreset: (id: string) => void;
 
   energyStats: EnergyStats;
   batteryPerformance: BatteryPerformance;
@@ -71,6 +110,7 @@ interface SolarContextType {
   setLevel2Direction: (direction: SlideDirection) => void;
   setLevel2Orientation: (orientation: PanelOrientation) => void;
   setStructureMaterial: (material: StructureMaterial) => void;
+  setSteelProfileUnit: (unit: SteelProfileUnit) => void;
   setAluminumColor: (color: AluminumColor) => void;
   setOffsetZ: (z: number) => void;
   setOffsetY: (y: number) => void;
@@ -80,6 +120,7 @@ interface SolarContextType {
   setCargoBox: (updates: Partial<CargoBoxConfig>) => void;
   setCargoBoxEnabled: (enabled: boolean) => void;
   setCargoBoxDimensions: (length: number, width: number, height: number) => void;
+  setCargoBoxVerticalLift: (liftMm: number) => void;
   setCargoBoxHingeSide: (side: 'driver' | 'passenger') => void;
   setTiltAngle: (angle: number) => void;
   setBoxLidAngle: (angle: number) => void;
@@ -88,6 +129,12 @@ interface SolarContextType {
   openBoxLid: () => void;
   closeBoxLid: () => void;
   retractAndTilt: () => void;
+
+  // Controles da Caixa d'Água (2× Canos Laterais)
+  setWaterTank: (updates: Partial<WaterTankConfig>) => void;
+  setWaterTankEnabled: (enabled: boolean) => void;
+  setWaterTankLength: (lengthMm: number) => void;
+  setWaterTankRadius: (radiusMm: number) => void;
 
   // Carregador Inteligente DC-DC B2B1230
   setB2BEnabled: (enabled: boolean) => void;
@@ -105,12 +152,19 @@ interface SolarContextType {
   checkCollisions: () => void;
   clearCollisions: () => void;
 
+  // Verificação de Peças Flutuantes (Sustentação na Base)
+  floatingSummary: FloatingSummary | null;
+  checkFloating: () => void;
+  clearFloating: () => void;
+
   toggleVehicle: () => void;
   toggleDimensions: () => void;
   toggleChain: () => void;
   toggleTransparency: () => void;
   toggleSound: () => void;
   toggleAutoAnim: () => void;
+  setViewMode: (mode: ViewMode) => void;
+  toggleViewMode: () => void;
 
   expand: () => void;
   retract: () => void;
@@ -119,13 +173,15 @@ interface SolarContextType {
   setSunHour: (hour: number) => void;
   takeScreenshot: () => void;
 
-  openModal: (modal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'help' | null) => void;
+  openModal: (modal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'help' | null) => void;
   closeModal: () => void;
   flashToast: (msg: string) => void;
 
   addAppliance: (name: string, watts: number, hours: number, qty?: number) => void;
   updateAppliance: (id: string, updates: Partial<ApplianceItem>) => void;
   removeAppliance: (id: string) => void;
+  moveAppliance: (id: string, direction: 'up' | 'down') => void;
+  reorderAppliances: (fromIndex: number, toIndex: number) => void;
   resetAppliances: () => void;
 }
 
@@ -147,6 +203,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     orientation: 'longitudinal'
   });
   const [structureMaterial, setStructureMaterialState] = useState<StructureMaterial>('aluminum');
+  const [steelProfileUnit, setSteelProfileUnitState] = useState<SteelProfileUnit>('mm');
   const [aluminumColor, setAluminumColorState] = useState<AluminumColor>('silver');
   const [offsetZ, setOffsetZState] = useState<number>(0.40);
   const [offsetY, setOffsetYState] = useState<number>(0.00);
@@ -160,7 +217,15 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     height: 330,
     hingeSide: 'driver',
     tiltAngle: 0,
-    lidAngle: 0
+    lidAngle: 0,
+    verticalLiftMm: 0
+  });
+
+  // Caixa d'Água Lateral (2× Canos de 200mm — 1 de cada lado da estrutura base)
+  const [waterTank, setWaterTankState] = useState<WaterTankConfig>({
+    enabled: true,
+    lengthMm: 2200,
+    diameterMm: 200
   });
 
   // Carregador Inteligente DC-DC B2B1230 (Alternador Doblò -> LiFePO4)
@@ -197,14 +262,25 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isTransparent, setIsTransparent] = useState<boolean>(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(true);
   const [isAutoAnimating, setIsAutoAnimating] = useState<boolean>(false);
+  const [viewMode, setViewModeState] = useState<ViewMode>('assembled');
   const [activeCameraPreset, setActiveCameraPreset] = useState<CameraPreset>('iso');
   const [sunHour, setSunHourState] = useState<number>(12.0);
 
   // Modais e UI
-  const [activeModal, setActiveModal] = useState<'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'help' | null>(null);
+  const [activeModal, setActiveModal] = useState<'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'help' | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [hoveredBar, setHoveredBar] = useState<BarMeasurementData | null>(null);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Presets de Placas Solares
+  const [panelPresets, setPanelPresetsState] = useState<SolarPanelPreset[]>(() => loadPanelPresets());
+  const [activePanelPresetId, setActivePanelPresetIdState] = useState<string>(() => loadActivePresetId());
+  const activePanelPreset = panelPresets.find(p => p.id === activePanelPresetId) || panelPresets[0];
+
+  // Presets de Baús de Teto
+  const [cargoBoxPresets, setCargoBoxPresetsState] = useState<CargoBoxPreset[]>(() => loadCargoBoxPresets());
+  const [activeCargoPresetId, setActiveCargoPresetIdState] = useState<string>(() => loadActiveCargoPresetId());
+  const activeCargoBoxPreset = cargoBoxPresets.find(p => p.id === activeCargoPresetId) || cargoBoxPresets[0];
 
   // Métricas
   const [energyStats, setEnergyStats] = useState<EnergyStats>({
@@ -274,6 +350,9 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       efficiencyPercent: stats.percent,
       systemVoltage: 24,
       mpptCurrentAmps: parseFloat(stats.currentAmps12V),
+      voc: stats.voc,
+      vmp: stats.vmp,
+      isc: stats.isc,
       level1Panels: stats.level1Panels,
       level2Panels: stats.level2Panels,
       stackLevels: stats.stackLevels
@@ -294,10 +373,27 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (cfg.level1) setLevel1State(cfg.level1);
         if (cfg.level2) setLevel2State(cfg.level2);
         if (cfg.structureMaterial) setStructureMaterialState(cfg.structureMaterial);
+        if (cfg.steelProfileUnit) setSteelProfileUnitState(cfg.steelProfileUnit);
         if (cfg.aluminumColor) setAluminumColorState(cfg.aluminumColor);
-        if (cfg.cargoBox) setCargoBoxState(cfg.cargoBox);
+        if (cfg.cargoBox) {
+          const maxLift = Math.max(60, Math.floor(((cfg.cargoBox.height || 330) - 100) / 10) * 10);
+          setCargoBoxState({
+            ...cfg.cargoBox,
+            verticalLiftMm: Math.max(0, Math.min(maxLift, cfg.cargoBox.verticalLiftMm || 0))
+          });
+        }
+        if (cfg.waterTank) {
+          setWaterTankState({
+            enabled: Boolean(cfg.waterTank.enabled),
+            lengthMm: Math.max(400, Math.min(2200, Math.round(cfg.waterTank.lengthMm || 2200))),
+            diameterMm: Math.max(80, Math.min(350, Math.round(cfg.waterTank.diameterMm || 200)))
+          });
+        }
         if (cfg.offsetZ !== undefined) setOffsetZState(cfg.offsetZ);
-        if (cfg.offsetY !== undefined) setOffsetYState(cfg.offsetY);
+        if (cfg.offsetY !== undefined) {
+          const safeOffsetY = Math.max(0, cfg.offsetY);
+          setOffsetYState(safeOffsetY);
+        }
         if (cfg.expansionProgress !== undefined) setExpansionProgressState(cfg.expansionProgress);
       }
     } catch (e) {
@@ -310,6 +406,24 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (!sceneManager) return;
 
     sceneManager.solarSystem.setCargoBox(cargoBox);
+    sceneManager.solarSystem.setWaterTank(waterTank);
+    if (activePanelPreset) {
+      sceneManager.solarSystem.setPanelSpecs({
+        width: activePanelPreset.width,
+        length: activePanelPreset.length,
+        thickness: activePanelPreset.thickness,
+        weightKg: activePanelPreset.weightKg,
+        powerWatts: activePanelPreset.powerWatts,
+        voc: activePanelPreset.voc,
+        vmp: activePanelPreset.vmp,
+        isc: activePanelPreset.isc,
+        imp: activePanelPreset.imp,
+        name: activePanelPreset.name,
+        cellCount: activePanelPreset.cellCount,
+        cols: activePanelPreset.cols,
+        rows: activePanelPreset.rows
+      });
+    }
 
     sceneManager.solarSystem.setStackLevels(stackLevels);
     sceneManager.solarSystem.setLevel1Panels(level1.panels);
@@ -321,6 +435,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     sceneManager.solarSystem.setLevel2Orientation(level2.orientation);
 
     sceneManager.solarSystem.setStructureMaterial(structureMaterial);
+    sceneManager.solarSystem.setSteelProfileUnit(steelProfileUnit);
     sceneManager.solarSystem.setAluminumColor(aluminumColor);
 
     sceneManager.solarSystem.setGroupOffsetZ(offsetZ);
@@ -347,8 +462,10 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       level1: overrides?.level1 ?? level1,
       level2: overrides?.level2 ?? level2,
       structureMaterial: overrides?.structureMaterial ?? structureMaterial,
+      steelProfileUnit: overrides?.steelProfileUnit ?? steelProfileUnit,
       aluminumColor: overrides?.aluminumColor ?? aluminumColor,
       cargoBox: overrides?.cargoBox ?? cargoBox,
+      waterTank: overrides?.waterTank ?? waterTank,
       offsetZ: overrides?.offsetZ ?? offsetZ,
       offsetY: overrides?.offsetY ?? offsetY,
       expansionProgress: overrides?.expansionProgress ?? expansionProgress
@@ -453,6 +570,17 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       updateCalculations();
     }
     saveConfig({ structureMaterial: mat });
+  };
+
+  const setSteelProfileUnit = (unit: SteelProfileUnit) => {
+    setSteelProfileUnitState(unit);
+    if (sceneManager) {
+      sceneManager.cancelCurrentAnimation();
+      sceneManager.solarSystem.setSteelProfileUnit(unit);
+      sceneManager.audio.playLockClick();
+      updateCalculations();
+    }
+    saveConfig({ steelProfileUnit: unit });
   };
 
   const setAluminumColor = (color: AluminumColor) => {
@@ -574,12 +702,153 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (sceneManager) sceneManager.takeScreenshot();
   };
 
-  const openModal = (modal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'help' | null) => {
+  const openModal = (modal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'help' | null) => {
     setActiveModal(modal);
   };
 
   const closeModal = () => {
     setActiveModal(null);
+  };
+
+  // --- PRESETS DE PLACA SOLAR ---
+  const selectPanelPreset = (id: string) => {
+    const found = panelPresets.find(p => p.id === id);
+    if (!found) return;
+    setActivePanelPresetIdState(id);
+    saveActivePresetId(id);
+    if (sceneManager) {
+      sceneManager.cancelCurrentAnimation();
+      sceneManager.solarSystem.setPanelSpecs({
+        width: found.width,
+        length: found.length,
+        thickness: found.thickness,
+        weightKg: found.weightKg,
+        powerWatts: found.powerWatts,
+        voc: found.voc,
+        vmp: found.vmp,
+        isc: found.isc,
+        imp: found.imp,
+        name: found.name,
+        cellCount: found.cellCount,
+        cols: found.cols,
+        rows: found.rows
+      });
+      sceneManager.audio.playLockClick();
+      updateCalculations();
+    }
+    flashToast(`☀️ Placa selecionada: ${found.name} (${found.powerWatts}W)`);
+  };
+
+  const addPanelPreset = (presetData: Omit<SolarPanelPreset, 'id' | 'isDefault'>) => {
+    const newPreset: SolarPanelPreset = {
+      ...presetData,
+      id: `panel_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      isDefault: false
+    };
+    const next = [...panelPresets, newPreset];
+    setPanelPresetsState(next);
+    savePanelPresets(next);
+    selectPanelPreset(newPreset.id);
+    flashToast(`✅ Novo preset de placa cadastrado: ${newPreset.name}`);
+  };
+
+  const updatePanelPreset = (id: string, updates: Partial<SolarPanelPreset>) => {
+    const next = panelPresets.map(p => (p.id === id ? { ...p, ...updates } : p));
+    setPanelPresetsState(next);
+    savePanelPresets(next);
+    if (activePanelPresetId === id) {
+      const updated = next.find(p => p.id === id);
+      if (updated && sceneManager) {
+        sceneManager.solarSystem.setPanelSpecs({
+          width: updated.width,
+          length: updated.length,
+          thickness: updated.thickness,
+          weightKg: updated.weightKg,
+          powerWatts: updated.powerWatts,
+          voc: updated.voc,
+          vmp: updated.vmp,
+          isc: updated.isc,
+          imp: updated.imp,
+          name: updated.name,
+          cellCount: updated.cellCount,
+          cols: updated.cols,
+          rows: updated.rows
+        });
+        updateCalculations();
+      }
+    }
+    flashToast('✏️ Preset de placa atualizado!');
+  };
+
+  const removePanelPreset = (id: string) => {
+    const target = panelPresets.find(p => p.id === id);
+    if (!target || target.isDefault) return;
+    const next = panelPresets.filter(p => p.id !== id);
+    setPanelPresetsState(next);
+    savePanelPresets(next);
+    if (activePanelPresetId === id && next.length > 0) {
+      selectPanelPreset(next[0].id);
+    }
+    flashToast('🗑️ Preset de placa removido');
+  };
+
+  // --- PRESETS DE BAÚ DE TETO ---
+  const selectCargoBoxPreset = (id: string) => {
+    const found = cargoBoxPresets.find(p => p.id === id);
+    if (!found) return;
+    setActiveCargoPresetIdState(id);
+    saveActiveCargoPresetId(id);
+    setCargoBox({
+      enabled: true,
+      length: found.length,
+      width: found.width,
+      height: found.height,
+      hingeSide: found.hingeSide || cargoBox.hingeSide
+    });
+    flashToast(`🧰 Baú selecionado: ${found.name} (${found.length}×${found.width}×${found.height}mm)`);
+  };
+
+  const addCargoBoxPreset = (presetData: Omit<CargoBoxPreset, 'id' | 'isDefault'>) => {
+    const newPreset: CargoBoxPreset = {
+      ...presetData,
+      id: `cargo_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      isDefault: false
+    };
+    const next = [...cargoBoxPresets, newPreset];
+    setCargoBoxPresetsState(next);
+    saveCargoBoxPresets(next);
+    selectCargoBoxPreset(newPreset.id);
+    flashToast(`✅ Novo baú cadastrado: ${newPreset.name}`);
+  };
+
+  const updateCargoBoxPreset = (id: string, updates: Partial<CargoBoxPreset>) => {
+    const next = cargoBoxPresets.map(p => (p.id === id ? { ...p, ...updates } : p));
+    setCargoBoxPresetsState(next);
+    saveCargoBoxPresets(next);
+    if (activeCargoPresetId === id) {
+      const updated = next.find(p => p.id === id);
+      if (updated) {
+        setCargoBox({
+          length: updated.length,
+          width: updated.width,
+          height: updated.height,
+          hingeSide: updated.hingeSide || cargoBox.hingeSide
+        });
+      }
+    }
+    flashToast('✏️ Preset de baú atualizado!');
+  };
+
+  const removeCargoBoxPreset = (id: string) => {
+    const target = cargoBoxPresets.find(p => p.id === id);
+    if (!target || target.isDefault) return;
+    const next = cargoBoxPresets.filter(p => p.id !== id);
+    setCargoBoxPresetsState(next);
+    saveCargoBoxPresets(next);
+    if (activeCargoPresetId === id && next.length > 0) {
+      selectCargoBoxPreset(next[0].id);
+    }
+    flashToast('🗑️ Preset de baú removido');
   };
 
   const addAppliance = (name: string, watts: number, hours: number, qty: number = 1) => {
@@ -602,6 +871,20 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       sceneManager.solarSim.removeAppliance(id);
       updateCalculations();
       flashToast('🗑️ Carga Removida');
+    }
+  };
+
+  const moveAppliance = (id: string, direction: 'up' | 'down') => {
+    if (sceneManager) {
+      sceneManager.solarSim.moveAppliance(id, direction);
+      updateCalculations();
+    }
+  };
+
+  const reorderAppliances = (fromIndex: number, toIndex: number) => {
+    if (sceneManager) {
+      sceneManager.solarSim.reorderAppliances(fromIndex, toIndex);
+      updateCalculations();
     }
   };
 
@@ -676,7 +959,15 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const setCargoBoxDimensions = (length: number, width: number, height: number) => {
-    setCargoBox({ length, width, height });
+    const maxLiftMm = Math.max(60, Math.floor((height - 100) / 10) * 10);
+    const verticalLiftMm = Math.min(maxLiftMm, cargoBox.verticalLiftMm || 0);
+    setCargoBox({ length, width, height, verticalLiftMm });
+  };
+
+  const setCargoBoxVerticalLift = (liftMm: number) => {
+    const maxLiftMm = Math.max(60, Math.floor(((cargoBox.height || 330) - 100) / 10) * 10);
+    const clamped = Math.max(0, Math.min(maxLiftMm, Math.round(liftMm)));
+    setCargoBox({ verticalLiftMm: clamped });
   };
 
   const setCargoBoxHingeSide = (hingeSide: 'driver' | 'passenger') => {
@@ -729,6 +1020,48 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setTimeout(() => {
       animateTiltTo(65);
     }, 700);
+  };
+
+  // ─── Caixa d'Água Lateral (2× Canos — 1 de cada lado) ───────────────
+  const setWaterTank = (updates: Partial<WaterTankConfig>) => {
+    const clampedLen = updates.lengthMm !== undefined
+      ? Math.max(400, Math.min(2200, Math.round(updates.lengthMm)))
+      : waterTank.lengthMm;
+    const clampedDia = updates.diameterMm !== undefined
+      ? Math.max(80, Math.min(350, Math.round(updates.diameterMm)))
+      : waterTank.diameterMm;
+    const next: WaterTankConfig = {
+      ...waterTank,
+      ...updates,
+      lengthMm: clampedLen,
+      diameterMm: clampedDia
+    };
+    setWaterTankState(next);
+    if (sceneManager) {
+      sceneManager.solarSystem.setWaterTank(next);
+    }
+    saveConfig({ waterTank: next });
+  };
+
+  const setWaterTankEnabled = (enabled: boolean) => {
+    setWaterTank({ enabled });
+    const radiusDm = (waterTank.diameterMm / 2) / 100;
+    const litersTotal = +(2 * Math.PI * radiusDm * radiusDm * (waterTank.lengthMm / 100)).toFixed(1);
+    flashToast(
+      enabled
+        ? `💧 2× Canos R=${waterTank.diameterMm / 2}mm (Ø${waterTank.diameterMm}mm) ativados (${waterTank.lengthMm}mm • ${litersTotal} L)`
+        : `🚫 Caixa d'água desativada`
+    );
+  };
+
+  const setWaterTankLength = (lengthMm: number) => {
+    const clamped = Math.max(400, Math.min(2200, Math.round(lengthMm)));
+    setWaterTank({ lengthMm: clamped });
+  };
+
+  const setWaterTankRadius = (radiusMm: number) => {
+    const clampedRadius = Math.max(40, Math.min(175, Math.round(radiusMm)));
+    setWaterTank({ diameterMm: clampedRadius * 2 });
   };
 
   // ─── Carregador Inteligente DC-DC B2B1230 ──────────────────────────────────
@@ -832,6 +1165,42 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setCollisionSummary(null);
   };
 
+  // ─── Verificação de Peças Flutuantes (Sustentação na Base) ──────────────────
+  const [floatingSummary, setFloatingSummary] = useState<FloatingSummary | null>(null);
+
+  const checkFloating = () => {
+    if (!sceneManager) return;
+    const summary = sceneManager.checkFloatingProfiles();
+    setFloatingSummary(summary);
+    if (summary.errorCount === 0) {
+      flashToast(`✅ Todas as ${summary.checkedBars} peças sustentadas no subchassi! Nenhuma peça flutuando.`);
+    } else {
+      flashToast(`⚠️ ${summary.errorCount} peça(s) flutuando sem sustentação inferior!`);
+    }
+  };
+
+  const clearFloating = () => {
+    if (sceneManager) sceneManager.clearFloatingHighlights();
+    setFloatingSummary(null);
+  };
+
+  const setViewMode = (mode: ViewMode) => {
+    setViewModeState(mode);
+    if (sceneManager) {
+      sceneManager.setViewMode(mode, isVehicleVisible);
+      if (mode === 'bars_lineup') {
+        const total = sceneManager.barsLineupGroup.userData.totalBars || 0;
+        flashToast(`📏 Modo Bancada: ${total} barras alinhadas da maior para a menor!`);
+      } else {
+        flashToast('🚐 Modo Montado: Doblò + Estrutura Solar Completa');
+      }
+    }
+  };
+
+  const toggleViewMode = () => {
+    setViewMode(viewMode === 'assembled' ? 'bars_lineup' : 'assembled');
+  };
+
   return (
     <SolarContext.Provider
       value={{
@@ -841,11 +1210,13 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         level1,
         level2,
         structureMaterial,
+        steelProfileUnit,
         aluminumColor,
         offsetZ,
         offsetY,
         expansionProgress,
         cargoBox,
+        waterTank,
         b2bCharger,
         usinaCharger,
         isVehicleVisible,
@@ -854,12 +1225,25 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         isTransparent,
         isSoundEnabled,
         isAutoAnimating,
+        viewMode,
         activeCameraPreset,
         sunHour,
         hoveredBar,
         hoverPos,
         activeModal,
         toastMessage,
+        panelPresets,
+        activePanelPreset,
+        selectPanelPreset,
+        addPanelPreset,
+        updatePanelPreset,
+        removePanelPreset,
+        cargoBoxPresets,
+        activeCargoBoxPreset,
+        selectCargoBoxPreset,
+        addCargoBoxPreset,
+        updateCargoBoxPreset,
+        removeCargoBoxPreset,
         energyStats,
         batteryPerformance,
         loadsSummary,
@@ -872,6 +1256,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setLevel2Direction,
         setLevel2Orientation,
         setStructureMaterial,
+        setSteelProfileUnit,
         setAluminumColor,
         setOffsetZ,
         setOffsetY,
@@ -879,6 +1264,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setCargoBox,
         setCargoBoxEnabled,
         setCargoBoxDimensions,
+        setCargoBoxVerticalLift,
         setCargoBoxHingeSide,
         setTiltAngle,
         setBoxLidAngle,
@@ -887,6 +1273,10 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         openBoxLid,
         closeBoxLid,
         retractAndTilt,
+        setWaterTank,
+        setWaterTankEnabled,
+        setWaterTankLength,
+        setWaterTankRadius,
         setB2BEnabled,
         toggleB2BEngine,
         setB2BEngineHours,
@@ -897,12 +1287,17 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         collisionSummary,
         checkCollisions,
         clearCollisions,
+        floatingSummary,
+        checkFloating,
+        clearFloating,
         toggleVehicle,
         toggleDimensions,
         toggleChain,
         toggleTransparency,
         toggleSound,
         toggleAutoAnim,
+        setViewMode,
+        toggleViewMode,
         expand,
         retract,
         rewind,
@@ -915,6 +1310,8 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         addAppliance,
         updateAppliance,
         removeAppliance,
+        moveAppliance,
+        reorderAppliances,
         resetAppliances
       }}
     >

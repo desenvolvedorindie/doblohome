@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npx vite-node tmp/scripts/run_all_combinations.ts",
+    "test:combinations": "npx vite-node tmp/scripts/run_all_combinations.ts"
   },
   "dependencies": {
     "react": "^19.0.0",

@@ -21,6 +21,8 @@ export const RightPanel: React.FC = () => {
     toggleTransparency,
     isSoundEnabled,
     toggleSound,
+    viewMode,
+    setViewMode,
     activeCameraPreset,
     setCameraPreset,
     energyStats,
@@ -28,6 +30,7 @@ export const RightPanel: React.FC = () => {
     openModal,
     cargoBox,
     setCargoBoxEnabled,
+    setCargoBoxVerticalLift,
     setTiltAngle,
     setBoxLidAngle,
     tiltSolarRack,
@@ -38,6 +41,9 @@ export const RightPanel: React.FC = () => {
     collisionSummary,
     checkCollisions,
     clearCollisions,
+    floatingSummary,
+    checkFloating,
+    clearFloating,
     flashToast,
     b2bCharger,
     setB2BEngineHours,
@@ -52,8 +58,22 @@ export const RightPanel: React.FC = () => {
 
   // Cálculo MPPT Kingbo 60A: limite nominal @ 12V é ~720W (60A * 12V = 720W; ou 864W @ 14.4V)
   const mpptMaxWatts = 720;
-  const mpptPct = Math.min(100, Math.round((energyStats.effectiveWatts / mpptMaxWatts) * 100));
+  const mpptPeakMaxWatts = 864;
+  const mpptRawPct = Math.round((energyStats.effectiveWatts / mpptMaxWatts) * 100);
+  const mpptPct = Math.min(100, mpptRawPct);
   const mpptMargin = Math.max(0, mpptMaxWatts - energyStats.effectiveWatts);
+  const mpptOverWatts = Math.max(0, energyStats.effectiveWatts - mpptMaxWatts);
+  const mpptOverPct = Math.max(0, Math.round(((energyStats.effectiveWatts - mpptMaxWatts) / mpptMaxWatts) * 100));
+  const mpptRemainingPct = Math.max(0, Math.round(((mpptMaxWatts - energyStats.effectiveWatts) / mpptMaxWatts) * 100));
+  const isNominalOverMppt = energyStats.nominalPowerW > mpptMaxWatts;
+  const isEffectiveOverMppt = energyStats.effectiveWatts > mpptMaxWatts;
+  const isOverAbsolutePeak = energyStats.nominalPowerW > mpptPeakMaxWatts || energyStats.effectiveWatts > mpptPeakMaxWatts;
+  const nominalOverWatts = Math.max(0, energyStats.nominalPowerW - mpptMaxWatts);
+  const nominalOverPct = Math.max(0, Math.round(((energyStats.nominalPowerW - mpptMaxWatts) / mpptMaxWatts) * 100));
+  const nominalUsagePct = Math.round((energyStats.nominalPowerW / mpptMaxWatts) * 100);
+  const nominalRemainingPct = Math.max(0, Math.round(((mpptMaxWatts - energyStats.nominalPowerW) / mpptMaxWatts) * 100));
+  const nominalRemainingWatts = Math.max(0, mpptMaxWatts - energyStats.nominalPowerW);
+  const peakOverPct = Math.max(0, Math.round(((energyStats.nominalPowerW - mpptPeakMaxWatts) / mpptPeakMaxWatts) * 100));
 
   // Recarga combinada: Solar (MPPT) + Alternador Doblò (B2B1230 30A) + Shore Power (Usina)
   const b2bExtraWatts = (b2bCharger.enabled && b2bCharger.isEngineRunning) ? b2bCharger.watts : 0;
@@ -71,8 +91,92 @@ export const RightPanel: React.FC = () => {
 
   return (
     <>
+      {/* Barra Flutuante Central no Topo da Tela: Alternar entre Modo 1 (Doblò + Estrutura) e Modo 2 (Só Barras) */}
+      <div
+        className="glass-panel"
+        style={{
+          position: 'fixed',
+          top: '84px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 35,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '6px 8px',
+          borderRadius: '999px',
+          background: 'rgba(15, 23, 42, 0.92)',
+          border: '1px solid rgba(56, 189, 248, 0.45)',
+          boxShadow: '0 8px 28px rgba(0, 0, 0, 0.55), 0 0 16px rgba(56, 189, 248, 0.2)'
+        }}
+      >
+        <button
+          onClick={() => setViewMode('assembled')}
+          style={{
+            border: 'none',
+            borderRadius: '999px',
+            padding: '7px 16px',
+            fontSize: '12px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            background: viewMode === 'assembled' ? 'linear-gradient(135deg, #0ea5e9, #2563eb)' : 'transparent',
+            color: viewMode === 'assembled' ? '#ffffff' : '#94a3b8',
+            boxShadow: viewMode === 'assembled' ? '0 2px 10px rgba(14, 165, 233, 0.45)' : 'none'
+          }}
+        >
+          🚐 1. Doblò + Estrutura
+        </button>
+        <button
+          onClick={() => setViewMode('bars_lineup')}
+          style={{
+            border: 'none',
+            borderRadius: '999px',
+            padding: '7px 16px',
+            fontSize: '12px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            background: viewMode === 'bars_lineup' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
+            color: viewMode === 'bars_lineup' ? '#ffffff' : '#94a3b8',
+            boxShadow: viewMode === 'bars_lineup' ? '0 2px 10px rgba(16, 185, 129, 0.45)' : 'none'
+          }}
+        >
+          📏 2. Só Barras
+        </button>
+      </div>
+
       {/* Widget flutuante: Expandir / Contrair Gavetas + Visibilidade (top-right) */}
       <div className="expansion-widget glass-panel" id="expansion-widget">
+        {/* Seletor de Modo de Visualização no topo do painel direito */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '6px',
+            marginBottom: '10px',
+            padding: '4px',
+            background: 'rgba(15, 23, 42, 0.65)',
+            borderRadius: '8px',
+            border: '1px solid rgba(56, 189, 248, 0.3)'
+          }}
+        >
+          <button
+            className={`cam-btn ${viewMode === 'assembled' ? 'active' : ''}`}
+            onClick={() => setViewMode('assembled')}
+            style={{ fontWeight: 800, fontSize: '10.5px', padding: '6px 4px' }}
+          >
+            🚐 Doblò + Estrutura
+          </button>
+          <button
+            className={`cam-btn ${viewMode === 'bars_lineup' ? 'active' : ''}`}
+            onClick={() => setViewMode('bars_lineup')}
+            style={{ fontWeight: 800, fontSize: '10.5px', padding: '6px 4px' }}
+          >
+            📏 Só Barras
+          </button>
+        </div>
+
         <div className="expansion-widget-header">
           <span>📐 GAVETAS</span>
           <div className="expansion-status">
@@ -293,6 +397,52 @@ export const RightPanel: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* 3. Abertura Vertical / Ajuste de Altura do Vão (Torres Telescópicas p/ Baús de Diversas Alturas) */}
+            {(() => {
+              const maxLiftMm = Math.max(60, Math.floor(((cargoBox.height || 330) - 100) / 10) * 10);
+              const curLiftMm = Math.min(maxLiftMm, cargoBox.verticalLiftMm || 0);
+              return (
+                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '2px' }}>
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>↕ Abertura Vertical (Altura Vão):</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8', fontWeight: 800 }}>
+                      +{curLiftMm} / {maxLiftMm} mm
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: '#94a3b8', marginBottom: '4px' }}>
+                    <span>Barra 30×30 ({cargoBox.height + 20}mm, engaste mín. 90mm)</span>
+                    <span style={{ color: '#4ade80', fontWeight: 700 }}>
+                      Vão: {cargoBox.height + curLiftMm + 30} mm
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    className="custom-slider"
+                    min="0"
+                    max={maxLiftMm}
+                    step="10"
+                    value={curLiftMm}
+                    onChange={(e) => setCargoBoxVerticalLift(parseFloat(e.target.value))}
+                  />
+                  <div className="slider-actions">
+                    <button
+                      className={`btn-compact ${curLiftMm === 0 ? 'active' : ''}`}
+                      onClick={() => setCargoBoxVerticalLift(0)}
+                    >
+                      ⬇ Baixar (0 mm)
+                    </button>
+                    <button
+                      className={`btn-compact ${curLiftMm >= maxLiftMm ? 'active' : ''}`}
+                      onClick={() => setCargoBoxVerticalLift(maxLiftMm)}
+                      style={{ background: 'rgba(14, 165, 233, 0.2)', borderColor: 'rgba(56, 189, 248, 0.45)', color: '#38bdf8' }}
+                    >
+                      ⬆ Curso Máx. (+{maxLiftMm} mm)
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <div
@@ -428,6 +578,101 @@ export const RightPanel: React.FC = () => {
             }}
           >
             ✅ Estrutura verificada — {collisionSummary.totalBars} barras sem colisões!
+          </div>
+        )}
+
+        {/* Verificação de Peças Flutuando (Sustentação na Base / Subchassi) */}
+        <div style={{ display: 'flex', gap: '6px', marginTop: '6px', marginBottom: floatingSummary && floatingSummary.errorCount > 0 ? '6px' : '0' }}>
+          <button
+            className="btn-compact"
+            onClick={checkFloating}
+            style={{ flex: 1, background: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.5)', color: '#fbbf24' }}
+            title="Verifica se todos os perfis estão apoiados em uma peça abaixo (o subchassi base é o alicerce)"
+          >
+            🔍 Checar Peças Flutuando
+          </button>
+          {floatingSummary !== null && (
+            <button
+              className="btn-compact"
+              onClick={clearFloating}
+              title="Limpar destaques de peças flutuantes"
+            >
+              ✅ Limpar
+            </button>
+          )}
+        </div>
+
+        {floatingSummary && floatingSummary.errorCount > 0 && (
+          <div
+            style={{
+              background: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: '6px',
+              padding: '8px 10px',
+              fontSize: '10px',
+              lineHeight: '1.6',
+              marginBottom: '2px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ color: '#fcd34d', fontWeight: 700 }}>
+                ⚠️ {floatingSummary.floatingBars} peça(s) flutuando (sem apoio):
+              </span>
+              <button
+                className="btn-compact"
+                title="Copiar relatório de peças flutuantes"
+                style={{ fontSize: '10px', padding: '2px 7px', color: '#94a3b8' }}
+                onClick={() => {
+                  const lines = [
+                    `⚠️ Relatório de Peças Flutuantes (Sem Sustentação Inferior)`,
+                    `Total de barras: ${floatingSummary.totalBars}`,
+                    `Base (subchassi): ${floatingSummary.baseBars}`,
+                    `Barras verificadas: ${floatingSummary.checkedBars}`,
+                    `Peças flutuando: ${floatingSummary.floatingBars}`,
+                    ``,
+                    ...floatingSummary.floatingList.map((f, i) =>
+                      `${i + 1}. ${f.label} [Y: ${f.box.min.y.toFixed(3)} - ${f.box.max.y.toFixed(3)}]`
+                    )
+                  ].join('\n');
+                  navigator.clipboard.writeText(lines).then(() => flashToast('📋 Relatório copiado!'));
+                }}
+              >
+                📋 Copiar
+              </button>
+            </div>
+            {floatingSummary.floatingList.slice(0, 5).map((f, i) => (
+              <div
+                key={i}
+                style={{ color: 'var(--text-muted)', borderBottom: i < Math.min(4, floatingSummary.floatingList.length - 1) ? '1px solid rgba(255,255,255,0.05)' : 'none', paddingBottom: '2px', marginBottom: '2px' }}
+              >
+                <span style={{ color: '#f59e0b' }}>⚠</span>{' '}
+                <span style={{ fontFamily: 'var(--font-mono)', color: '#fde68a' }}>{f.label}</span>
+                <span style={{ fontSize: '9px', color: '#94a3b8', marginLeft: '4px' }}>
+                  (Y: {f.box.min.y.toFixed(2)}m)
+                </span>
+              </div>
+            ))}
+            {floatingSummary.floatingList.length > 5 && (
+              <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                ...e mais {floatingSummary.floatingList.length - 5} peça(s) flutuando
+              </div>
+            )}
+          </div>
+        )}
+
+        {floatingSummary && floatingSummary.errorCount === 0 && (
+          <div
+            style={{
+              background: 'rgba(74, 222, 128, 0.07)',
+              border: '1px solid rgba(74, 222, 128, 0.25)',
+              borderRadius: '6px',
+              padding: '6px 10px',
+              fontSize: '10px',
+              color: '#86efac',
+              marginBottom: '2px',
+            }}
+          >
+            ✅ Sustentação 100% OK — todas as {floatingSummary.checkedBars} peças apoiadas no subchassi!
           </div>
         )}
 
@@ -599,39 +844,162 @@ export const RightPanel: React.FC = () => {
         </div>
 
         {/* ⚡ Medidor de Carga do MPPT Kingbo 60A */}
-        <div className="mppt-meter-box" id="mppt-meter-box">
+        <div
+          className="mppt-meter-box"
+          id="mppt-meter-box"
+          style={
+            isNominalOverMppt || isEffectiveOverMppt
+              ? {
+                  borderColor: 'rgba(239, 68, 68, 0.65)',
+                  background: 'rgba(127, 29, 29, 0.22)',
+                  boxShadow: '0 0 14px rgba(239, 68, 68, 0.25)'
+                }
+              : undefined
+          }
+        >
           <div className="mppt-meter-header">
             <div className="mppt-meter-title">
-              <span className="mppt-icon">⚡</span>
+              <span className="mppt-icon">{isNominalOverMppt || isEffectiveOverMppt ? '🚨' : '⚡'}</span>
               <span>Capacidade MPPT Kingbo 60A</span>
             </div>
-            <div className="mppt-meter-badge" id="mppt-status-badge">
-              {mpptPct > 90 ? 'CARGA ALTA' : 'OK'}
+            <div
+              className="mppt-meter-badge"
+              id="mppt-status-badge"
+              style={
+                isEffectiveOverMppt || isNominalOverMppt
+                  ? {
+                      background: 'rgba(239, 68, 68, 0.28)',
+                      color: '#fca5a5',
+                      border: '1px solid rgba(239, 68, 68, 0.65)',
+                      fontWeight: 800
+                    }
+                  : undefined
+              }
+            >
+              {isEffectiveOverMppt
+                ? `🚨 ACIMA DO LIMITE (+${mpptOverPct}%)`
+                : isNominalOverMppt
+                  ? `⚠️ PLACAS +${nominalOverPct}% ACIMA`
+                  : mpptRawPct > 90
+                    ? `CARGA ALTA (${mpptRemainingPct}% LIVRE)`
+                    : `OK (${mpptRemainingPct}% LIVRE)`}
             </div>
           </div>
           <div className="mppt-gauge-track">
-            <div className="mppt-gauge-fill" id="mppt-gauge-fill" style={{ width: `${mpptPct}%` }}></div>
+            <div
+              className="mppt-gauge-fill"
+              id="mppt-gauge-fill"
+              style={{
+                width: `${mpptPct}%`,
+                background:
+                  isEffectiveOverMppt || isNominalOverMppt
+                    ? 'linear-gradient(90deg, #f59e0b 0%, #ef4444 70%, #dc2626 100%)'
+                    : undefined
+              }}
+            ></div>
             <div className="mppt-limit-marker" title="Limite MPPT: 720W"></div>
           </div>
           <div className="mppt-scale-labels">
             <span>0 W</span>
             <span id="mppt-scale-mid">360 W</span>
-            <span>720 W (máx)</span>
+            <span>720 W (máx 12V)</span>
           </div>
           <div className="mppt-detail-chips">
             <div className="mppt-detail-chip">
               <span className="lbl">Geração atual:</span>
-              <span className="val" id="mppt-watts-val">{energyStats.effectiveWatts} W</span>
+              <span
+                className="val"
+                id="mppt-watts-val"
+                style={{ color: isEffectiveOverMppt ? '#f87171' : undefined }}
+              >
+                {energyStats.effectiveWatts} W
+              </span>
             </div>
             <div className="mppt-detail-chip">
               <span className="lbl">Uso do MPPT:</span>
-              <span className="val" id="mppt-pct-val">{mpptPct}%</span>
+              <span
+                className="val"
+                id="mppt-pct-val"
+                style={{ color: isEffectiveOverMppt ? '#f87171' : undefined }}
+              >
+                {mpptRawPct}%
+              </span>
             </div>
             <div className="mppt-detail-chip">
-              <span className="lbl">Margem disponível:</span>
-              <span className="val" id="mppt-margin-val">{mpptMargin} W</span>
+              <span className="lbl">{isEffectiveOverMppt ? 'Excesso atual:' : 'Cap. restante:'}</span>
+              <span
+                className="val"
+                id="mppt-margin-val"
+                style={{ color: isEffectiveOverMppt ? '#f87171' : '#4ade80', fontWeight: 800 }}
+              >
+                {isEffectiveOverMppt
+                  ? `+${mpptOverPct}% (+${mpptOverWatts}W)`
+                  : `${mpptRemainingPct}% (${mpptMargin}W)`}
+              </span>
             </div>
           </div>
+
+          {/* Resumo de Capacidade Nominal Instalada (em % acima ou % livre do total) */}
+          {isNominalOverMppt || isEffectiveOverMppt ? (
+            <div
+              id="mppt-overload-alert"
+              style={{
+                marginTop: '8px',
+                padding: '8px 10px',
+                borderRadius: '6px',
+                background: 'rgba(239, 68, 68, 0.18)',
+                border: '1px solid rgba(239, 68, 68, 0.55)',
+                color: '#fecaca',
+                fontSize: '10.5px',
+                lineHeight: 1.4
+              }}
+            >
+              <div style={{ fontWeight: 800, color: '#f87171', marginBottom: '3px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '5px' }}>
+                <span>⚠️ Potência Excede o Limite do MPPT!</span>
+                <span style={{ fontFamily: 'var(--font-mono)', background: 'rgba(239, 68, 68, 0.3)', padding: '1px 6px', borderRadius: '4px', color: '#fff' }}>
+                  +{nominalOverPct}% (+{nominalOverWatts}W)
+                </span>
+              </div>
+              Arranjo solar instalado de <strong>{energyStats.nominalPowerW}W</strong> ({energyStats.panelCount} placas) está{' '}
+              <strong>{nominalOverPct}% acima</strong> (<strong>+{nominalOverWatts}W</strong>) da capacidade nominal de{' '}
+              <strong>{mpptMaxWatts}W</strong> (60A @ 12V) — operando a <strong>{nominalUsagePct}%</strong> do limite nominal.
+              {isOverAbsolutePeak ? (
+                <span>
+                  {' '}Ultrapassa também o limite de pico em absorção (<strong>864W @ 14.4V</strong>) em{' '}
+                  <strong>+{peakOverPct}% (+{energyStats.nominalPowerW - mpptPeakMaxWatts}W)</strong>: o controlador fará{' '}
+                  <em>clipping</em> (corte em 60A) ou exigirá um 2º MPPT.
+                </span>
+              ) : (
+                <span>
+                  {' '}Em tensão de absorção (14.4V = 864W máx), ainda restam{' '}
+                  <strong>{Math.max(0, Math.round(((mpptPeakMaxWatts - energyStats.nominalPowerW) / mpptPeakMaxWatts) * 100))}% ({mpptPeakMaxWatts - energyStats.nominalPowerW}W)</strong> até o teto absoluto de 60A.
+                </span>
+              )}
+            </div>
+          ) : (
+            <div
+              id="mppt-capacity-ok-summary"
+              style={{
+                marginTop: '8px',
+                padding: '6px 9px',
+                borderRadius: '6px',
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                color: '#a7f3d0',
+                fontSize: '10.5px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <span>
+                ✅ Arranjo instalado: <strong>{energyStats.nominalPowerW}W</strong> ({nominalUsagePct}% de {mpptMaxWatts}W)
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#34d399' }}>
+                Restam {nominalRemainingPct}% ({nominalRemainingWatts}W livres)
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 🚗⚡ Carregador Inteligente DC-DC B2B1230 (12V 30A · Alternador Doblò) */}
@@ -895,8 +1263,8 @@ export const RightPanel: React.FC = () => {
                 {usinaCharger.isConnectedAC
                   ? `${combinedChargeHours}h (Rede Shore Power Usina ${usinaCharger.chargingAmps}A)`
                   : b2bCharger.isEngineRunning
-                  ? `${combinedChargeHours}h (Solar + B2B 30A)`
-                  : `${batteryPerformance.solarHoursToFull}h sol pleno`}
+                    ? `${combinedChargeHours}h (Solar + B2B 30A)`
+                    : `${batteryPerformance.solarHoursToFull}h sol pleno`}
               </span>
             </div>
             <div className="bat-metric">

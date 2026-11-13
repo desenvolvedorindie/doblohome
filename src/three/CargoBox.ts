@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { MaterialLibrary } from './Materials';
 import { TextureGenerator } from './Textures';
 import { AluminumExtrusionFactory } from './AluminumExtrusion';
-import { CargoBoxConfig, StructureMaterial, AluminumColor } from '../types';
+import { CargoBoxConfig, StructureMaterial, AluminumColor, SteelProfileUnit, getSteelProfileSpec } from '../types';
 
 export interface GasStrutRuntime {
   lowerAnchor: THREE.Vector3;
@@ -30,6 +30,7 @@ export class CargoBoxSystem {
   baseY: number;
   rackOffsetZ: number;
   structureMaterial: StructureMaterial;
+  steelProfileUnit: SteelProfileUnit;
   aluminumColor: AluminumColor;
 
   // Dimensões do subchassi base
@@ -45,13 +46,15 @@ export class CargoBoxSystem {
     baseY: number = 2.06,
     rackOffsetZ: number = 0.40,
     structureMaterial: StructureMaterial = 'aluminum',
-    aluminumColor: AluminumColor = 'silver'
+    aluminumColor: AluminumColor = 'silver',
+    steelProfileUnit: SteelProfileUnit = 'mm'
   ) {
     this.config = { ...config };
     this.baseY = baseY;
     this.rackOffsetZ = rackOffsetZ;
     this.structureMaterial = structureMaterial;
     this.aluminumColor = aluminumColor;
+    this.steelProfileUnit = steelProfileUnit;
 
     this.group = new THREE.Group();
     this.group.name = "CargoBoxSystem";
@@ -104,12 +107,14 @@ export class CargoBoxSystem {
 
     this.group.visible = true;
 
-    // Converte mm para metros
+    // Converte mm para metros e limita a abertura vertical ao curso físico real da barra telescópica (mantendo >= 90mm de engaste interno)
     const boxL = (this.config.length || 1600) / 1000;
     const boxW = (this.config.width || 1000) / 1000;
     const boxH = (this.config.height || 330) / 1000;
+    const maxLiftM = Math.max(0.06, boxH - 0.10);
+    const liftM = Math.min(maxLiftM, Math.max(0, (this.config.verticalLiftMm || 0) / 1000));
 
-    const pivotElevationY = this.baseY + this.PROFILE_SIZE + boxH + 0.02; // Folga de 20mm acima do baú
+    const pivotElevationY = this.baseY + this.PROFILE_SIZE + boxH + 0.03 + liftM; // Folga de 30mm + abertura vertical regulável
     const pivotX = (this.config.hingeSide === 'driver' ? -1 : 1) * (this.SUBCHASSIS_WIDTH / 2 - this.PROFILE_SIZE / 2);
 
     // 1. Constrói o Subchassi Base com Torres Verticais de Elevação
@@ -137,6 +142,8 @@ export class CargoBoxSystem {
   private buildSubchassis(boxL: number, boxW: number, boxH: number, pivotElevationY: number, pivotX: number) {
     const mats = MaterialLibrary.materials;
     const isAlu = (this.structureMaterial === 'aluminum');
+    const steelSpec40 = getSteelProfileSpec(40, this.steelProfileUnit);
+    const steelSpec30 = getSteelProfileSpec(30, this.steelProfileUnit);
     const frameMat = isAlu
       ? (this.aluminumColor === 'black' ? mats.aluminumProfileBlack : mats.aluminumProfileSilver)
       : mats.weldedSteelMetalon;
@@ -153,7 +160,7 @@ export class CargoBoxSystem {
       : new THREE.Mesh(new THREE.BoxGeometry(pSize, pSize, length), frameMat);
     longLeft.position.set(-width / 2 + pSize / 2, yBase, zCenter);
     longLeft.castShadow = true;
-    longLeft.userData = { isBar: true, barLength: length, barLabel: 'Longarina do Subchassi Base (Esquerda)', profileSpec: isAlu ? 'Perfil T-Slot 40x40' : 'Metalon 40x40' };
+    longLeft.userData = { isBar: true, barLength: length, barLabel: 'Longarina do Subchassi Base (Esquerda)', profileSpec: isAlu ? 'Perfil T-Slot 40x40' : steelSpec40 };
     this.subchassisGroup.add(longLeft);
 
     const longRight = isAlu
@@ -161,16 +168,20 @@ export class CargoBoxSystem {
       : new THREE.Mesh(new THREE.BoxGeometry(pSize, pSize, length), frameMat);
     longRight.position.set(width / 2 - pSize / 2, yBase, zCenter);
     longRight.castShadow = true;
-    longRight.userData = { isBar: true, barLength: length, barLabel: 'Longarina do Subchassi Base (Direita)', profileSpec: isAlu ? 'Perfil T-Slot 40x40' : 'Metalon 40x40' };
+    longRight.userData = { isBar: true, barLength: length, barLabel: 'Longarina do Subchassi Base (Direita)', profileSpec: isAlu ? 'Perfil T-Slot 40x40' : steelSpec40 };
     this.subchassisGroup.add(longRight);
 
     // 2. Travessas Transversais de Apoio ao Baú (em X)
     const crossBarLength = width - pSize * 2;
+    const zFront = zCenter + length / 2 - pSize / 2;
+    const zRear = zCenter - length / 2 + pSize / 2;
+    const maxBoxHalf = (length / 2) - pSize * 3;
+    const boxSupportHalf = Math.min(maxBoxHalf, Math.max(0.25, boxL / 2 - 0.10));
     const zPositions = [
-      zCenter + length / 2 - pSize / 2, // Dianteira extrema
-      zCenter - length / 2 + pSize / 2, // Traseira extrema
-      zCenter + boxL / 2 - 0.10,        // Apoio dianteiro do baú
-      zCenter - boxL / 2 + 0.10,        // Apoio traseiro do baú
+      zFront,                           // Dianteira extrema
+      zRear,                            // Traseira extrema
+      zCenter + boxSupportHalf,         // Apoio dianteiro do baú
+      zCenter - boxSupportHalf,         // Apoio traseiro do baú
       zCenter                           // Apoio central do baú
     ];
 
@@ -180,54 +191,123 @@ export class CargoBoxSystem {
         : new THREE.Mesh(new THREE.BoxGeometry(crossBarLength, pSize, pSize), frameMat);
       cross.position.set(0, yBase, z);
       cross.castShadow = true;
-      cross.userData = { isBar: true, barLength: crossBarLength, barLabel: 'Travessa do Subchassi de Apoio ao Baú', profileSpec: isAlu ? 'Perfil T-Slot 40x40' : 'Metalon 40x40' };
+      cross.userData = { isBar: true, barLength: crossBarLength, barLabel: 'Travessa do Subchassi de Apoio ao Baú', profileSpec: isAlu ? 'Perfil T-Slot 40x40' : steelSpec40 };
       this.subchassisGroup.add(cross);
     });
 
-    // 3. Sapatas de ancoragem nas calhas do teto da Doblò
-    const riserGeo = new THREE.BoxGeometry(0.06, 0.08, 0.08);
+    // 3. Sapatas de ancoragem nas calhas do teto da Doblò (alinhadas exatamente sob a face inferior das longarinas)
+    const riserH = 0.06;
+    const riserGeo = new THREE.BoxGeometry(0.05, riserH, 0.08);
+    const riserY = yBase - pSize / 2 - riserH / 2;
     const risersPos = [
-      [-width / 2 + 0.05, yBase - 0.04, zCenter + 0.85],
-      [width / 2 - 0.05, yBase - 0.04, zCenter + 0.85],
-      [-width / 2 + 0.05, yBase - 0.04, zCenter - 0.85],
-      [width / 2 - 0.05, yBase - 0.04, zCenter - 0.85]
+      [-width / 2 + pSize / 2, riserY, zCenter + 0.85],
+      [width / 2 - pSize / 2, riserY, zCenter + 0.85],
+      [-width / 2 + pSize / 2, riserY, zCenter - 0.85],
+      [width / 2 - pSize / 2, riserY, zCenter - 0.85]
     ];
-    risersPos.forEach(p => {
+    risersPos.forEach((p, idx) => {
       const riser = new THREE.Mesh(riserGeo, frameMat);
       riser.position.set(p[0], p[1], p[2]);
+      riser.userData = { isBar: true, barLength: 0.08, barLabel: `Sapata do Subchassi Base (#${idx + 1})`, profileSpec: 'Sapata de Ancoragem 50x60x80mm' };
       this.subchassisGroup.add(riser);
     });
 
-    // 4. Torres Verticais de Elevação (Elevam o rack acima da altura do baú)
-    const towerHeight = pivotElevationY - yBase;
+    // 4. Torres Verticais Telescópicas Reguláveis (Permitem deslocar para cima/baixo para baús de diversas alturas)
+    const towerBottomY = yBase + pSize / 2;
+    const towerTopY = pivotElevationY - pSize / 2;
     const isDriverHinge = (this.config.hingeSide === 'driver');
     const hingeX = pivotX;
     const latchX = isDriverHinge ? (width / 2 - pSize / 2) : (-width / 2 + pSize / 2);
 
+    // Divisão em 2 estágios com comprimento físico constante (a barra interna desliza de dentro da camisa externa sem esticar):
+    // - Camisa Base Fixa (40x40): altura fixa = boxH (ex: 330mm)
+    // - Coluna Telescópica Interna (30x30): comprimento físico fixo = boxH + 20mm (ex: 350mm), mantendo no mínimo 90mm de engaste dentro da camisa 40x40 no curso máximo
+    const baseSleeveH = Math.max(0.18, boxH);
+    const innerBarLength = baseSleeveH + 0.02;
+    const jointY = towerBottomY + baseSleeveH;
+    const baseSleeveCenterY = towerBottomY + baseSleeveH / 2;
+    const upperSlideCenterY = towerTopY - innerBarLength / 2;
+
+    const telescopicMat = mats.telescopicMid || new THREE.MeshStandardMaterial({
+      color: 0x0ea5e9,
+      metalness: 0.80,
+      roughness: 0.20,
+      emissive: new THREE.Color(0x0284c7),
+      emissiveIntensity: 0.22
+    });
+    const collarMat = mats.telescopicBracket || mats.weldedSteelMetalon;
+    const pinHoleMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+
     // 4 torres nas quinas principais
-    const towerZCoords = [zCenter + boxL / 2 + 0.12, zCenter - boxL / 2 - 0.12];
+    const maxTowerHalf = (length / 2) - pSize;
+    const towerHalfZ = Math.min(maxTowerHalf, boxL / 2 + 0.12);
+    const towerZCoords = [zCenter + towerHalfZ, zCenter - towerHalfZ];
+
+    const buildTelescopicTower = (xPos: number, zPos: number, roleLabel: string, outwardSign: number) => {
+      // 4.1 Camisa Inferior Fixa no Subchassi (40x40)
+      const lowerTower = isAlu
+        ? AluminumExtrusionFactory.createProfileMesh(baseSleeveH, frameMat, { axis: 'y', size: 0.040 })
+        : new THREE.Mesh(new THREE.BoxGeometry(pSize, baseSleeveH, pSize), frameMat);
+      lowerTower.position.set(xPos, baseSleeveCenterY, zPos);
+      lowerTower.castShadow = true;
+      lowerTower.userData = {
+        isBar: true,
+        isTelescopicRail: true,
+        barLength: baseSleeveH,
+        barLabel: `Torre Base Fixa (${roleLabel})`,
+        profileSpec: isAlu ? 'Perfil T-Slot 40x40' : steelSpec40
+      };
+      this.subchassisGroup.add(lowerTower);
+
+      // 4.2 Coluna Telescópica Regulável de Altura (30x30 de comprimento fixo que desliza de dentro da camisa 40x40)
+      const upperSlide = isAlu
+        ? AluminumExtrusionFactory.createProfileMesh(innerBarLength, telescopicMat, { axis: 'y', size: 0.030 })
+        : new THREE.Mesh(new THREE.BoxGeometry(0.030, innerBarLength, 0.030), telescopicMat);
+      upperSlide.position.set(xPos, upperSlideCenterY, zPos);
+      upperSlide.castShadow = true;
+      upperSlide.userData = {
+        isBar: true,
+        isTelescopicRail: true,
+        barLength: innerBarLength,
+        barLabel: `Coluna Telescópica de Ajuste de Altura (${roleLabel})`,
+        profileSpec: isAlu
+          ? 'Perfil Telescópico 30x30 (Regulagem Vertical)'
+          : (this.steelProfileUnit === 'inch' ? 'Tubo Telescópico 1 ¼" x 1 ¼" (Regulagem Vertical)' : 'Tubo Telescópico 30x30 (Regulagem Vertical)')
+      };
+      this.subchassisGroup.add(upperSlide);
+
+      // 4.3 Colar de Travamento e Pino de Regulagem Rápida na junção telescópica
+      const collar = new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.022, 0.046), collarMat);
+      collar.position.set(xPos, jointY, zPos);
+      this.subchassisGroup.add(collar);
+
+      const lockPin = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.056, 12), mats.toggleClampGrip || collarMat);
+      lockPin.rotation.z = Math.PI / 2;
+      lockPin.position.set(xPos + outwardSign * 0.006, jointY, zPos);
+      this.subchassisGroup.add(lockPin);
+
+      // 4.4 Furos visuais de regulagem de altura a cada 30mm solidários à coluna telescópica (apenas os visíveis acima do colar)
+      const holeStep = 0.030;
+      const totalHolesOnBar = Math.floor((innerBarLength - 0.06) / holeStep);
+      for (let h = 1; h <= totalHolesOnBar; h++) {
+        const hy = (towerTopY - innerBarLength) + 0.03 + h * holeStep;
+        if (hy <= jointY + 0.014 || hy >= towerTopY - 0.015) continue;
+        const holeDot = new THREE.Mesh(new THREE.CylinderGeometry(0.0032, 0.0032, 0.032, 10), pinHoleMat);
+        holeDot.rotation.z = Math.PI / 2;
+        holeDot.position.set(xPos, hy, zPos);
+        this.subchassisGroup.add(holeDot);
+      }
+    };
 
     towerZCoords.forEach(tz => {
-      // Colunas no lado da dobradiça
-      const hingeTower = isAlu
-        ? AluminumExtrusionFactory.createProfileMesh(towerHeight, frameMat, { axis: 'y' })
-        : new THREE.Mesh(new THREE.BoxGeometry(pSize, towerHeight, pSize), frameMat);
-      hingeTower.position.set(hingeX, yBase + towerHeight / 2, tz);
-      hingeTower.castShadow = true;
-      hingeTower.userData = { isBar: true, barLength: towerHeight, barLabel: 'Torre Vertical de Basculamento (Dobradiça)', profileSpec: isAlu ? 'Perfil T-Slot 40x40' : 'Metalon 40x40' };
-      this.subchassisGroup.add(hingeTower);
+      // Torres telescópicas no lado da dobradiça
+      buildTelescopicTower(hingeX, tz, 'Dobradiça', isDriverHinge ? -1 : 1);
 
       // Dobradiça industrial em inox montada no topo da torre
       this.buildStainlessHinge(hingeX, pivotElevationY, tz);
 
-      // Colunas no lado da trava / abertura
-      const latchTower = isAlu
-        ? AluminumExtrusionFactory.createProfileMesh(towerHeight, frameMat, { axis: 'y' })
-        : new THREE.Mesh(new THREE.BoxGeometry(pSize, towerHeight, pSize), frameMat);
-      latchTower.position.set(latchX, yBase + towerHeight / 2, tz);
-      latchTower.castShadow = true;
-      latchTower.userData = { isBar: true, barLength: towerHeight, barLabel: 'Torre Vertical de Apoio (Trava Rápida)', profileSpec: isAlu ? 'Perfil T-Slot 40x40' : 'Metalon 40x40' };
-      this.subchassisGroup.add(latchTower);
+      // Torres telescópicas no lado da trava / abertura
+      buildTelescopicTower(latchX, tz, 'Trava Rápida', isDriverHinge ? 1 : -1);
 
       // Coxim de borracha de assentamento no topo da torre de trava
       const restPad = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.015, 16), mats.rubberRestPad);
@@ -296,7 +376,7 @@ export class CargoBoxSystem {
   private buildMotobulBox(L: number, W: number, H: number) {
     const mats = MaterialLibrary.materials;
     const zCenter = this.rackOffsetZ;
-    const yBase = this.baseY + this.PROFILE_SIZE; // Assentado no topo das travessas
+    const yBase = this.baseY + this.PROFILE_SIZE / 2; // Assentado exatamente na face superior das travessas do subchassi
 
     const tubH = H * 0.42; // Cuba inferior
     const lidH = H * 0.58; // Tampa superior
@@ -310,6 +390,7 @@ export class CargoBoxSystem {
     tubMesh.position.set(0, tubH / 2, 0);
     tubMesh.castShadow = true;
     tubMesh.receiveShadow = true;
+    tubMesh.userData = { isCargoBoxVolume: true, barLabel: 'Baú de Teto (Cuba Inferior)', profileSpec: `${Math.round(L * 1000)}x${Math.round(W * 1000)}x${Math.round(H * 1000)}mm` };
     tubGroup.add(tubMesh);
 
     // Aba perimetral de vedação (Flange)
@@ -338,7 +419,7 @@ export class CargoBoxSystem {
     // --- 2. TAMPA SUPERIOR NERVURADA (MOTOBUL OFF ROAD) ---
     this.boxLidGroup.position.set(
       this.config.hingeSide === 'driver' ? -W * 0.48 : W * 0.48,
-      yBase + tubH + 0.01,
+      yBase + tubH,
       zCenter
     );
 
@@ -352,6 +433,7 @@ export class CargoBoxSystem {
     lidShell.position.set(0, lidH / 2, 0);
     lidShell.castShadow = true;
     lidShell.receiveShadow = true;
+    lidShell.userData = { isCargoBoxVolume: true, barLabel: 'Baú de Teto (Tampa Superior)', profileSpec: `${Math.round(L * 1000)}x${Math.round(W * 1000)}x${Math.round(H * 1000)}mm` };
     lidInner.add(lidShell);
 
     // Aba perimetral larga escalonada / saia inferior da tampa (idêntica à foto)
@@ -517,7 +599,8 @@ export class CargoBoxSystem {
       const strutGroup = new THREE.Group();
       strutGroup.name = `GasStrut_${idx}`;
 
-      const lowerAnchor = new THREE.Vector3(strutLowerX, this.baseY + pSize + 0.02, sz);
+      const lowerAnchorY = Math.max(this.baseY + pSize + 0.02, pivotElevationY - 0.34);
+      const lowerAnchor = new THREE.Vector3(strutLowerX, lowerAnchorY, sz);
       const upperLocalAnchor = new THREE.Vector3(strutUpperRelX, pivotElevationY, sz);
 
       // Terminal inferior (olhal esférico)
@@ -558,7 +641,10 @@ export class CargoBoxSystem {
     if (!this.config.enabled || this.struts.length === 0) return;
 
     const isDriverHinge = (this.config.hingeSide === 'driver');
-    const pivotElevationY = this.baseY + this.PROFILE_SIZE + (this.config.height / 1000) + 0.02;
+    const boxH = (this.config.height || 330) / 1000;
+    const maxLiftM = Math.max(0.06, boxH - 0.10);
+    const liftM = Math.min(maxLiftM, Math.max(0, (this.config.verticalLiftMm || 0) / 1000));
+    const pivotElevationY = this.baseY + this.PROFILE_SIZE + boxH + 0.03 + liftM;
     const pivotX = (isDriverHinge ? -1 : 1) * (this.SUBCHASSIS_WIDTH / 2 - this.PROFILE_SIZE / 2);
 
     this.struts.forEach(st => {
@@ -588,8 +674,9 @@ export class CargoBoxSystem {
       const quat = new THREE.Quaternion().setFromUnitVectors(upAxis, dir);
       st.group.quaternion.copy(quat);
 
-      // Ajusta o curso telescópico da haste (rod)
-      const cylLen = 0.28;
+      // Ajusta proporcionalmente cilindro e haste telescópica para qualquer abertura vertical
+      const cylLen = Math.max(0.28, dist * 0.55);
+      st.cylinderMesh.scale.set(1, cylLen / 0.28, 1);
       const rodLen = Math.max(0.04, dist - cylLen);
       st.rodMesh.position.set(0, cylLen, 0);
       st.rodMesh.scale.set(1, rodLen / 0.26, 1);

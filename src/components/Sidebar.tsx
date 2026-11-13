@@ -16,6 +16,8 @@ export const Sidebar: React.FC = () => {
     setLevel2Orientation,
     structureMaterial,
     setStructureMaterial,
+    steelProfileUnit,
+    setSteelProfileUnit,
     aluminumColor,
     setAluminumColor,
     offsetZ,
@@ -25,34 +27,108 @@ export const Sidebar: React.FC = () => {
     cargoBox,
     setCargoBoxEnabled,
     setCargoBoxDimensions,
+    setCargoBoxVerticalLift,
     setCargoBoxHingeSide,
     openModal,
+    panelPresets,
+    activePanelPreset,
+    selectPanelPreset,
+    cargoBoxPresets,
+    activeCargoBoxPreset,
+    selectCargoBoxPreset,
     b2bCharger,
     setB2BEngineHours,
     usinaCharger,
     toggleUsinaAC,
-    setUsinaModel
+    setUsinaModel,
+    waterTank,
+    setWaterTankEnabled,
+    setWaterTankLength,
+    setWaterTankRadius
   } = useSolar();
+
+  const panelW = activePanelPreset.powerWatts;
+  const panelCmW = Math.round(activePanelPreset.width * 100);
+  const panelCmL = Math.round(activePanelPreset.length * 100);
+  const totalPanelsCount = level1.panels + (stackLevels === 2 ? level2.panels : 0);
+  const totalNominalWatts = totalPanelsCount * panelW;
+  const mpptLimitWatts = 720;
+  const mpptPeakLimitWatts = 864;
+  const isSolarOverLimit = totalNominalWatts > mpptLimitWatts;
+  const isSolarOverPeak = totalNominalWatts > mpptPeakLimitWatts;
+  const mpptUsageNominalPct = Math.round((totalNominalWatts / mpptLimitWatts) * 100);
+  const mpptOverNominalPct = Math.max(0, Math.round(((totalNominalWatts - mpptLimitWatts) / mpptLimitWatts) * 100));
+  const mpptRemainingNominalPct = Math.max(0, Math.round(((mpptLimitWatts - totalNominalWatts) / mpptLimitWatts) * 100));
+  const mpptRemainingWatts = Math.max(0, mpptLimitWatts - totalNominalWatts);
+  const mpptOverPeakPct = Math.max(0, Math.round(((totalNominalWatts - mpptPeakLimitWatts) / mpptPeakLimitWatts) * 100));
+
+  // Cálculo de volume de água nos 2 canos (1 de cada lado da estrutura base de 2200mm)
+  const baseMaxLengthMm = 2200;
+  const pipeRadiusMm = Math.round(waterTank.diameterMm / 2);
+  const pipeDiameterMm = waterTank.diameterMm;
+  const pipeRadiusDm = pipeRadiusMm / 100; // ex.: 100mm = 1.0 dm
+  const pipeLengthDm = waterTank.lengthMm / 100; // mm -> dm
+  const singlePipeLiters = +(Math.PI * pipeRadiusDm * pipeRadiusDm * pipeLengthDm).toFixed(1);
+  const totalWaterLiters = +(singlePipeLiters * 2).toFixed(1);
+  const litersPerMeterSingle = +(Math.PI * pipeRadiusDm * pipeRadiusDm * 10).toFixed(1);
+  const litersPerMeterTotal = +(litersPerMeterSingle * 2).toFixed(1);
+  const baseLengthOccupationPct = Math.round((waterTank.lengthMm / baseMaxLengthMm) * 100);
 
   return (
     <aside className="sidebar-panel glass-panel">
       {/* 1. Configurador Paramétrico do Stack de Painéis Solares Flexíveis */}
       <div className="panel-section">
         <div className="section-label">
-          <span>⚡ SISTEMA SOLAR FLEXÍVEL (100W)</span>
+          <span>⚡ SISTEMA SOLAR FLEXÍVEL ({panelW}W)</span>
+          <button
+            className="btn-compact primary"
+            onClick={() => openModal('panel-presets')}
+            style={{ fontSize: '10px', padding: '3px 8px' }}
+            title="Gerenciar e cadastrar presets de placas solares"
+          >
+            ☀️ Presets / Cadastrar
+          </button>
+        </div>
+
+        {/* Seletor Rápido de Presets de Placas */}
+        <div style={{ marginBottom: '8px' }}>
+          <select
+            value={activePanelPreset.id}
+            onChange={(e) => selectPanelPreset(e.target.value)}
+            style={{
+              width: '100%',
+              background: 'rgba(15, 23, 42, 0.75)',
+              border: '1px solid rgba(56, 189, 248, 0.35)',
+              borderRadius: '6px',
+              padding: '6px 8px',
+              color: '#f8fafc',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              outline: 'none'
+            }}
+          >
+            {panelPresets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.powerWatts}W • {Math.round(p.width * 1000)}×{Math.round(p.length * 1000)}mm)
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Ficha Técnica do Painel Flexível Selecionado */}
         <div className="panel-spec-badge">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <strong>Painel Flexível Monocristalino</strong>
-            <span style={{ color: '#10b981', fontWeight: 800, fontSize: '11px' }}>100W / 1.6kg</span>
+            <strong>{activePanelPreset.name}</strong>
+            <span style={{ color: '#10b981', fontWeight: 800, fontSize: '11px' }}>
+              {activePanelPreset.powerWatts}W / {activePanelPreset.weightKg}kg
+            </span>
           </div>
           <div className="panel-spec-grid">
-            <span>📐 60 cm x 1.00 m (3mm)</span>
-            <span>⚡ Voc: 22.28V | Vmax: 24V</span>
-            <span>🔩 Fixação direta nos ilhoses</span>
-            <span>⛓️ Corrediças telescópicas</span>
+            <span>📐 {panelCmW} cm × {(activePanelPreset.length).toFixed(2)} m ({Math.round(activePanelPreset.thickness * 1000)}mm)</span>
+            <span>⚡ Voc: {activePanelPreset.voc}V | Vmp: {activePanelPreset.vmp}V</span>
+            <span>🔩 {activePanelPreset.cellType}</span>
+            <span>⛓️ Eficiência: {activePanelPreset.efficiencyPercent}%</span>
           </div>
         </div>
 
@@ -103,7 +179,7 @@ export const Sidebar: React.FC = () => {
               id="tag-level1-summary"
               style={{ borderColor: '#10b981', color: '#10b981' }}
             >
-              {level1.panels} Placa{level1.panels > 1 ? 's' : ''} • {level1.panels * 100}W
+              {level1.panels} Placa{level1.panels > 1 ? 's' : ''} • {level1.panels * panelW}W
             </span>
           </div>
 
@@ -118,7 +194,7 @@ export const Sidebar: React.FC = () => {
                 onClick={() => setLevel1Panels(p)}
               >
                 <span>{p}</span>
-                <small>{p * 100}W</small>
+                <small>{p * panelW}W</small>
               </button>
             ))}
           </div>
@@ -200,7 +276,7 @@ export const Sidebar: React.FC = () => {
                 id="tag-level2-summary"
                 style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
               >
-                {level2.panels} Placa{level2.panels > 1 ? 's' : ''} • {level2.panels * 100}W
+                {level2.panels} Placa{level2.panels > 1 ? 's' : ''} • {level2.panels * panelW}W
               </span>
             </div>
 
@@ -215,7 +291,7 @@ export const Sidebar: React.FC = () => {
                   onClick={() => setLevel2Panels(p)}
                 >
                   <span>{p}</span>
-                  <small>{p * 100}W</small>
+                  <small>{p * panelW}W</small>
                 </button>
               ))}
             </div>
@@ -275,6 +351,51 @@ export const Sidebar: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Resumo de Potência Total Instalada vs Limite do Controlador/Inversor MPPT 60A */}
+        <div
+          id="sidebar-mppt-power-check"
+          style={{
+            background: isSolarOverLimit ? 'rgba(239, 68, 68, 0.16)' : 'rgba(16, 185, 129, 0.1)',
+            border: `1px solid ${isSolarOverLimit ? 'rgba(239, 68, 68, 0.6)' : 'rgba(16, 185, 129, 0.35)'}`,
+            borderRadius: '8px',
+            padding: '9px 10px',
+            fontSize: '11px',
+            lineHeight: 1.4
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+            <span style={{ fontWeight: 700, color: isSolarOverLimit ? '#f87171' : '#34d399' }}>
+              {isSolarOverLimit
+                ? `🚨 Limite MPPT Excedido (+${mpptOverNominalPct}%)`
+                : `✅ MPPT: ${mpptRemainingNominalPct}% livre (${mpptUsageNominalPct}% em uso)`}
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                color: isSolarOverLimit ? '#fca5a5' : '#f8fafc',
+                fontSize: '11px'
+              }}
+            >
+              {totalNominalWatts}W / {mpptLimitWatts}W ({mpptUsageNominalPct}%)
+            </span>
+          </div>
+          {isSolarOverLimit ? (
+            <div style={{ color: '#fecaca', fontSize: '10.5px' }}>
+              As <strong>{totalPanelsCount} placas de {panelW}W</strong> somam <strong>{totalNominalWatts}W</strong>, ficando{' '}
+              <strong>+{mpptOverNominalPct}% acima</strong> (<strong>+{totalNominalWatts - mpptLimitWatts}W</strong>) da capacidade nominal do MPPT Kingbo 60A em 12V (720W nom. / 864W pico @ 14.4V).
+              {isSolarOverPeak
+                ? ` Ultrapassa também em +${mpptOverPeakPct}% (+${totalNominalWatts - mpptPeakLimitWatts}W) o teto absoluto de 864W — haverá corte de corrente (clipping em 60A) ou exigirá 2º MPPT!`
+                : ` No teto de absorção (864W @ 14.4V), ainda restam ${Math.max(0, Math.round(((mpptPeakLimitWatts - totalNominalWatts) / mpptPeakLimitWatts) * 100))}% (${mpptPeakLimitWatts - totalNominalWatts}W) de margem.`}
+            </div>
+          ) : (
+            <div style={{ color: '#a7f3d0', fontSize: '10.5px' }}>
+              Em uso: <strong>{mpptUsageNominalPct}%</strong> ({totalNominalWatts}W) • Capacidade livre disponível:{' '}
+              <strong>{mpptRemainingNominalPct}% ({mpptRemainingWatts}W)</strong> do total nominal de {mpptLimitWatts}W.
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 2. Material da Estrutura (Toggle Alumínio vs Ferro Soldado) */}
@@ -325,9 +446,31 @@ export const Sidebar: React.FC = () => {
             id="btn-mat-steel"
             onClick={() => setStructureMaterial('steel')}
           >
-            <span>⚙️ Ferro Soldado (Metalon 30x30/40x40)</span>
+            <span>⚙️ Ferro Soldado {steelProfileUnit === 'inch' ? '(Metalon 1 ¼" / 1 ½")' : '(Metalon 30x30 / 40x40 mm)'}</span>
             <small>Mais pesado (~42.0 kg / +23.5kg no teto), solda fixa</small>
           </button>
+
+          {/* Seletor de Unidade do Perfil de Ferro (Metalon) */}
+          {structureMaterial === 'steel' && (
+            <div id="steel-unit-subbar" style={{ display: 'flex', gap: '6px', padding: '2px 4px 4px 4px' }}>
+              <button
+                className={`btn-compact ${steelProfileUnit === 'mm' ? 'primary active' : ''}`}
+                id="btn-steel-unit-mm"
+                onClick={() => setSteelProfileUnit('mm')}
+                style={{ flex: 1, fontSize: '11px', padding: '5px 8px', borderRadius: '4px' }}
+              >
+                📏 Milímetros (mm)
+              </button>
+              <button
+                className={`btn-compact ${steelProfileUnit === 'inch' ? 'primary active' : ''}`}
+                id="btn-steel-unit-inch"
+                onClick={() => setSteelProfileUnit('inch')}
+                style={{ flex: 1, fontSize: '11px', padding: '5px 8px', borderRadius: '4px' }}
+              >
+                📐 Polegadas (")
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -404,28 +547,66 @@ export const Sidebar: React.FC = () => {
 
       {/* 8. Baú de Teto Motobul Off Road & Subchassi */}
       <div className="panel-section">
-        <div className="section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>🧰 BAÚ DE TETO MOTOBUL OFF ROAD</span>
-          <button
-            className={`btn-compact ${cargoBox.enabled ? 'primary active' : ''}`}
-            onClick={() => setCargoBoxEnabled(!cargoBox.enabled)}
-            style={{ fontSize: '10px', padding: '3px 7px' }}
-          >
-            {cargoBox.enabled ? '✅ Ativado' : '❌ Desativado'}
-          </button>
+        <div className="section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+          <span>🧰 BAÚ DE TETO / BAGAGEIRO</span>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              className="btn-compact"
+              onClick={() => openModal('cargo-presets')}
+              style={{ fontSize: '10px', padding: '3px 7px', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.45)' }}
+              title="Gerenciar e cadastrar presets de baú de teto"
+            >
+              📦 Presets
+            </button>
+            <button
+              className={`btn-compact ${cargoBox.enabled ? 'primary active' : ''}`}
+              onClick={() => setCargoBoxEnabled(!cargoBox.enabled)}
+              style={{ fontSize: '10px', padding: '3px 7px' }}
+            >
+              {cargoBox.enabled ? '✅ Ativado' : '❌ Desativado'}
+            </button>
+          </div>
         </div>
 
         {cargoBox.enabled && (
           <>
+            {/* Seletor Rápido de Presets de Baú */}
+            <div style={{ marginBottom: '6px' }}>
+              <select
+                value={activeCargoBoxPreset.id}
+                onChange={(e) => selectCargoBoxPreset(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'rgba(15, 23, 42, 0.75)',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  borderRadius: '6px',
+                  padding: '6px 8px',
+                  color: '#f8fafc',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                {cargoBoxPresets.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.length}×{b.width}×{b.height}mm)
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Ficha Técnica Rápida */}
             <div className="panel-spec-badge" style={{ borderColor: 'rgba(245, 158, 11, 0.4)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <strong style={{ color: '#fbbf24' }}>Motobul Off Road 500L</strong>
-                <span style={{ color: '#10b981', fontWeight: 800, fontSize: '11px' }}>18 kg / 50 kg útil</span>
+                <strong style={{ color: '#fbbf24' }}>{activeCargoBoxPreset.name}</strong>
+                <span style={{ color: '#10b981', fontWeight: 800, fontSize: '11px' }}>
+                  {activeCargoBoxPreset.weightKg} kg / {activeCargoBoxPreset.maxLoadKg} kg útil
+                </span>
               </div>
               <div className="panel-spec-grid">
-                <span>📐 Padrão: 1600 x 1000 x 330 mm</span>
-                <span>🛡️ ABS Cinza c/ nervuras</span>
+                <span>📐 Medidas: {cargoBox.length} × {cargoBox.width} × {cargoBox.height} mm</span>
+                <span>🛡️ {activeCargoBoxPreset.volumeLiters} Litros</span>
                 <span>⛓️ Dobradiças e torres inox</span>
                 <span>💨 Amortecedores a gás (65°)</span>
               </div>
@@ -496,13 +677,45 @@ export const Sidebar: React.FC = () => {
                 <input
                   type="range"
                   className="custom-slider"
-                  min="250"
-                  max="450"
+                  min="200"
+                  max="600"
                   step="10"
                   value={cargoBox.height}
                   onChange={(e) => setCargoBoxDimensions(cargoBox.length, cargoBox.width, parseFloat(e.target.value))}
                 />
               </div>
+
+              {(() => {
+                const maxLiftMm = Math.max(60, Math.floor(((cargoBox.height || 330) - 100) / 10) * 10);
+                const curLiftMm = Math.min(maxLiftMm, cargoBox.verticalLiftMm || 0);
+                return (
+                  <div
+                    style={{
+                      background: 'rgba(14, 165, 233, 0.08)',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      borderRadius: '6px',
+                      padding: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#38bdf8', fontWeight: 700 }}>
+                      <span>↕ Abertura Vertical (Torres Telescópicas):</span>
+                      <strong>+{curLiftMm} / {maxLiftMm} mm</strong>
+                    </div>
+                    <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      Curso real da barra 30×30 ({cargoBox.height + 20}mm c/ 90mm engaste mín. na base 40×40) • Vão livre: {cargoBox.height + curLiftMm + 30} mm
+                    </div>
+                    <input
+                      type="range"
+                      className="custom-slider"
+                      min="0"
+                      max={maxLiftMm}
+                      step="10"
+                      value={curLiftMm}
+                      onChange={(e) => setCargoBoxVerticalLift(parseFloat(e.target.value))}
+                    />
+                  </div>
+                );
+              })()}
             </div>
 
             <button
@@ -513,6 +726,231 @@ export const Sidebar: React.FC = () => {
               📊 Ver Força dos Pistões e Ferragens no BOM &rarr;
             </button>
           </>
+        )}
+      </div>
+
+      {/* 8B. Caixa d'Água Lateral (2× Canos PVC — 1 de cada lado da estrutura) */}
+      <div className="panel-section">
+        <div className="section-label">
+          <span>💧 CAIXA D'ÁGUA (2× R={pipeRadiusMm}mm / Ø{pipeDiameterMm}mm)</span>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '11px',
+              fontWeight: 800,
+              color: waterTank.enabled ? '#38bdf8' : 'var(--text-muted)'
+            }}
+          >
+            {waterTank.enabled ? `${totalWaterLiters.toFixed(1)} L` : 'Desativada'}
+          </span>
+        </div>
+
+        {/* Checkbox principal para incluir/remover os 2 canos laterais */}
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '9px',
+            padding: '9px 10px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            background: waterTank.enabled ? 'rgba(14, 165, 233, 0.14)' : 'rgba(15, 23, 42, 0.5)',
+            border: `1px solid ${waterTank.enabled ? 'rgba(56, 189, 248, 0.5)' : 'rgba(100, 116, 139, 0.3)'}`,
+            marginBottom: waterTank.enabled ? '10px' : '0',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={waterTank.enabled}
+            onChange={(e) => setWaterTankEnabled(e.target.checked)}
+            style={{
+              width: '16px',
+              height: '16px',
+              accentColor: '#0ea5e9',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: waterTank.enabled ? '#f8fafc' : '#94a3b8' }}>
+              Incluir 2 Canos Laterais (Raio {pipeRadiusMm}mm / Ø{pipeDiameterMm}mm)
+            </span>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+              1 de cada lado da base • Limite máx.: {baseMaxLengthMm} mm (comprimento total da base)
+            </span>
+          </div>
+        </label>
+
+        {waterTank.enabled && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* 1. Seleção do Raio Fixo do Cano */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginBottom: '6px' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Raio do Cano:</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 800, color: '#38bdf8' }}>
+                  Raio {pipeRadiusMm} mm (Ø{pipeDiameterMm} mm)
+                </span>
+              </div>
+
+              {/* Botões de Raio Fixo */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '5px' }}>
+                {[50, 75, 100, 125, 150].map((rMm) => (
+                  <button
+                    key={rMm}
+                    type="button"
+                    className={`btn-compact ${pipeRadiusMm === rMm ? 'active' : ''}`}
+                    onClick={() => setWaterTankRadius(rMm)}
+                    style={{
+                      fontSize: '10px',
+                      padding: '6px 2px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '2px'
+                    }}
+                    title={`Raio ${rMm}mm (Diâmetro Ø${rMm * 2}mm)`}
+                  >
+                    <strong>R{rMm}</strong>
+                    <span style={{ fontSize: '8.5px', opacity: 0.8 }}>Ø{rMm * 2}mm</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. Controle de Comprimento dos Canos (até o limite de 2200mm da base) */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginBottom: '4px' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Comprimento dos Canos:</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input
+                    type="number"
+                    min={400}
+                    max={baseMaxLengthMm}
+                    step={50}
+                    value={waterTank.lengthMm}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      if (!Number.isNaN(val)) setWaterTankLength(val);
+                    }}
+                    style={{
+                      width: '68px',
+                      padding: '2px 5px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      fontFamily: 'var(--font-mono)',
+                      color: '#38bdf8',
+                      background: 'rgba(15, 23, 42, 0.85)',
+                      border: '1px solid rgba(56, 189, 248, 0.45)',
+                      borderRadius: '4px',
+                      textAlign: 'right'
+                    }}
+                  />
+                  <span style={{ fontSize: '10.5px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+                    / {baseMaxLengthMm} mm
+                  </span>
+                </div>
+              </div>
+
+              <input
+                type="range"
+                className="custom-slider"
+                min="400"
+                max={baseMaxLengthMm}
+                step="50"
+                value={waterTank.lengthMm}
+                onChange={(e) => setWaterTankLength(parseFloat(e.target.value))}
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: '#64748b', marginTop: '2px' }}>
+                <span>Mín: 400 mm (0.40m)</span>
+                <span style={{ color: '#38bdf8', fontWeight: 700 }}>
+                  {(waterTank.lengthMm / 1000).toFixed(2)} m ({baseLengthOccupationPct}% da base)
+                </span>
+                <span>Máx Base: {baseMaxLengthMm} mm (2.20m)</span>
+              </div>
+
+              {/* Atalhos rápidos de medida */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', marginTop: '6px' }}>
+                {[1000, 1500, 1800, 2200].map((presetMm) => (
+                  <button
+                    key={presetMm}
+                    type="button"
+                    className={`btn-compact ${waterTank.lengthMm === presetMm ? 'active' : ''}`}
+                    onClick={() => setWaterTankLength(presetMm)}
+                    style={{ fontSize: '10px', padding: '4px 2px' }}
+                  >
+                    {presetMm === 2200 ? '2200 (Máx)' : `${presetMm}mm`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Card de Cálculo Automático de Capacidade de Água */}
+            <div
+              style={{
+                background: 'rgba(14, 165, 233, 0.1)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                borderRadius: '8px',
+                padding: '9px 10px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '10.5px', color: '#bae6fd', fontWeight: 700 }}>
+                  💧 Capacidade Total de Água (2 Canos):
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '14px',
+                    fontWeight: 800,
+                    color: '#38bdf8'
+                  }}
+                >
+                  {totalWaterLiters.toFixed(1)} Litros
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '6px',
+                  paddingTop: '6px',
+                  borderTop: '1px solid rgba(56, 189, 248, 0.2)',
+                  fontSize: '10px'
+                }}
+              >
+                <div style={{ color: '#94a3b8' }}>
+                  Cada cano (R={pipeRadiusMm}mm / Ø{pipeDiameterMm}):{' '}
+                  <strong style={{ color: '#f8fafc', fontFamily: 'var(--font-mono)' }}>
+                    {singlePipeLiters.toFixed(1)} L
+                  </strong>
+                </div>
+                <div style={{ color: '#94a3b8', textAlign: 'right' }}>
+                  Peso da água cheio:{' '}
+                  <strong style={{ color: '#fbbf24', fontFamily: 'var(--font-mono)' }}>
+                    ~{totalWaterLiters.toFixed(1)} kg
+                  </strong>
+                </div>
+                <div style={{ color: '#94a3b8' }}>
+                  Volume por metro:{' '}
+                  <strong style={{ color: '#f8fafc', fontFamily: 'var(--font-mono)' }}>
+                    {litersPerMeterSingle} L/m (×2 = {litersPerMeterTotal} L/m)
+                  </strong>
+                </div>
+                <div style={{ color: '#94a3b8', textAlign: 'right' }}>
+                  Ocupação da base:{' '}
+                  <strong style={{ color: '#34d399', fontFamily: 'var(--font-mono)' }}>
+                    {baseLengthOccupationPct}% de 2.20m
+                  </strong>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

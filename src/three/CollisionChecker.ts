@@ -94,7 +94,7 @@ export const CollisionChecker = {
     // e o setFromObject retorna bounding boxes incorretos (tamanho errado ou posição errada).
     scene.updateMatrixWorld(true);
 
-    // — Coleta barras —
+    // — Coleta barras e volumes de verificação —
     const bars: Array<{
       mesh: THREE.Mesh;
       box: THREE.Box3;
@@ -102,36 +102,42 @@ export const CollisionChecker = {
       center: THREE.Vector3;
       label: string;
       axis: 'x' | 'y' | 'z';
+      isBaseVolume?: boolean;
+      isRoofCollider?: boolean;
     }> = [];
 
     const SHRINK = 0.0025; // 2.5 mm por face
 
+    const isTrulyVisible = (obj: THREE.Object3D): boolean => {
+      let cur: THREE.Object3D | null = obj;
+      while (cur) {
+        if (!cur.visible) return false;
+        cur = cur.parent;
+      }
+      return true;
+    };
+
     scene.traverse((obj) => {
-      if (!obj.userData?.isBar) return;
+      const isBar = Boolean(obj.userData?.isBar);
+      const isCargoBoxVol = Boolean(obj.userData?.isCargoBoxVolume);
+      const isRoofCol = Boolean(obj.userData?.isRoofCollider);
+      if (!isBar && !isCargoBoxVol && !isRoofCol) return;
       if (!(obj as THREE.Mesh).isMesh) return;
-      if (!obj.visible) return;
+      if (!isTrulyVisible(obj)) return;
       if (obj.name === '__hitbox') return;
 
       const mesh = obj as THREE.Mesh;
 
-      // Para alumínio: usa a hitbox BoxGeometry filha (geometria Box correta).
-      // Para metalon: o próprio mesh já é BoxGeometry com eixo correto.
-      // Em ambos os casos, calcula Box3 da GEOMETRIA transformada pela matriz mundo,
-      // sem depender de filhos extras que possam estender o bounding box.
       let box: THREE.Box3;
       const hitChild = mesh.children.find(c => c.name === '__hitbox') as THREE.Mesh | undefined;
 
       if (hitChild) {
-        // Calcula Box3 diretamente da geometria do hitbox aplicando sua matriz mundo.
-        // Isso é mais preciso do que setFromObject que pode incluir sub-filhos inesperados.
         hitChild.updateWorldMatrix(true, false);
         box = new THREE.Box3().setFromBufferAttribute(
           hitChild.geometry.attributes.position as THREE.BufferAttribute
         );
-        // Transforma os pontos para espaço mundo usando a matrixWorld do hitbox
         box.applyMatrix4(hitChild.matrixWorld);
       } else {
-        // Sem hitbox: aplica geometria do próprio mesh com sua matriz mundo
         mesh.updateWorldMatrix(true, false);
         box = new THREE.Box3().setFromBufferAttribute(
           mesh.geometry.attributes.position as THREE.BufferAttribute
@@ -142,8 +148,9 @@ export const CollisionChecker = {
       if (box.isEmpty()) return;
 
       const shrunk = box.clone();
-      shrunk.min.addScalar(SHRINK);
-      shrunk.max.subScalar(SHRINK);
+      const s = (isCargoBoxVol || isRoofCol) ? 0.006 : SHRINK;
+      shrunk.min.addScalar(s);
+      shrunk.max.subScalar(s);
       if (shrunk.isEmpty()) return;
 
       const center = new THREE.Vector3();
@@ -155,7 +162,9 @@ export const CollisionChecker = {
         shrunkBox: shrunk,
         center,
         label: obj.userData.barLabel || obj.name || 'Barra',
-        axis: inferAxis(box)
+        axis: inferAxis(box),
+        isBaseVolume: isCargoBoxVol,
+        isRoofCollider: isRoofCol
       });
     });
 
@@ -164,13 +173,9 @@ export const CollisionChecker = {
     const collisions: CollisionResult[] = [];
 
     // Limiar mínimo de volume de sobreposição: 0.5 cm³ = 5e-7 m³
-    // (pequeno o suficiente para pegar perfis 30mm sobrepostos 10mm)
     const MIN_VOLUME = 5e-7;
 
     // Limiar de co-localização de centróide: 20 mm em ambas as dimensões transversais.
-    // Barras montadas intencionalmente uma sobre a outra (bandeja L2 → longarina superior)
-    // terão centróides praticamente no mesmo ponto → são filtradas aqui.
-    // Barras de módulos diferentes que colidem estarão deslocadas > 20 mm.
     const CO_LOCATE_THRESHOLD = 0.020; // 20 mm
 
     for (let i = 0; i < bars.length; i++) {
@@ -178,33 +183,70 @@ export const CollisionChecker = {
         const a = bars[i];
         const b = bars[j];
 
-        // ① Eixos diferentes = junta T ou L → sempre intencional
-        if (a.axis !== b.axis) continue;
+        // Ignora comparação entre cuba e tampa do próprio baú ou teto vs baú assentado
+        if (a.isBaseVolume && b.isBaseVolume) continue;
+        if (a.isRoofCollider && b.isRoofCollider) continue;
 
-        // ② Sem sobreposição real de Box3
+        // ① Sem sobreposição real de Box3
         if (!a.shrunkBox.intersectsBox(b.shrunkBox)) continue;
 
-        // ③ Volume de sobreposição abaixo do limiar mínimo
+        // ② Volume de sobreposição abaixo do limiar mínimo
         const vol = intersectionVolume(a.shrunkBox, b.shrunkBox);
         if (vol < MIN_VOLUME) continue;
 
-        // ④ Filtro de co-localização: centróides muito próximos nas dimensões
-        //    transversais ao eixo = barras empilhadas por design (mesmo trilho, montagem
-        //    intencional). Se diferença de centróide transversal ≤ 20 mm em AMBAS as
-        //    dimensões, não é colisão — é montagem de bandeja sobre longarina, etc.
-        let dT1: number; // diferença de centróide na transversal 1
-        let dT2: number; // diferença de centróide na transversal 2
-        if (a.axis === 'z') {
-          dT1 = Math.abs(a.center.x - b.center.x);
-          dT2 = Math.abs(a.center.y - b.center.y);
-        } else if (a.axis === 'x') {
-          dT1 = Math.abs(a.center.y - b.center.y);
-          dT2 = Math.abs(a.center.z - b.center.z);
-        } else { // y
-          dT1 = Math.abs(a.center.x - b.center.x);
-          dT2 = Math.abs(a.center.z - b.center.z);
+        // Se um dos itens for o teto da Doblò ou o volume do Baú, qualquer penetração (> 5 cm³) com barras estruturais é colisão real!
+        if (a.isRoofCollider || b.isRoofCollider || a.isBaseVolume || b.isBaseVolume) {
+          // Ignora travessas do subchassi onde a cuba do baú apoia na borda inferior (interseção rasante)
+          if (vol < 5e-5) continue;
+          if (!a.isRoofCollider) collidingSet.add(a.mesh);
+          if (!b.isRoofCollider) collidingSet.add(b.mesh);
+          collisions.push({
+            meshA: a.mesh,
+            meshB: b.mesh,
+            labelA: a.label,
+            labelB: b.label,
+            overlapVolumeM3: vol,
+            axisA: a.axis,
+            axisB: b.axis
+          });
+          continue;
         }
-        if (dT1 <= CO_LOCATE_THRESHOLD && dT2 <= CO_LOCATE_THRESHOLD) continue;
+
+        // ③ Pares de barras com eixos diferentes:
+        //    - Se for junta T/L nas extremidades (volume <= 64 cm³, ex: 40x40x40mm = 6.4e-5 m³), é encaixe normal.
+        //    - Se uma barra atravessar o meio de outra ou penetrar profundamente (ou se o volume exceder o nó), verifica se é cruzamento inválido!
+        if (a.axis !== b.axis) {
+          // Verifica se o cruzamento ocorre longe das pontas de AMBAS as barras (cruzamento no meio de duas barras no mesmo plano)
+          const sizeA = new THREE.Vector3();
+          const sizeB = new THREE.Vector3();
+          a.box.getSize(sizeA);
+          b.box.getSize(sizeB);
+          const maxCrossVol = 7.0e-5; // 70 cm³ (acima de um cubo 40x40x40mm)
+          if (vol <= maxCrossVol) {
+            continue;
+          }
+        } else {
+          // ④ Filtro de co-localização para barras de mesmo eixo:
+          const dy = Math.abs(a.center.y - b.center.y);
+          let dT1: number;
+          let dT2: number;
+          if (a.axis === 'z') {
+            dT1 = Math.abs(a.center.x - b.center.x);
+            dT2 = dy;
+          } else if (a.axis === 'x') {
+            dT1 = dy;
+            dT2 = Math.abs(a.center.z - b.center.z);
+          } else { // y
+            dT1 = Math.abs(a.center.x - b.center.x);
+            dT2 = Math.abs(a.center.z - b.center.z);
+          }
+          // Estágios da mesma corrediça telescópica são concêntricos (mesmo Y e mesmo X/Z transversal)
+          if (a.mesh.userData?.isTelescopicRail && b.mesh.userData?.isTelescopicRail) {
+            if (dT1 <= CO_LOCATE_THRESHOLD && dT2 <= CO_LOCATE_THRESHOLD) continue;
+          }
+          // Barras estruturais de alumínio/metalon só são ignoradas se estiverem empilhadas verticalmente (dy >= 24mm)
+          if (a.axis !== 'y' && dy >= 0.024 && dT1 <= CO_LOCATE_THRESHOLD && dT2 <= 0.045) continue;
+        }
 
         // ⑤ Colisão real confirmada
         collidingSet.add(a.mesh);

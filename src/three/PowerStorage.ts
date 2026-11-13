@@ -676,5 +676,192 @@ export class PowerStorageBuilder {
 
     targetGroup.add(usina);
   }
+
+  /**
+   * Constrói os 2 Canos de PVC Laterais (Caixa d'Água Lateral — 1 de cada lado da estrutura base)
+   * Limite máximo de comprimento = 2200 mm (2,20 m, comprimento total da base da estrutura)
+   * Permite selecionar o raio do cano (ex.: 50mm a 150mm -> Ø100mm a Ø300mm)
+   */
+  static buildWaterTankPipes(
+    targetGroup: THREE.Group,
+    enabled: boolean,
+    lengthMmInput: number,
+    baseY: number,
+    zCenter: number,
+    labelsGroup?: THREE.Group,
+    diameterMmInput: number = 200
+  ) {
+    if (!enabled) return;
+
+    const mats = MaterialLibrary.materials;
+    const BASE_MAX_MM = 2200; // Comprimento total da base da estrutura (2,20 m)
+    const lengthMm = Math.max(400, Math.min(BASE_MAX_MM, Math.round(lengthMmInput || BASE_MAX_MM)));
+    const diameterMm = Math.max(80, Math.min(350, Math.round(diameterMmInput || 200)));
+    const radiusMm = +(diameterMm / 2).toFixed(1);
+    const lengthM = lengthMm / 1000;
+    const radiusM = radiusMm / 1000;
+    const radiusDm = radiusMm / 100;
+
+    // Cálculo de volume: V = π × r² × L (com r e L em decímetros -> resultado em Litros)
+    const litersPerPipe = +(Math.PI * radiusDm * radiusDm * (lengthMm / 100)).toFixed(1);
+    const totalLiters = +(litersPerPipe * 2).toFixed(1);
+
+    const pipeMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      roughness: 0.35,
+      metalness: 0.25
+    });
+    const capMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      roughness: 0.45,
+      metalness: 0.20
+    });
+    const waterAccentMat = new THREE.MeshStandardMaterial({
+      color: 0x0ea5e9,
+      emissive: new THREE.Color(0x0284c7),
+      emissiveIntensity: 0.45,
+      roughness: 0.2,
+      metalness: 0.3
+    });
+    const clampMat = mats.stainlessHinge || new THREE.MeshStandardMaterial({
+      color: 0xcbd5e1,
+      roughness: 0.25,
+      metalness: 0.85
+    });
+    const brassMat = mats.kingboBrass || new THREE.MeshStandardMaterial({
+      color: 0xd97706,
+      roughness: 0.3,
+      metalness: 0.8
+    });
+
+    const baseHalfWidth = 0.70; // Metade da largura de 1.40m da base da estrutura
+    const pipeOffsetX = baseHalfWidth + radiusM + 0.018; // ±0.818m (1 de cada lado da estrutura base)
+    const pipeCenterY = baseY + 0.02;
+
+    const sides: Array<{ sign: -1 | 1; sideName: string }> = [
+      { sign: -1, sideName: 'Lado Esquerdo (Motorista)' },
+      { sign: 1, sideName: 'Lado Direito (Passageiro)' }
+    ];
+
+    sides.forEach(({ sign, sideName }) => {
+      const pipeGroup = new THREE.Group();
+      pipeGroup.name = `WaterTankPipe200mm_${sign < 0 ? 'Left' : 'Right'}`;
+
+      // 1. Corpo cilíndrico do cano de 200mm (eixo Z)
+      const bodyGeo = new THREE.CylinderGeometry(radiusM, radiusM, lengthM, 28);
+      bodyGeo.rotateX(Math.PI / 2);
+      const bodyMesh = new THREE.Mesh(bodyGeo, pipeMat);
+      bodyMesh.castShadow = true;
+      bodyMesh.receiveShadow = true;
+      pipeGroup.add(bodyMesh);
+
+      // 2. Tampões / Caps de vedação de 200mm nas duas extremidades (Frente e Trás)
+      const capLen = 0.045;
+      const capGeo = new THREE.CylinderGeometry(radiusM * 1.045, radiusM * 1.045, capLen, 28);
+      capGeo.rotateX(Math.PI / 2);
+
+      const frontCap = new THREE.Mesh(capGeo, capMat);
+      frontCap.position.set(0, 0, lengthM / 2 - capLen / 2 + 0.005);
+      frontCap.castShadow = true;
+      pipeGroup.add(frontCap);
+
+      const rearCap = new THREE.Mesh(capGeo, capMat);
+      rearCap.position.set(0, 0, -lengthM / 2 + capLen / 2 - 0.005);
+      rearCap.castShadow = true;
+      pipeGroup.add(rearCap);
+
+      // 3. Faixa lateral azul indicadora de reservatório de água
+      const stripeGeo = new THREE.BoxGeometry(0.006, 0.024, Math.max(0.15, lengthM - 0.14));
+      const stripeMesh = new THREE.Mesh(stripeGeo, waterAccentMat);
+      stripeMesh.position.set(sign * (radiusM + 0.001), 0.015, 0);
+      pipeGroup.add(stripeMesh);
+
+      // 4. Bocal superior de abastecimento (tampa rosqueável azul) na parte dianteira
+      const fillerZ = Math.min(lengthM * 0.32, lengthM / 2 - 0.08);
+      const neckMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.026, 0.025, 16), capMat);
+      neckMesh.position.set(0, radiusM + 0.010, fillerZ);
+      pipeGroup.add(neckMesh);
+
+      const fillerCap = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.014, 16), waterAccentMat);
+      fillerCap.position.set(0, radiusM + 0.026, fillerZ);
+      pipeGroup.add(fillerCap);
+
+      // 5. Torneira / Registro esfera traseiro de saída d'água
+      const valveBody = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.036, 12), brassMat);
+      valveBody.rotation.x = Math.PI / 2;
+      valveBody.position.set(0, -radiusM * 0.42, -lengthM / 2 - 0.018);
+      pipeGroup.add(valveBody);
+
+      const valveHandle = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.038, 0.010), waterAccentMat);
+      valveHandle.position.set(0, -radiusM * 0.42 + 0.016, -lengthM / 2 - 0.026);
+      pipeGroup.add(valveHandle);
+
+      // 6. Abraçadeiras e berços metálicos fixados na longarina lateral da estrutura base
+      const bracketZList = lengthM >= 1.2
+        ? [-lengthM * 0.34, 0, lengthM * 0.34]
+        : [-lengthM * 0.28, lengthM * 0.28];
+
+      bracketZList.forEach((bz) => {
+        // Cinta circular em aço inox ao redor do tubo 200mm
+        const strapGeo = new THREE.CylinderGeometry(radiusM * 1.03, radiusM * 1.03, 0.022, 24);
+        strapGeo.rotateX(Math.PI / 2);
+        const strapMesh = new THREE.Mesh(strapGeo, clampMat);
+        strapMesh.position.set(0, 0, bz);
+        pipeGroup.add(strapMesh);
+
+        // Braço de ancoragem ligando o cano à longarina lateral da base
+        const armLen = radiusM + 0.025;
+        const armGeo = new THREE.BoxGeometry(armLen, 0.032, 0.026);
+        const armMesh = new THREE.Mesh(armGeo, clampMat);
+        armMesh.position.set(-sign * (armLen / 2 + radiusM * 0.45), -0.015, bz);
+        pipeGroup.add(armMesh);
+      });
+
+      // 7. Metadados para Tooltip interativo ao passar o mouse no 3D
+      const waterUserData = {
+        isElectrical: true,
+        isElectricalRoot: true,
+        electricalType: 'water' as const,
+        name: `Caixa d'Água PVC Raio ${radiusMm}mm / Ø${diameterMm}mm (${sideName})`,
+        category: `Reservatório Hidráulico Lateral (2× Canos R=${radiusMm}mm / Ø${diameterMm}mm)`,
+        voltage: `Raio: ${radiusMm} mm (Ø${diameterMm} mm) • Comprimento: ${lengthMm} mm (${lengthM.toFixed(2)} m)`,
+        capacity: `${totalLiters} Litros Total (${litersPerPipe} L neste cano)`,
+        current: `Ocupação da Base: ${lengthMm} / ${BASE_MAX_MM} mm (${Math.round((lengthMm / BASE_MAX_MM) * 100)}%)`,
+        power: `Peso da Água: +${totalLiters} kg cheio (${litersPerPipe} kg/lado)`,
+        material: `Tubo PVC Reforçado Ø${diameterMm}mm (Raio ${radiusMm}mm) + Abraçadeiras Inox 304`,
+        purpose: 'Reserva de água pressurizável ou por gravidade para banho, pia e cozinha do motorhome',
+        efficiency: '100% externo nas laterais do rack base (não ocupa espaço interno)',
+        features: [
+          `2× Tubos R=${radiusMm}mm (Ø${diameterMm}mm) × ${lengthMm}mm (${totalLiters} L)`,
+          'Bocal superior de abastecimento rápido',
+          'Registro traseiro com torneira em latão',
+          'Fixação lateral no perfil 40×40 da base'
+        ]
+      };
+      pipeGroup.userData = waterUserData;
+      pipeGroup.traverse((c) => {
+        if ((c as any).isMesh) {
+          c.userData = { ...waterUserData, isElectricalRoot: false, electricalRoot: pipeGroup };
+        }
+      });
+
+      pipeGroup.position.set(sign * pipeOffsetX, pipeCenterY, zCenter);
+      targetGroup.add(pipeGroup);
+    });
+
+    // 8. Etiqueta 3D Flutuante mostrando medidas e Litros calculados
+    const waterLabel = TextureGenerator.createDimensionSprite(
+      `💧 CAIXA D'ÁGUA: 2× R=${radiusMm}mm / Ø${diameterMm}mm (${totalLiters} L)`,
+      `Comp: ${lengthMm} mm (máx 2200mm) • ${litersPerPipe} L cada lado`,
+      'rgba(8, 47, 73, 0.94)',
+      '#38bdf8'
+    );
+    waterLabel.position.set(-pipeOffsetX, pipeCenterY + radiusM + 0.16, zCenter);
+    if (labelsGroup) {
+      labelsGroup.add(waterLabel);
+    } else {
+      targetGroup.add(waterLabel);
+    }
+  }
 }
 

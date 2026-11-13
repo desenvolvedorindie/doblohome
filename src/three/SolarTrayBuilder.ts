@@ -3,7 +3,7 @@ import { MaterialLibrary } from './Materials';
 import { AluminumExtrusionFactory } from './AluminumExtrusion';
 import { SolarPanelBuilder } from './SolarPanelBuilder';
 import { TelescopicRailsBuilder } from './TelescopicRails';
-import { StructureMaterial, AluminumColor, SlideDirection, PanelOrientation } from '../types';
+import { StructureMaterial, AluminumColor, SlideDirection, PanelOrientation, SteelProfileUnit, getSteelProfileSpec } from '../types';
 
 export interface TrayDimensions {
   panelW: number;
@@ -98,13 +98,15 @@ export class SolarTrayBuilder {
     structureMaterial: StructureMaterial = 'aluminum',
     aluminumColor: AluminumColor = 'silver',
     panelThickness: number = 0.003,
-    panelSpecs?: any
+    panelSpecs?: any,
+    steelProfileUnit: SteelProfileUnit = 'mm'
   ) {
     const mats = MaterialLibrary.materials;
     const tray = new THREE.Group();
     tray.name = labelText;
 
     const isAluminum = (structureMaterial === 'aluminum');
+    const steelSpec30 = getSteelProfileSpec(30, steelProfileUnit);
     const frameMat = isAluminum
       ? (aluminumColor === 'black' ? mats.aluminumProfileBlack : mats.aluminumProfileSilver)
       : mats.weldedSteelMetalon;
@@ -135,10 +137,10 @@ export class SolarTrayBuilder {
     frontBar.position.set(xCenter, yLevel, zCenter + tL / 2 - profileH / 2);
     rearBar.position.set(xCenter, yLevel, zCenter - tL / 2 + profileH / 2);
 
-    sideL.userData = { isBar: true, barLength: tL, barLabel: `Longarina da Bandeja (${labelText})`, profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : 'Metalon 30x30' };
-    sideR.userData = { isBar: true, barLength: tL, barLabel: `Longarina da Bandeja (${labelText})`, profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : 'Metalon 30x30' };
-    frontBar.userData = { isBar: true, barLength: innerTrayW, barLabel: `Travessa Frontal da Bandeja (${labelText})`, profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : 'Metalon 30x30' };
-    rearBar.userData = { isBar: true, barLength: innerTrayW, barLabel: `Travessa Traseira da Bandeja (${labelText})`, profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : 'Metalon 30x30' };
+    sideL.userData = { isBar: true, barLength: tL, barLabel: `Longarina da Bandeja (${labelText})`, profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30 };
+    sideR.userData = { isBar: true, barLength: tL, barLabel: `Longarina da Bandeja (${labelText})`, profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30 };
+    frontBar.userData = { isBar: true, barLength: innerTrayW, barLabel: `Travessa Frontal da Bandeja (${labelText})`, profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30 };
+    rearBar.userData = { isBar: true, barLength: innerTrayW, barLabel: `Travessa Traseira da Bandeja (${labelText})`, profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30 };
 
     tray.add(sideL);
     tray.add(sideR);
@@ -174,7 +176,7 @@ export class SolarTrayBuilder {
         }
         midLongBar.position.set(xDiv, yLevel, zCenter);
         midLongBar.castShadow = true;
-        midLongBar.userData = { isBar: true, barLength: divLength, barLabel: 'Longarina Central da Bandeja', profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : 'Metalon 30x30' };
+        midLongBar.userData = { isBar: true, barLength: divLength, barLabel: 'Longarina Central da Bandeja', profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30 };
         tray.add(midLongBar);
       }
     }
@@ -194,7 +196,7 @@ export class SolarTrayBuilder {
           }
           midCrossBar.position.set(xCenter, yLevel, zDiv);
           midCrossBar.castShadow = true;
-          midCrossBar.userData = { isBar: true, barLength: divWidth, barLabel: 'Travessa Divisória da Bandeja', profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : 'Metalon 30x30' };
+          midCrossBar.userData = { isBar: true, barLength: divWidth, barLabel: 'Travessa Divisória da Bandeja', profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30 };
           tray.add(midCrossBar);
         } else {
           const xBounds = [
@@ -219,7 +221,7 @@ export class SolarTrayBuilder {
             }
             segMesh.position.set(segCenterX, yLevel, zDiv);
             segMesh.castShadow = true;
-            segMesh.userData = { isBar: true, barLength: segW, barLabel: 'Travessa Divisória da Bandeja', profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : 'Metalon 30x30' };
+            segMesh.userData = { isBar: true, barLength: segW, barLabel: 'Travessa Divisória da Bandeja', profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30 };
             tray.add(segMesh);
           }
         }
@@ -272,7 +274,8 @@ export class SolarTrayBuilder {
     baseTopY: number,
     structureMaterial: StructureMaterial,
     aluminumColor: AluminumColor,
-    panelSpecs: { width: number; length: number; thickness: number }
+    panelSpecs: { width: number; length: number; thickness: number },
+    steelProfileUnit: SteelProfileUnit = 'mm'
   ): MotionPlan {
     const panels = (levelConfig && levelConfig.panels) ? levelConfig.panels : 2;
     const orient = (levelConfig && levelConfig.orientation) ? levelConfig.orientation : 'longitudinal';
@@ -297,7 +300,8 @@ export class SolarTrayBuilder {
         structureMaterial,
         aluminumColor,
         panelSpecs.thickness,
-        panelSpecs
+        panelSpecs,
+        steelProfileUnit
       );
       return { dir: 'fixed', travelA: 0, travelB: 0 };
     }
@@ -315,20 +319,27 @@ export class SolarTrayBuilder {
       let travelFront = 0;
       let travelRear = 0;
 
+      // Posiciona as gavetas retraídas alinhadas sob as bordas dianteira/traseira da placa superior (Nível 2),
+      // saindo diretamente a partir da borda da placa superior para fora com o curso mínimo necessário
+      const upperFrontEdgeZ = zCenter + (l2Length / 2);
+      const upperRearEdgeZ = zCenter - (l2Length / 2);
+
       if (frontCount > 0) {
         const frontDims = this.calculateTrayDimensions(frontCount, orient, panelSpecs);
+        const zStartFront = upperFrontEdgeZ - (frontDims.trayLength / 2);
         this.buildTrayLevel(
           targetGroupA,
           frontDims,
           0,
           yFront,
-          zCenter,
+          zStartFront,
           levelNumber,
           `Nível ${levelNumber} (Gaveta Dianteira)`,
           structureMaterial,
           aluminumColor,
           panelSpecs.thickness,
-          panelSpecs
+          panelSpecs,
+          steelProfileUnit
         );
         TelescopicRailsBuilder.addLongitudinalRails(
           fixedFrameGroup,
@@ -338,27 +349,30 @@ export class SolarTrayBuilder {
           frontDims.trayLength,
           0,
           yFront,
-          zCenter,
+          zStartFront,
           +1,
           baseTopY
         );
-        travelFront = (l2Length / 2) + (frontDims.trayLength / 2) + 0.02;
+        // Curso total de expansão com sobreelevação/deslocamento para livrar completamente a travessa superior do Nível 2
+        travelFront = Math.max(0.20, frontDims.trayLength + 0.14);
       }
 
       if (rearCount > 0) {
         const rearDims = this.calculateTrayDimensions(rearCount, orient, panelSpecs);
+        const zStartRear = upperRearEdgeZ + (rearDims.trayLength / 2);
         this.buildTrayLevel(
           targetGroupB,
           rearDims,
           0,
           yRear,
-          zCenter,
+          zStartRear,
           levelNumber,
           `Nível ${levelNumber} (Gaveta Traseira)`,
           structureMaterial,
           aluminumColor,
           panelSpecs.thickness,
-          panelSpecs
+          panelSpecs,
+          steelProfileUnit
         );
         TelescopicRailsBuilder.addLongitudinalRails(
           fixedFrameGroup,
@@ -368,11 +382,12 @@ export class SolarTrayBuilder {
           rearDims.trayLength,
           0,
           yRear,
-          zCenter,
+          zStartRear,
           -1,
           baseTopY
         );
-        travelRear = (l2Length / 2) + (rearDims.trayLength / 2) + 0.02;
+        // Curso total de expansão com sobreelevação/deslocamento para livrar completamente a travessa superior do Nível 2
+        travelRear = Math.max(0.20, rearDims.trayLength + 0.14);
       }
 
       return { dir: 'longitudinal', travelA: travelFront, travelB: travelRear };
@@ -391,12 +406,16 @@ export class SolarTrayBuilder {
       let travelLeft = 0;
       let travelRight = 0;
 
+      const upperLeftEdgeX = -(l2Width / 2);
+      const upperRightEdgeX = (l2Width / 2);
+
       if (leftCount > 0) {
         const leftDims = this.calculateTrayDimensions(leftCount, orient, panelSpecs);
+        const xStartLeft = upperLeftEdgeX + (leftDims.trayWidth / 2);
         this.buildTrayLevel(
           targetGroupA,
           leftDims,
-          0,
+          xStartLeft,
           yLeft,
           zCenter,
           levelNumber,
@@ -404,7 +423,8 @@ export class SolarTrayBuilder {
           structureMaterial,
           aluminumColor,
           panelSpecs.thickness,
-          panelSpecs
+          panelSpecs,
+          steelProfileUnit
         );
         TelescopicRailsBuilder.addLateralRails(
           fixedFrameGroup,
@@ -412,21 +432,23 @@ export class SolarTrayBuilder {
           targetGroupA,
           leftDims.trayWidth,
           leftDims.trayLength,
-          0,
+          xStartLeft,
           yLeft,
           zCenter,
           -1,
           baseTopY
         );
-        travelLeft = (l2Width / 2) + (leftDims.trayWidth / 2) + 0.02;
+        // Curso total lateral para livrar completamente a longarina e borda superior
+        travelLeft = Math.max(0.20, leftDims.trayWidth + 0.14);
       }
 
       if (rightCount > 0) {
         const rightDims = this.calculateTrayDimensions(rightCount, orient, panelSpecs);
+        const xStartRight = upperRightEdgeX - (rightDims.trayWidth / 2);
         this.buildTrayLevel(
           targetGroupB,
           rightDims,
-          0,
+          xStartRight,
           yRight,
           zCenter,
           levelNumber,
@@ -434,7 +456,8 @@ export class SolarTrayBuilder {
           structureMaterial,
           aluminumColor,
           panelSpecs.thickness,
-          panelSpecs
+          panelSpecs,
+          steelProfileUnit
         );
         TelescopicRailsBuilder.addLateralRails(
           fixedFrameGroup,
@@ -442,13 +465,14 @@ export class SolarTrayBuilder {
           targetGroupB,
           rightDims.trayWidth,
           rightDims.trayLength,
-          0,
+          xStartRight,
           yRight,
           zCenter,
           +1,
           baseTopY
         );
-        travelRight = (l2Width / 2) + (rightDims.trayWidth / 2) + 0.02;
+        // Curso total lateral para livrar completamente a longarina e borda superior
+        travelRight = Math.max(0.20, rightDims.trayWidth + 0.14);
       }
 
       return { dir: 'lateral', travelA: travelLeft, travelB: travelRight };
@@ -456,18 +480,21 @@ export class SolarTrayBuilder {
 
     if (dir === 'rear_only') {
       const rearDims = this.calculateTrayDimensions(panels, orient, panelSpecs);
+      const upperRearEdgeZ = zCenter - (l2Length / 2);
+      const zStartRear = upperRearEdgeZ + (rearDims.trayLength / 2);
       this.buildTrayLevel(
         targetGroupB,
         rearDims,
         0,
         yLower,
-        zCenter,
+        zStartRear,
         levelNumber,
         `Nível ${levelNumber} (Extensão Traseira)`,
         structureMaterial,
         aluminumColor,
         panelSpecs.thickness,
-        panelSpecs
+        panelSpecs,
+        steelProfileUnit
       );
       TelescopicRailsBuilder.addLongitudinalRails(
         fixedFrameGroup,
@@ -477,28 +504,31 @@ export class SolarTrayBuilder {
         rearDims.trayLength,
         0,
         yLower,
-        zCenter,
+        zStartRear,
         -1,
         baseTopY
       );
-      const travel = (l2Length / 2) + (rearDims.trayLength / 2) + 0.02;
+      const travel = Math.max(0.20, rearDims.trayLength + 0.14);
       return { dir: 'rear_only', travelA: 0, travelB: travel };
     }
 
     if (dir === 'front_only') {
       const frontDims = this.calculateTrayDimensions(panels, orient, panelSpecs);
+      const upperFrontEdgeZ = zCenter + (l2Length / 2);
+      const zStartFront = upperFrontEdgeZ - (frontDims.trayLength / 2);
       this.buildTrayLevel(
         targetGroupA,
         frontDims,
         0,
         yUpper,
-        zCenter,
+        zStartFront,
         levelNumber,
         `Nível ${levelNumber} (Extensão Dianteira)`,
         structureMaterial,
         aluminumColor,
         panelSpecs.thickness,
-        panelSpecs
+        panelSpecs,
+        steelProfileUnit
       );
       TelescopicRailsBuilder.addLongitudinalRails(
         fixedFrameGroup,
@@ -508,11 +538,11 @@ export class SolarTrayBuilder {
         frontDims.trayLength,
         0,
         yUpper,
-        zCenter,
+        zStartFront,
         +1,
         baseTopY
       );
-      const travel = (l2Length / 2) + (frontDims.trayLength / 2) + 0.02;
+      const travel = Math.max(0.20, frontDims.trayLength + 0.14);
       return { dir: 'front_only', travelA: travel, travelB: 0 };
     }
 

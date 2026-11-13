@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { MaterialLibrary } from './Materials';
 import { AluminumExtrusionFactory } from './AluminumExtrusion';
-import { StructureMaterial, AluminumColor } from '../types';
+import { StructureMaterial, AluminumColor, SteelProfileUnit, getSteelProfileSpec } from '../types';
 
 /**
- * Construtor dos Pilares de Sustentação Vertical e Desvios Estruturais do Nível 2
- * Eleva a bandeja superior fixando-se nas longarinas do rack base, com braços de topo
- * para contornar o curso das gavetas inferiores sem colisão.
+ * Construtor dos Pilares de Sustentação Vertical e Berço Estrutural do Nível 2
+ * Eleva a bandeja superior apoiando-se diretamente sobre as longarinas do rack base,
+ * com travessas superiores inteiriças que passam por cima dos pilares e servem de berço,
+ * eliminando a necessidade de braços de topo intermediários.
  */
 export class SpacerPostsBuilder {
   static addSpacerPosts(
@@ -17,40 +18,45 @@ export class SpacerPostsBuilder {
     yTo: number,
     zCenter: number,
     structureMaterial: StructureMaterial = 'aluminum',
-    aluminumColor: AluminumColor = 'silver'
+    aluminumColor: AluminumColor = 'silver',
+    steelProfileUnit: SteelProfileUnit = 'mm'
   ) {
     const mats = MaterialLibrary.materials;
     const isAluminum = (structureMaterial === 'aluminum');
+    const steelSpec30 = getSteelProfileSpec(30, steelProfileUnit);
     const postMat = isAluminum
       ? (aluminumColor === 'black' ? mats.aluminumProfileBlack : mats.aluminumProfileSilver)
       : mats.weldedSteelMetalon;
     const postSize = 0.030; // 30 mm T-Slot
 
-    // Longarinas externas do rack base (largura 1.40m)
+    // Longarinas externas do rack base (largura 1.40m, centros em ±0.68m)
     const rackOuterX = 1.40 / 2 - 0.04 / 2; // 0.68 m
 
-    // Longarinas laterais da bandeja L2
+    // Longarinas laterais de apoio sob a bandeja L2
     const trayOuterX = l2Width / 2 - postSize / 2;
-
+    const topRailX = trayOuterX;
     const pillarX = rackOuterX; // 0.68m
-    const needsTopArm = trayOuterX < rackOuterX - 0.005;
-    const topArmLen = needsTopArm ? (rackOuterX - trayOuterX) : 0;
-    const topRailX = needsTopArm ? trayOuterX : rackOuterX;
 
-    const yTopPillar = yTo - postSize / 2;
+    // O berço estrutural de topo (travessas e longarinas superiores) fica
+    // imediatamente abaixo da bandeja do Nível 2 (yTo - postSize).
+    const yTopRail = yTo - postSize;
+
+    // Os pilares de sustentação verticais são encurtados para que o topo do pilar
+    // sirva de assento/apoio para a face inferior das travessas superiores inteiriças.
+    const yTopPillar = yTopRail - postSize / 2;
     const postH = Math.max(0.04, yTopPillar - yFrom);
     const yCenterPillar = yFrom + postH / 2;
 
     // Desvio longitudinal de 8cm para livre saída das gavetas
     const zPillarFront = zCenter + (l2Length / 2 + 0.08);
-    const zPillarRear  = zCenter - (l2Length / 2 + 0.08);
+    const zPillarRear = zCenter - (l2Length / 2 + 0.08);
 
-    // 1. Pilares Verticais nos 4 cantos
+    // 1. Pilares Verticais nos 4 cantos (encurtados para receber a travessa superior por cima)
     const pillarsConfig = [
       { xSign: -1, z: zPillarFront, label: 'Dianteira Esquerda' },
-      { xSign:  1, z: zPillarFront, label: 'Dianteira Direita'  },
-      { xSign: -1, z: zPillarRear,  label: 'Traseira Esquerda'  },
-      { xSign:  1, z: zPillarRear,  label: 'Traseira Direita'   }
+      { xSign: 1, z: zPillarFront, label: 'Dianteira Direita' },
+      { xSign: -1, z: zPillarRear, label: 'Traseira Esquerda' },
+      { xSign: 1, z: zPillarRear, label: 'Traseira Direita' }
     ];
 
     pillarsConfig.forEach(cfg => {
@@ -69,7 +75,7 @@ export class SpacerPostsBuilder {
         isBar: true,
         barLength: postH,
         barLabel: `Pilar de Sustentação (${cfg.label})`,
-        profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : 'Metalon 30x30'
+        profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30
       };
       targetGroup.add(post);
 
@@ -79,37 +85,57 @@ export class SpacerPostsBuilder {
       baseBracket.position.set(xP, yFrom + 0.004, cfg.z);
       targetGroup.add(baseBracket);
 
-      // Braço horizontal no topo do pilar
-      if (needsTopArm) {
-        let armMesh;
-        if (isAluminum) {
-          armMesh = AluminumExtrusionFactory.createProfileMesh(topArmLen, postMat, { axis: 'x', size: postSize });
-        } else {
-          const armGeo = new THREE.BoxGeometry(topArmLen, postSize, postSize);
-          armMesh = new THREE.Mesh(armGeo, postMat);
-        }
-        const armCenterX = cfg.xSign * (trayOuterX + topArmLen / 2);
-        armMesh.position.set(armCenterX, yTo, cfg.z);
-        armMesh.castShadow = true;
-        armMesh.userData = {
-          isBar: true,
-          barLength: topArmLen,
-          barLabel: `Braço de Topo (${cfg.label})`,
-          profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : 'Metalon 30x30'
-        };
-        targetGroup.add(armMesh);
-      }
+      // Cantoneira de união do topo do pilar à face inferior da travessa superior
+      const topPillarBracketGeo = new THREE.BoxGeometry(0.026, 0.026, 0.026);
+      const topPillarBracket = new THREE.Mesh(topPillarBracketGeo, mats.telescopicRail || postMat);
+      topPillarBracket.position.set(
+        xP - cfg.xSign * (postSize / 2 + 0.013),
+        yTopRail - postSize / 2 - 0.013,
+        cfg.z
+      );
+      targetGroup.add(topPillarBracket);
     });
 
-    // 2. Longarinas Longitudinais Contínuas no TOPO (Esquerda e Direita)
-    const zLongStart = zPillarRear  - postSize / 2;
-    const zLongEnd   = zPillarFront + postSize / 2;
-    const longLen     = zLongEnd - zLongStart;
+    // 2. Travessas Transversais Inteiriças no TOPO (Dianteira e Traseira)
+    // Passam por cima dos pilares e se projetam 25 mm para fora de cada pilar ("passando")
+    const transOverhang = 0.025; // 25 mm de sobra além da face externa de cada pilar
+    const transLen = (pillarX + postSize / 2 + transOverhang) * 2; // 1.44 m
+    const transCenterX = 0;
+
+    const transPositions = [
+      { z: zPillarFront, label: 'Dianteira' },
+      { z: zPillarRear, label: 'Traseira' }
+    ];
+
+    transPositions.forEach(tp => {
+      let transMesh;
+      if (isAluminum) {
+        transMesh = AluminumExtrusionFactory.createProfileMesh(transLen, postMat, { axis: 'x', size: postSize, showCutFace: true });
+      } else {
+        const transGeo = new THREE.BoxGeometry(transLen, postSize, postSize);
+        transMesh = new THREE.Mesh(transGeo, postMat);
+      }
+      transMesh.position.set(transCenterX, yTopRail, tp.z);
+      transMesh.castShadow = true;
+      transMesh.userData = {
+        isBar: true,
+        barLength: transLen,
+        barLabel: `Travessa Superior (${tp.label})`,
+        profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30
+      };
+      targetGroup.add(transMesh);
+    });
+
+    // 3. Longarinas Longitudinais Superiores (Esquerda e Direita)
+    // Encurtadas para conectar diretamente entre a face interna da travessa traseira e da dianteira
+    const zLongStart = zPillarRear + postSize / 2;
+    const zLongEnd = zPillarFront - postSize / 2;
+    const longLen = Math.max(0.05, zLongEnd - zLongStart);
     const longCenterZ = (zLongStart + zLongEnd) / 2;
 
     const longSides = [
       { xSign: -1, label: 'Esquerda' },
-      { xSign:  1, label: 'Direita'  }
+      { xSign: 1, label: 'Direita' }
     ];
 
     longSides.forEach(side => {
@@ -121,51 +147,24 @@ export class SpacerPostsBuilder {
         const longGeo = new THREE.BoxGeometry(postSize, postSize, longLen);
         longMesh = new THREE.Mesh(longGeo, postMat);
       }
-      longMesh.position.set(xPos, yTo, longCenterZ);
+      longMesh.position.set(xPos, yTopRail, longCenterZ);
       longMesh.castShadow = true;
       longMesh.userData = {
         isBar: true,
         barLength: longLen,
         barLabel: `Longarina Superior (${side.label})`,
-        profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : 'Metalon 30x30'
+        profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30
       };
       targetGroup.add(longMesh);
-    });
 
-    // 3. Travessas Transversais no TOPO
-    const xInnerL  = -topRailX + postSize / 2;
-    const xInnerR  =  topRailX - postSize / 2;
-    const transLen  = xInnerR - xInnerL;
-    const transCenterX = 0;
-
-    const transPositions = [
-      { z: zPillarFront, label: 'Dianteira' },
-      { z: zPillarRear,  label: 'Traseira'  }
-    ];
-
-    transPositions.forEach(tp => {
-      if (transLen <= 0.01) return;
-      let transMesh;
-      if (isAluminum) {
-        transMesh = AluminumExtrusionFactory.createProfileMesh(transLen, postMat, { axis: 'x', size: postSize });
-      } else {
-        const transGeo = new THREE.BoxGeometry(transLen, postSize, postSize);
-        transMesh = new THREE.Mesh(transGeo, postMat);
-      }
-      transMesh.position.set(transCenterX, yTo, tp.z);
-      transMesh.castShadow = true;
-      transMesh.userData = {
-        isBar: true,
-        barLength: transLen,
-        barLabel: `Travessa Superior (${tp.label})`,
-        profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : 'Metalon 30x30'
-      };
-      targetGroup.add(transMesh);
-
-      [-1, 1].forEach(xSign => {
+      // Cantoneiras nos 4 cantos internos de união entre longarina superior e travessa superior
+      [
+        { z: zLongStart + 0.013, labelZ: 'Traseira' },
+        { z: zLongEnd - 0.013, labelZ: 'Dianteira' }
+      ].forEach(corner => {
         const cornerBracketGeo = new THREE.BoxGeometry(0.026, 0.026, 0.026);
         const cornerBracket = new THREE.Mesh(cornerBracketGeo, mats.telescopicRail || postMat);
-        cornerBracket.position.set(xSign * (topRailX - postSize / 2 - 0.013), yTo, tp.z);
+        cornerBracket.position.set(xPos - side.xSign * (postSize / 2 + 0.013), yTopRail, corner.z);
         targetGroup.add(cornerBracket);
       });
     });
@@ -180,7 +179,7 @@ export class SpacerPostsBuilder {
         const xTrayOuter = xSign * (l2Width / 2);
         const trayBracketGeo = new THREE.BoxGeometry(0.026, 0.026, 0.026);
         const trayBracket = new THREE.Mesh(trayBracketGeo, mats.telescopicRail || postMat);
-        trayBracket.position.set(xTrayOuter, yTo, zC);
+        trayBracket.position.set(xTrayOuter, yTopRail + postSize / 2, zC);
         targetGroup.add(trayBracket);
       });
     });

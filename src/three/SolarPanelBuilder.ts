@@ -15,6 +15,23 @@ export class SolarPanelBuilder {
     labelText?: string,
     panelSpecs?: any
   ): THREE.Group {
+    // Se a placa foi solicitada na orientação transversal (width > length),
+    // construímos na geometria física original (lado menor em X, lado maior em Z)
+    // e rotacionamos o conjunto inteiro em 90° no eixo Y, mantendo o tamanho real das células,
+    // ilhoses e caixa de junção inalterados!
+    if (width > length) {
+      const innerPanel = this.createFlexiblePanelMesh(length, width, thickness, labelText, panelSpecs);
+      const wrapperGroup = new THREE.Group();
+      wrapperGroup.name = labelText || "FlexibleSolarPanel_Transverse";
+      wrapperGroup.userData = {
+        ...innerPanel.userData,
+        electricalRoot: wrapperGroup
+      };
+      innerPanel.rotation.y = Math.PI / 2;
+      wrapperGroup.add(innerPanel);
+      return wrapperGroup;
+    }
+
     const mats = MaterialLibrary.materials;
     const panelGroup = new THREE.Group();
     panelGroup.name = labelText || "FlexibleSolarPanel";
@@ -23,6 +40,41 @@ export class SolarPanelBuilder {
     const weight = panelSpecs?.weightKg || (width > 0.7 ? 4.0 : 1.8);
     const label = panelSpecs?.name || labelText || `Painel Solar Flexível ${powerW}W`;
 
+    const panelUserData = {
+      isElectrical: true,
+      isElectricalRoot: true,
+      isPanel: true,
+      electricalType: 'panel' as const,
+      name: label,
+      category: 'Geração Solar Fotovoltaica',
+      voltage: `Voc: ${panelSpecs?.voc || 18}V | Vmp: ${panelSpecs?.vmp || 15}V`,
+      current: `Imp: ${panelSpecs?.imp || 6.67}A | Isc: ${panelSpecs?.isc || 7.32}A`,
+      power: `${powerW}Wp (${weight} kg)`,
+      efficiency: `${panelSpecs?.efficiencyPercent || 22.3}% • ${panelSpecs?.cellType || 'Silício Monocristalino'}`,
+      material: `${panelSpecs?.material || 'ETFE Flexível'} • ${Math.round(width * 1000)} × ${Math.round(length * 1000)} mm`,
+      purpose: 'Painel fotovoltaico flexível com células monocristalinas para captação solar e recarga do banco LiFePO4',
+      features: panelSpecs?.features || [
+        `${powerW}W Potência Nominal`,
+        'Células Monocristalinas de Alta Eficiência',
+        'Revestimento Polimérico ETFE Ultrarresistente',
+        'Caixa de Junção IP67 com Conectores MC4'
+      ]
+    };
+
+    panelGroup.userData = { ...panelUserData };
+
+    // Hitbox invisível para captura precisa pelo Raycaster no hover do mouse
+    const hitGeo = new THREE.BoxGeometry(width, Math.max(0.012, thickness + 0.008), length);
+    const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+    hitMesh.name = '__hitbox';
+    hitMesh.position.set(0, 0, 0);
+    hitMesh.userData = {
+      isElectrical: true,
+      electricalRoot: panelGroup
+    };
+    panelGroup.add(hitMesh);
+
     // 1. Substrato Laminado Polimérico Branco (Base física do painel)
     const baseGeo = new THREE.BoxGeometry(width, thickness, length);
     const baseMesh = new THREE.Mesh(baseGeo, mats.flexiblePanelSubstrate);
@@ -30,6 +82,8 @@ export class SolarPanelBuilder {
     baseMesh.receiveShadow = true;
     baseMesh.userData = {
       isPanel: true,
+      isElectrical: true,
+      electricalRoot: panelGroup,
       panelLength: length,
       panelWidth: width,
       panelLabel: label,
@@ -43,6 +97,9 @@ export class SolarPanelBuilder {
     if (panelSpecs?.cols && panelSpecs?.rows) {
       cols = panelSpecs.cols;
       rows = panelSpecs.rows;
+    } else if (panelSpecs?.cellCount === 27) {
+      cols = 3;
+      rows = 9;
     } else if (panelSpecs?.cellCount === 60) {
       cols = 6;
       rows = 10;

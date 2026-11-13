@@ -12,6 +12,7 @@ import { B2bModal } from './components/modals/B2bModal';
 import { UsinaModal } from './components/modals/UsinaModal';
 import { BomModal } from './components/modals/BomModal';
 import { PanelPresetsModal } from './components/modals/PanelPresetsModal';
+import { CargoBoxPresetsModal } from './components/modals/CargoBoxPresetsModal';
 
 export const App: React.FC = () => {
   return (
@@ -31,6 +32,7 @@ export const App: React.FC = () => {
       <UsinaModal />
       <BomModal />
       <PanelPresetsModal />
+      <CargoBoxPresetsModal />
     </>
   );
 };

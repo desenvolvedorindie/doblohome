@@ -129,6 +129,34 @@ export class SolarSimulation {
     return false;
   }
 
+  moveAppliance(id: string, direction: 'up' | 'down'): boolean {
+    const idx = this.APPLIANCES.findIndex(a => a.id === id);
+    if (idx < 0) return false;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= this.APPLIANCES.length) return false;
+    const temp = this.APPLIANCES[idx];
+    this.APPLIANCES[idx] = this.APPLIANCES[targetIdx];
+    this.APPLIANCES[targetIdx] = temp;
+    this.saveAppliances();
+    return true;
+  }
+
+  reorderAppliances(fromIndex: number, toIndex: number): boolean {
+    if (
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= this.APPLIANCES.length ||
+      toIndex >= this.APPLIANCES.length ||
+      fromIndex === toIndex
+    ) {
+      return false;
+    }
+    const [moved] = this.APPLIANCES.splice(fromIndex, 1);
+    this.APPLIANCES.splice(toIndex, 0, moved);
+    this.saveAppliances();
+    return true;
+  }
+
   resetDefaultAppliances() {
     this.APPLIANCES = this.getDefaultAppliances();
     this.recalculateConsumption();

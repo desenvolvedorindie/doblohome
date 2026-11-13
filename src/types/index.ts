@@ -6,7 +6,18 @@ export type PanelOrientation = 'longitudinal' | 'transverse';
 
 export type StructureMaterial = 'aluminum' | 'steel';
 
+export type SteelProfileUnit = 'mm' | 'inch';
+
+export function getSteelProfileSpec(size: 30 | 40, unit: SteelProfileUnit = 'mm'): string {
+  if (unit === 'inch') {
+    return size === 40 ? 'Metalon 1 ½" x 1 ½"' : 'Metalon 1 ¼" x 1 ¼"';
+  }
+  return size === 40 ? 'Metalon 40x40 mm' : 'Metalon 30x30 mm';
+}
+
 export type AluminumColor = 'silver' | 'black';
+
+export type ViewMode = 'assembled' | 'bars_lineup';
 
 export type CameraPreset = 'iso' | 'top' | 'front' | 'side' | 'panels';
 
@@ -15,9 +26,35 @@ export interface CargoBoxConfig {
   length: number;    // em mm (padrão: 1600mm)
   width: number;     // em mm (padrão: 1000mm)
   height: number;    // em mm (padrão: 330mm)
+  verticalLiftMm?: number; // abertura / deslocamento vertical extra (mm) para ajuste de altura do vão do baú
   hingeSide: 'driver' | 'passenger'; // lado da dobradiça (padrão: 'driver', abre para calçada/passageiro)
   tiltAngle: number; // ângulo de basculamento da estrutura solar em graus (0 a 70°)
   lidAngle: number;  // ângulo de abertura da tampa do próprio baú em graus (0 a 45°)
+}
+
+export interface WaterTankConfig {
+  enabled: boolean;    // Checkbox: inclui 2 canos de 200mm (1 de cada lado)
+  lengthMm: number;    // Comprimento de cada cano em mm (limite máx = 2200mm, comprimento da base da estrutura)
+  diameterMm: number;  // Diâmetro do cano em mm (200mm)
+}
+
+export interface CargoBoxPreset {
+  id: string;
+  name: string;
+  brand?: string;
+  model?: string;
+  volumeLiters: number;
+  length: number;      // em mm (ex: 1600)
+  width: number;       // em mm (ex: 1000)
+  height: number;      // em mm (ex: 330)
+  weightKg: number;    // em kg (ex: 18)
+  maxLoadKg: number;   // em kg (ex: 50)
+  material: string;
+  color?: string;
+  hingeSide?: 'driver' | 'passenger';
+  features?: string[];
+  description?: string;
+  isDefault?: boolean;
 }
 
 export interface B2BChargerConfig {
@@ -82,13 +119,16 @@ export interface SavedConfig {
   level1: LevelConfig;
   level2: LevelConfig;
   structureMaterial: StructureMaterial;
+  steelProfileUnit?: SteelProfileUnit;
   aluminumColor: AluminumColor;
   cargoBox?: CargoBoxConfig;
+  waterTank?: WaterTankConfig;
   offsetZ?: number;
   offsetY?: number;
   expansionProgress?: number;
   b2bEngineHours?: number;
   panelPresetId?: string;
+  cargoBoxPresetId?: string;
 }
 
 export interface ApplianceItem {
@@ -161,7 +201,7 @@ export interface BarMeasurementData {
   purpose?: string;
   level?: string;
   isElectrical?: boolean;
-  electricalType?: 'battery' | 'mppt' | 'b2b' | 'usina';
+  electricalType?: 'battery' | 'mppt' | 'b2b' | 'usina' | 'water' | 'panel';
   voltage?: string;
   capacity?: string;
   current?: string;

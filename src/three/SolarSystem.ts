@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SlideDirection, PanelOrientation, StructureMaterial, AluminumColor, StackLevels, CargoBoxConfig } from '../types';
+import { SlideDirection, PanelOrientation, StructureMaterial, AluminumColor, SteelProfileUnit, StackLevels, CargoBoxConfig, WaterTankConfig } from '../types';
 import { CargoBoxSystem } from './CargoBox';
 import { BaseRackBuilder } from './BaseRackBuilder';
 import { SolarTrayBuilder, MotionPlan, TrayDimensions } from './SolarTrayBuilder';
@@ -39,6 +39,10 @@ export class SolarSystem {
     vmp: number;
     isc: number;
     imp: number;
+    name?: string;
+    cellCount?: number;
+    cols?: number;
+    rows?: number;
   };
 
   stackLevels: StackLevels;
@@ -47,6 +51,7 @@ export class SolarSystem {
   expansionProgress: number;
   explodedProgress: number;
   structureMaterial: StructureMaterial;
+  steelProfileUnit: SteelProfileUnit;
   aluminumColor: AluminumColor;
   showDimensions: boolean;
   showCableChain: boolean;
@@ -56,6 +61,10 @@ export class SolarSystem {
   cargoBoxConfig: CargoBoxConfig;
   cargoBoxSystem: CargoBoxSystem;
   solarSuperstructureGroup: THREE.Group;
+
+  // Caixa d'Água Lateral (2× Canos PVC 200mm — 1 de cada lado)
+  waterTankConfig: WaterTankConfig;
+  waterTankGroup: THREE.Group;
 
   fixedFrameGroup: THREE.Group;
   upperLayerGroup: THREE.Group;
@@ -104,9 +113,17 @@ export class SolarSystem {
       length: 1600,
       width: 1000,
       height: 330,
+      verticalLiftMm: 0,
       hingeSide: 'driver',
       tiltAngle: 0,
       lidAngle: 0
+    };
+
+    // Configuração dos 2 Canos de 200mm (Caixa d'Água Lateral — 1 de cada lado da estrutura base)
+    this.waterTankConfig = {
+      enabled: true,
+      lengthMm: 2200,
+      diameterMm: 200
     };
 
     const curBaseY = this.currentBaseY;
@@ -114,17 +131,21 @@ export class SolarSystem {
     this.Y_LEVEL1_UPPER = curBaseY + 0.105;
     this.Y_LEVEL2 = curBaseY + 0.175;
 
-    // Especificações do Painel Solar Flexível 100W
+    // Especificações do Painel Solar Flexível Padrão (Inohouse 100W JTN-100W)
     this.PANEL_SPECS = {
-      width: 0.60,
-      length: 1.00,
+      width: 0.590,
+      length: 0.875,
       thickness: 0.003,
-      weightKg: 1.6,
+      weightKg: 1.8,
       powerWatts: 100,
-      voc: 22.28,
-      vmp: 18.2,
-      isc: 5.8,
-      imp: 5.5
+      voc: 18.0,
+      vmp: 15.0,
+      isc: 7.32,
+      imp: 6.67,
+      name: 'Placa Solar Flexível Inohouse 100W (JTN-100W)',
+      cellCount: 32,
+      cols: 4,
+      rows: 8
     };
 
     this.stackLevels = 2;
@@ -144,6 +165,7 @@ export class SolarSystem {
     this.expansionProgress = 0.0;
     this.explodedProgress = 0.0;
     this.structureMaterial = 'aluminum';
+    this.steelProfileUnit = 'mm';
     this.aluminumColor = 'silver';
     this.showDimensions = true;
     this.showCableChain = false;
@@ -167,6 +189,8 @@ export class SolarSystem {
     this.mpptGroup = new THREE.Group();
     this.b2bGroup = new THREE.Group();
     this.usinaGroup = new THREE.Group();
+    this.waterTankGroup = new THREE.Group();
+    this.waterTankGroup.name = "WaterTankPipesGroup";
 
     // Superestrutura basculante (elementos que giram nas dobradiças)
     this.solarSuperstructureGroup = new THREE.Group();
@@ -186,11 +210,12 @@ export class SolarSystem {
     this.solarSuperstructureGroup.add(this.weldGussetsGroup);
     this.solarSuperstructureGroup.add(this.aluminumBracketsGroup);
 
-    // Bateria, MPPT, Carregador DC-DC B2B e Fonte Usina ancorados no interior do veículo
+    // Bateria, MPPT, Carregador DC-DC B2B, Fonte Usina e Caixa d'Água (2× 200mm)
     this.group.add(this.batteryGroup);
     this.group.add(this.mpptGroup);
     this.group.add(this.b2bGroup);
     this.group.add(this.usinaGroup);
+    this.group.add(this.waterTankGroup);
 
     // Subsistema 3D do Baú Motobul e Articulação
     this.cargoBoxSystem = new CargoBoxSystem(
@@ -198,7 +223,8 @@ export class SolarSystem {
       this.BASE_Y,
       this.RACK_OFFSET_Z,
       this.structureMaterial,
-      this.aluminumColor
+      this.aluminumColor,
+      this.steelProfileUnit
     );
     this.group.add(this.cargoBoxSystem.group);
 
@@ -311,6 +337,16 @@ export class SolarSystem {
     this.updateExploded(this.explodedProgress);
   }
 
+  setSteelProfileUnit(unit: SteelProfileUnit) {
+    if (this.steelProfileUnit === unit) return;
+    this.steelProfileUnit = unit;
+    if (this.structureMaterial === 'steel') {
+      this.buildSystem();
+      this.updateExpansion(this.expansionProgress);
+      this.updateExploded(this.explodedProgress);
+    }
+  }
+
   setAluminumColor(color: any) {
     if (this.aluminumColor === color) return;
     this.aluminumColor = color;
@@ -319,6 +355,13 @@ export class SolarSystem {
       this.updateExpansion(this.expansionProgress);
       this.updateExploded(this.explodedProgress);
     }
+  }
+
+  setPanelSpecs(specs: Partial<typeof this.PANEL_SPECS>) {
+    this.PANEL_SPECS = { ...this.PANEL_SPECS, ...specs };
+    this.buildSystem();
+    this.updateExpansion(this.expansionProgress);
+    this.updateExploded(this.explodedProgress);
   }
 
   setCableChainVisible(visible: boolean) {
@@ -363,7 +406,10 @@ export class SolarSystem {
 
   get currentBaseY(): number {
     if (this.cargoBoxConfig && this.cargoBoxConfig.enabled) {
-      return this.BASE_Y + this.BASE_PROFILE_H + (this.cargoBoxConfig.height / 1000) + 0.02;
+      const boxH = (this.cargoBoxConfig.height || 330) / 1000;
+      const maxLiftM = Math.max(0.06, boxH - 0.10);
+      const liftM = Math.min(maxLiftM, Math.max(0, (this.cargoBoxConfig.verticalLiftMm || 0) / 1000));
+      return this.BASE_Y + this.BASE_PROFILE_H + boxH + 0.03 + liftM;
     }
     return this.BASE_Y;
   }
@@ -372,6 +418,17 @@ export class SolarSystem {
 
   setCargoBox(config: Partial<CargoBoxConfig>) {
     this.cargoBoxConfig = { ...this.cargoBoxConfig, ...config };
+    const maxLiftMm = Math.max(60, Math.floor(((this.cargoBoxConfig.height || 330) - 100) / 10) * 10);
+    if ((this.cargoBoxConfig.verticalLiftMm || 0) > maxLiftMm) {
+      this.cargoBoxConfig.verticalLiftMm = maxLiftMm;
+    }
+    this.buildSystem();
+    this.updateExpansion(this.expansionProgress);
+  }
+
+  setCargoBoxVerticalLift(liftMm: number) {
+    const maxLiftMm = Math.max(60, Math.floor(((this.cargoBoxConfig.height || 330) - 100) / 10) * 10);
+    this.cargoBoxConfig.verticalLiftMm = Math.max(0, Math.min(maxLiftMm, liftMm));
     this.buildSystem();
     this.updateExpansion(this.expansionProgress);
   }
@@ -410,6 +467,25 @@ export class SolarSystem {
     }
   }
 
+  // --- CONTROLES DA CAIXA D'ÁGUA LATERAL (2× CANOS) ---
+
+  setWaterTank(config: Partial<WaterTankConfig>) {
+    const nextLength = config.lengthMm !== undefined
+      ? Math.max(400, Math.min(2200, Math.round(config.lengthMm)))
+      : this.waterTankConfig.lengthMm;
+    const nextDiameter = config.diameterMm !== undefined
+      ? Math.max(80, Math.min(350, Math.round(config.diameterMm)))
+      : this.waterTankConfig.diameterMm;
+    this.waterTankConfig = {
+      ...this.waterTankConfig,
+      ...config,
+      lengthMm: nextLength,
+      diameterMm: nextDiameter
+    };
+    this.buildSystem();
+    this.updateExpansion(this.expansionProgress);
+  }
+
   // --- RECONSTRUÇÃO DO SISTEMA COMPLETO ---
 
   buildSystem() {
@@ -430,6 +506,7 @@ export class SolarSystem {
     this.clearGroup(this.mpptGroup);
     this.clearGroup(this.b2bGroup);
     this.clearGroup(this.usinaGroup);
+    this.clearGroup(this.waterTankGroup);
     this.rackMeshes = [];
 
     // Reset de posições relativas dos grupos
@@ -447,6 +524,7 @@ export class SolarSystem {
     if (this.cargoBoxConfig && this.cargoBoxConfig.enabled) {
       if (this.cargoBoxSystem) {
         this.cargoBoxSystem.structureMaterial = this.structureMaterial;
+        this.cargoBoxSystem.steelProfileUnit = this.steelProfileUnit;
         this.cargoBoxSystem.aluminumColor = this.aluminumColor;
         this.cargoBoxSystem.updateConfig(this.cargoBoxConfig, this.BASE_Y, this.RACK_OFFSET_Z);
         this.cargoBoxSystem.group.visible = true;
@@ -487,17 +565,27 @@ export class SolarSystem {
       this.structureMaterial,
       this.aluminumColor,
       this.cargoBoxConfig.enabled,
-      this.BASE_Y
+      this.BASE_Y,
+      this.steelProfileUnit
     );
 
     // 3. Constrói os Níveis e Gavetas Telescópicas
     this.buildStackStructure(trayDimsL2);
 
-    // 4. Bateria LiFePO4 Kingbo 560Ah, MPPT 60A, Carregador DC-DC B2B1230 30A e Usina Smart Connect
+    // 4. Bateria LiFePO4 Kingbo 560Ah, MPPT 60A, Carregador DC-DC B2B1230 30A, Usina Smart Connect e Caixa d'Água (2× 200mm)
     PowerStorageBuilder.buildKingboBattery(this.batteryGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
     PowerStorageBuilder.buildKingboMPPT(this.mpptGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
     PowerStorageBuilder.buildB2BCharger(this.b2bGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
     PowerStorageBuilder.buildUsinaCharger(this.usinaGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
+    PowerStorageBuilder.buildWaterTankPipes(
+      this.waterTankGroup,
+      this.waterTankConfig.enabled,
+      this.waterTankConfig.lengthMm,
+      this.BASE_Y,
+      this.RACK_OFFSET_Z,
+      this.dimensionsGroup,
+      this.waterTankConfig.diameterMm
+    );
 
     // 5. Cotas Técnicas 3D
     DimensionOverlayBuilder.buildDimensionLines(
@@ -546,7 +634,8 @@ export class SolarSystem {
       baseTopY,
       this.structureMaterial,
       this.aluminumColor,
-      this.PANEL_SPECS
+      this.PANEL_SPECS,
+      this.steelProfileUnit
     );
 
     // Nível 2 (Superior)
@@ -566,7 +655,8 @@ export class SolarSystem {
         baseTopY,
         this.structureMaterial,
         this.aluminumColor,
-        this.PANEL_SPECS
+        this.PANEL_SPECS,
+        this.steelProfileUnit
       );
 
       // Pilares de elevação com braço de desvio para o Nível 2
@@ -578,7 +668,8 @@ export class SolarSystem {
         yLevel2,
         zCenter,
         this.structureMaterial,
-        this.aluminumColor
+        this.aluminumColor,
+        this.steelProfileUnit
       );
     } else {
       this.level2Motion = { dir: 'fixed', travelA: 0, travelB: 0 };
@@ -720,6 +811,7 @@ export class SolarSystem {
       slideDirection: this.level1 ? this.level1.slideDirection : 'longitudinal',
       panelOrientation: this.level1 ? this.level1.orientation : 'longitudinal',
       structureMaterial: this.structureMaterial,
+      steelProfileUnit: this.steelProfileUnit,
       weightPanels: weightPanels,
       weightStructure: weightStructure,
       weightTotal: weightTotal,

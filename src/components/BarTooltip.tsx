@@ -2,7 +2,7 @@ import React from 'react';
 import { useSolar } from '../context/SolarContext';
 
 export const BarTooltip: React.FC = () => {
-  const { hoveredBar, hoverPos } = useSolar();
+  const { hoveredBar, hoverPos, structureMaterial, steelProfileUnit } = useSolar();
 
   if (!hoveredBar) return null;
 
@@ -27,8 +27,17 @@ export const BarTooltip: React.FC = () => {
     } else if (hoveredBar.electricalType === 'usina') {
       accentColor = '#ef4444';
       icon = '🔌⚡';
+    } else if (hoveredBar.electricalType === 'water') {
+      accentColor = '#0ea5e9';
+      icon = '💧';
+    } else if (hoveredBar.electricalType === 'panel') {
+      accentColor = '#f59e0b';
+      icon = '☀️';
     }
   }
+
+  const isWater = hoveredBar.electricalType === 'water';
+  const isPanel = hoveredBar.electricalType === 'panel';
 
   return (
     <div
@@ -70,37 +79,37 @@ export const BarTooltip: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '11px' }}>
           {hoveredBar.voltage && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ color: '#94a3b8' }}>Tensão:</span>
+              <span style={{ color: '#94a3b8' }}>{isWater ? 'Medidas:' : (isPanel ? 'Tensão (Voc / Vmp):' : 'Tensão:')}</span>
               <span style={{ fontWeight: 700, color: '#38bdf8' }}>{hoveredBar.voltage}</span>
             </div>
           )}
           {hoveredBar.capacity && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ color: '#94a3b8' }}>Capacidade:</span>
+              <span style={{ color: '#94a3b8' }}>{isWater ? 'Volume Água:' : 'Capacidade:'}</span>
               <span style={{ fontWeight: 700, color: '#4ade80' }}>{hoveredBar.capacity}</span>
             </div>
           )}
           {hoveredBar.current && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ color: '#94a3b8' }}>Corrente:</span>
+              <span style={{ color: '#94a3b8' }}>{isWater ? 'Limite Base:' : (isPanel ? 'Corrente (Imp / Isc):' : 'Corrente:')}</span>
               <span style={{ fontWeight: 700, color: '#fbbf24' }}>{hoveredBar.current}</span>
             </div>
           )}
           {hoveredBar.power && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ color: '#94a3b8' }}>Potência:</span>
+              <span style={{ color: '#94a3b8' }}>{isWater ? 'Peso Cheio:' : (isPanel ? 'Potência (Pmax):' : 'Potência:')}</span>
               <span style={{ fontWeight: 700, color: '#f87171' }}>{hoveredBar.power}</span>
             </div>
           )}
           {hoveredBar.efficiency && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ color: '#94a3b8' }}>Eficiência / Ciclos:</span>
+              <span style={{ color: '#94a3b8' }}>{isPanel ? 'Eficiência / Células:' : 'Eficiência / Ciclos:'}</span>
               <span style={{ fontWeight: 600, color: '#a7f3d0' }}>{hoveredBar.efficiency}</span>
             </div>
           )}
           {hoveredBar.material && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ color: '#94a3b8' }}>Estrutura / Gabinete:</span>
+              <span style={{ color: '#94a3b8' }}>{isPanel ? 'Laminado / Dimensões:' : 'Estrutura / Gabinete:'}</span>
               <span style={{ color: '#cbd5e1' }}>{hoveredBar.material}</span>
             </div>
           )}
@@ -135,7 +144,9 @@ export const BarTooltip: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span style={{ color: '#94a3b8' }}>Comprimento:</span>
               <span style={{ fontWeight: 800, color: '#38bdf8', fontFamily: 'monospace', fontSize: '13px' }}>
-                {Math.round(hoveredBar.barLength * 1000)} mm
+                {structureMaterial === 'steel' && steelProfileUnit === 'inch'
+                  ? `${(hoveredBar.barLength * 39.3701).toFixed(1)}" (${Math.round(hoveredBar.barLength * 1000)} mm)`
+                  : `${Math.round(hoveredBar.barLength * 1000)} mm`}
               </span>
             </div>
           )}

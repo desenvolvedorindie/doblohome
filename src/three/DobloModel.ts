@@ -12,6 +12,18 @@ export class DobloVehicle {
   constructor() {
     this.group = new THREE.Group();
     this.group.name = "FiatDoblo";
+    // Hitbox invisível do teto da Doblò para detecção de colisão com a base
+    const roofColliderGeo = new THREE.BoxGeometry(1.32, 0.20, 2.25);
+    const roofColliderMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+    const roofCollider = new THREE.Mesh(roofColliderGeo, roofColliderMat);
+    roofCollider.name = '__roof_collider';
+    roofCollider.position.set(0, 1.82, -0.45);
+    roofCollider.userData = {
+      isRoofCollider: true,
+      barLabel: 'Teto do Veículo (Fiat Doblò)',
+      profileSpec: 'Lataria Superior do Teto'
+    };
+    this.group.add(roofCollider);
     this.loadOBJModel();
   }
 
@@ -78,7 +90,8 @@ export class DobloVehicle {
         });
 
         while (this.group.children.length > 0) {
-          const c = this.group.children[0];
+          const c = this.group.children.find(ch => ch.name !== '__roof_collider');
+          if (!c) break;
           this.group.remove(c);
           if ((c as any).geometry) (c as any).geometry.dispose();
         }

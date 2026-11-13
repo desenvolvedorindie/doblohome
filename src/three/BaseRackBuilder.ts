@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { MaterialLibrary } from './Materials';
 import { AluminumExtrusionFactory } from './AluminumExtrusion';
-import { StructureMaterial, AluminumColor } from '../types';
+import { StructureMaterial, AluminumColor, SteelProfileUnit, getSteelProfileSpec } from '../types';
 
 /**
  * Construtor do Quadro Base (220 x 140 cm) em Perfil 40x40 (T-Slot ou Metalon)
@@ -20,7 +20,8 @@ export class BaseRackBuilder {
     structureMaterial: StructureMaterial,
     aluminumColor: AluminumColor,
     cargoBoxEnabled: boolean,
-    vanBaseY: number = 2.06
+    vanBaseY: number = 2.06,
+    steelProfileUnit: SteelProfileUnit = 'mm'
   ) {
     const mats = MaterialLibrary.materials;
     const rack = new THREE.Group();
@@ -29,6 +30,7 @@ export class BaseRackBuilder {
     const width = 1.40;
     const profileSize = 0.04;
     const isAluminum = (structureMaterial === 'aluminum');
+    const steelSpec40 = getSteelProfileSpec(40, steelProfileUnit);
 
     const frameMat = isAluminum
       ? (aluminumColor === 'black' ? mats.aluminumProfileBlack : mats.aluminumProfileSilver)
@@ -47,13 +49,13 @@ export class BaseRackBuilder {
 
     barLeft.position.set(-width / 2 + profileSize / 2, curBaseY, zCenter);
     barLeft.castShadow = true;
-    barLeft.userData = { isBar: true, barLength: length, barLabel: 'Longarina Lateral do Rack Base', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : 'Metalon 40x40' };
+    barLeft.userData = { isBar: true, barLength: length, barLabel: 'Longarina Lateral do Rack Base', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : steelSpec40 };
     rack.add(barLeft);
     rackMeshes.push(barLeft);
 
     barRight.position.set(width / 2 - profileSize / 2, curBaseY, zCenter);
     barRight.castShadow = true;
-    barRight.userData = { isBar: true, barLength: length, barLabel: 'Longarina Lateral do Rack Base', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : 'Metalon 40x40' };
+    barRight.userData = { isBar: true, barLength: length, barLabel: 'Longarina Lateral do Rack Base', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : steelSpec40 };
     rack.add(barRight);
     rackMeshes.push(barRight);
 
@@ -62,8 +64,11 @@ export class BaseRackBuilder {
     const zFront = zCenter + length / 2 - profileSize / 2;
     const zRear = zCenter - length / 2 + profileSize / 2;
     const tL = (trayDims && trayDims.trayLength) ? trayDims.trayLength : 1.08;
-    const zMidFront = zCenter + (tL / 2) - 0.015;
-    const zMidRear = zCenter - (tL / 2) + 0.015;
+    // Clamp nas travessas centrais para manter distância mínima de 12cm das travessas de ponta (evita colisão quando tL >= 2.16m)
+    const maxMidHalf = (length / 2) - profileSize * 3;
+    const midHalf = Math.min(maxMidHalf, Math.max(0.20, (tL / 2) - 0.015));
+    const zMidFront = zCenter + midHalf;
+    const zMidRear = zCenter - midHalf;
     const crossZPositions = [zFront, zRear, zMidFront, zMidRear];
 
     crossZPositions.forEach(zPos => {
@@ -76,7 +81,7 @@ export class BaseRackBuilder {
       }
       crossBar.position.set(0, curBaseY, zPos);
       crossBar.castShadow = true;
-      crossBar.userData = { isBar: true, barLength: crossBarLength, barLabel: 'Travessa Transversal do Rack Base', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : 'Metalon 40x40' };
+      crossBar.userData = { isBar: true, barLength: crossBarLength, barLabel: 'Travessa Transversal do Rack Base', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : steelSpec40 };
       rack.add(crossBar);
       rackMeshes.push(crossBar);
     });
@@ -110,7 +115,7 @@ export class BaseRackBuilder {
         }
         midBar.position.set(mx, curBaseY, span.z);
         midBar.castShadow = true;
-        midBar.userData = { isBar: true, barLength: span.len, barLabel: 'Longarina Central de Apoio do Leito', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : 'Metalon 40x40' };
+        midBar.userData = { isBar: true, barLength: span.len, barLabel: 'Longarina Central de Apoio do Leito', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : steelSpec40 };
         rack.add(midBar);
         rackMeshes.push(midBar);
       });
@@ -140,16 +145,19 @@ export class BaseRackBuilder {
 
     // 4. Sapatas de elevação para as calhas da Doblò (apenas quando sem baú)
     if (!cargoBoxEnabled) {
-      const riserGeo = new THREE.BoxGeometry(0.06, 0.08, 0.08);
+      const riserH = 0.06;
+      const riserGeo = new THREE.BoxGeometry(0.05, riserH, 0.08);
+      const riserY = vanBaseY - profileSize / 2 - riserH / 2;
       const risersPos = [
-        [-width / 2 + 0.05, vanBaseY - 0.04, zCenter + 0.85],
-        [width / 2 - 0.05, vanBaseY - 0.04, zCenter + 0.85],
-        [-width / 2 + 0.05, vanBaseY - 0.04, zCenter - 0.85],
-        [width / 2 - 0.05, vanBaseY - 0.04, zCenter - 0.85]
+        [-width / 2 + profileSize / 2, riserY, zCenter + 0.85],
+        [width / 2 - profileSize / 2, riserY, zCenter + 0.85],
+        [-width / 2 + profileSize / 2, riserY, zCenter - 0.85],
+        [width / 2 - profileSize / 2, riserY, zCenter - 0.85]
       ];
-      risersPos.forEach(p => {
+      risersPos.forEach((p, idx) => {
         const riser = new THREE.Mesh(riserGeo, frameMat);
         riser.position.set(p[0], p[1], p[2]);
+        riser.userData = { isBar: true, barLength: 0.08, barLabel: `Sapata do Rack Base (#${idx + 1})`, profileSpec: 'Sapata de Ancoragem 50x60x80mm' };
         rack.add(riser);
         rackMeshes.push(riser);
       });

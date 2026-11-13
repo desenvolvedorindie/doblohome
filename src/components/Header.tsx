@@ -58,6 +58,22 @@ export const Header: React.FC = () => {
         </button>
 
         <button
+          className="icon-btn"
+          onClick={() => openModal('panel-presets')}
+          title="Presets e Cadastro de Placas Solares (100W / 200W / Custom)"
+          style={{ borderColor: 'rgba(16, 185, 129, 0.4)', color: '#34d399' }}
+        >
+          ☀️ Presets Placas
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => openModal('cargo-presets')}
+          title="Presets e Cadastro de Baús de Teto"
+          style={{ borderColor: 'rgba(245, 158, 11, 0.4)', color: '#fbbf24' }}
+        >
+          🧰 Presets Baú
+        </button>
+        <button
           className="icon-btn accent-orange"
           onClick={() => openModal('loads')}
           title="Editor de Consumo de Cargas & Balanço Energético"

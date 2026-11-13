@@ -11,6 +11,8 @@ export const LoadsModal: React.FC = () => {
     addAppliance,
     updateAppliance,
     removeAppliance,
+    moveAppliance,
+    reorderAppliances,
     resetAppliances
   } = useSolar();
 
@@ -18,6 +20,8 @@ export const LoadsModal: React.FC = () => {
   const [watts, setWatts] = useState('');
   const [hours, setHours] = useState('');
   const [qty, setQty] = useState('1');
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   if (activeModal !== 'loads') return null;
 
@@ -212,6 +216,7 @@ export const LoadsModal: React.FC = () => {
           <table className="loads-table" id="loads-table">
             <thead>
               <tr>
+                <th style={{ width: '58px', textAlign: 'center' }}>Ordem</th>
                 <th style={{ width: '44px', textAlign: 'center' }}>Ativo</th>
                 <th style={{ textAlign: 'left' }}>Nome do Equipamento</th>
                 <th style={{ width: '120px', textAlign: 'center' }}>Potência (W)</th>
@@ -222,8 +227,80 @@ export const LoadsModal: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {appliances.map((app) => (
-                <tr key={app.id} style={{ opacity: app.enabled ? 1 : 0.45 }}>
+              {appliances.map((app, index) => (
+                <tr
+                  key={app.id}
+                  draggable
+                  onDragStart={() => setDraggedIdx(index)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverIdx(index);
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverIdx === index) setDragOverIdx(null);
+                  }}
+                  onDrop={() => {
+                    if (draggedIdx !== null && draggedIdx !== index) {
+                      reorderAppliances(draggedIdx, index);
+                    }
+                    setDraggedIdx(null);
+                    setDragOverIdx(null);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedIdx(null);
+                    setDragOverIdx(null);
+                  }}
+                  style={{
+                    opacity: app.enabled ? 1 : 0.45,
+                    background: dragOverIdx === index ? 'rgba(56, 189, 248, 0.14)' : undefined,
+                    borderTop: dragOverIdx === index ? '2px solid #38bdf8' : undefined,
+                    cursor: 'grab'
+                  }}
+                >
+                  <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                      <span
+                        title="Arraste para reordenar"
+                        style={{ color: '#64748b', cursor: 'grab', marginRight: '3px', fontSize: '12px' }}
+                      >
+                        ⠿
+                      </span>
+                      <button
+                        type="button"
+                        disabled={index === 0}
+                        onClick={() => moveAppliance(app.id, 'up')}
+                        title="Mover para cima"
+                        style={{
+                          background: 'rgba(255,255,255,0.06)',
+                          border: '1px solid rgba(255,255,255,0.12)',
+                          color: index === 0 ? '#475569' : '#cbd5e1',
+                          borderRadius: '4px',
+                          padding: '1px 5px',
+                          fontSize: '10px',
+                          cursor: index === 0 ? 'default' : 'pointer'
+                        }}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        disabled={index === appliances.length - 1}
+                        onClick={() => moveAppliance(app.id, 'down')}
+                        title="Mover para baixo"
+                        style={{
+                          background: 'rgba(255,255,255,0.06)',
+                          border: '1px solid rgba(255,255,255,0.12)',
+                          color: index === appliances.length - 1 ? '#475569' : '#cbd5e1',
+                          borderRadius: '4px',
+                          padding: '1px 5px',
+                          fontSize: '10px',
+                          cursor: index === appliances.length - 1 ? 'default' : 'pointer'
+                        }}
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  </td>
                   <td style={{ textAlign: 'center' }}>
                     <input
                       type="checkbox"
@@ -319,7 +396,7 @@ export const LoadsModal: React.FC = () => {
             </tbody>
             <tfoot>
               <tr className="loads-total-row">
-                <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, color: '#f1f5f9' }}>
+                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, color: '#f1f5f9' }}>
                   TOTAL GERAL ATIVO:
                 </td>
                 <td

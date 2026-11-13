@@ -3,7 +3,7 @@ import { SolarPanelPreset } from '../types';
 export const DEFAULT_SOLAR_PANEL_PRESETS: SolarPanelPreset[] = [
   {
     id: 'inohouse-100w',
-    name: 'Placa Solar Flexível Inohouse 100W',
+    name: 'Placa Solar Flexível Inohouse 100W (JTN-100W)',
     brand: 'Inohouse',
     model: 'JTN-100W',
     powerWatts: 100,
@@ -17,64 +17,66 @@ export const DEFAULT_SOLAR_PANEL_PRESETS: SolarPanelPreset[] = [
     cellCount: 32,
     cols: 4,
     rows: 8,
-    material: 'Revestimento ETFE de Alta Resistência',
-    width: 0.590,   // 590 mm
-    length: 0.875,  // 875 mm
+    material: 'ETFE',
+    width: 0.590,     // 590 mm
+    length: 0.875,    // 875 mm
     thickness: 0.003, // 3 mm
     weightKg: 1.8,
-    connector: 'Conectores MC4 ou compatíveis',
+    connector: 'MC4 ou compatível com MC4',
     features: [
-      'Potência máxima 100W (Imp 6.67A | Vmp 15V)',
-      'Células de Silício Monocristalino com 22.3% de eficiência',
-      'Revestimento polimérico ETFE ultrafino de 3 mm',
-      'Tensão Voc 18V | Tensão máx. de sistema até 1500VDC',
-      'Fixação versátil: cola estrutural, amarração ou parafusos',
-      'Vida útil estimada de mais de 10 anos'
+      'Potência máxima: 100W | Eficiência: 22,3%',
+      'Vmp: 15V | Imp: 6,67A | Voc: 18V | Isc: 7,32A',
+      'Tensão máxima do sistema: 1500VDC',
+      'Tecnologia: Silício monocristalino com revestimento ETFE',
+      'Dimensões: 875 × 590 × 3 mm | Vida útil estimada: +10 anos',
+      'Formas de fixação: cola, amarração ou parafusos'
     ],
-    description: 'A Placa Solar Flexível Inohouse 100W (JTN-100W) é leve, fina e versátil, perfeita para aplicações onde painéis rígidos não são adequados, como vans, motorhomes e tetos com limite de peso.',
+    description:
+      'A Placa Solar Flexível Inohouse 100W é uma solução leve, fina e versátil para aplicações onde painéis rígidos tradicionais não são a melhor opção. Fabricada com células de silício monocristalino e revestimento ETFE, oferece boa eficiência, resistência e flexibilidade para instalação em superfícies curvas ou com limitação de peso. É indicada para motorhomes, trailers, embarcações, vans, telhados leves e sistemas off-grid, permitindo instalação por cola, amarração ou parafusos, conforme a aplicação. Compacta e fácil de instalar, é uma excelente opção para quem busca geração solar com baixo peso e maior liberdade de aplicação.',
     isDefault: true
   },
   {
-    id: 'flex-200w-inmetro',
-    name: 'Placa Solar Flexível 200W Monocristalina (Inmetro)',
-    brand: 'Monocristalina Inmetro',
-    model: 'FLX-200W-60C',
+    id: 'inohouse-200w',
+    name: 'Placa Solar Flexível Inohouse 200W Monocristalino',
+    brand: 'Inohouse',
+    model: 'JTN-200W',
     powerWatts: 200,
-    vmp: 29.74,
+    vmp: 30.0,
     imp: 6.79,
     voc: 36.2,
     isc: 7.35,
-    maxSystemVoltage: 1000,
+    maxSystemVoltage: 1500,
     efficiencyPercent: 22.3,
-    cellType: 'Monocristalina 60 Células',
-    cellCount: 60,
-    cols: 6,
-    rows: 10,
-    material: 'Polímero Flexível ETFE / Caixa IP67',
-    width: 0.880,   // 880 mm
-    length: 1.145,  // 1145 mm
+    cellType: 'Monocristalino',
+    cellCount: 27,
+    cols: 3,
+    rows: 9,
+    material: 'ETFE',
+    width: 0.880,     // 880 mm
+    length: 1.145,    // 1145 mm
     thickness: 0.003, // 3 mm
     weightKg: 4.0,
-    connector: 'MC4 IP67 com cabo 2,5 mm² (100 cm)',
+    connector: 'MC4 ou compatível com MC4 (Cabo 4mm² 30cm | Caixa IP67)',
     features: [
-      'Potência nominal 200W com Certificação Inmetro',
-      '60 Células Monocristalinas de 22.3% de eficiência',
-      'Tensão alta Vmp 29.74V | Voc 36.2V (alta performance MPPT)',
-      'Corrente nominal Imp 6.79A | Isc 7.35A',
-      'Caixa de conexão IP67 à prova d\'água',
-      'Cabo solar 2.5 mm² com 100 cm e conectores MC4',
-      'Faixa de temperatura de operação: -40°C a +85°C'
+      'Potência Nominal (P.max): 200W | Maior eficiência do mercado: 22,3%',
+      'Tensão Voc: 36,2V | Vmp: 30V | Corrente Imp: 6,79A',
+      'Tensão máxima do sistema: 1500VDC | Temperatura de operação: -40~+85°C',
+      'Composição: ETFE (maior durabilidade) | Número de células: 27 (Monocristalino)',
+      'Dimensões do módulo: 1145 × 880 mm | Peso: 4 kg',
+      'Caixa de Conexão: IP67 | Cabo: 4mm² cabo 30cm | Conector: MC4'
     ],
-    description: 'A Placa Solar Flexível 200W Monocristalina com 60 células e selo Inmetro oferece excelente aproveitamento de área no teto da Fiat Doblò, gerando o dobro de energia por placa com peso de apenas 4 kg.',
+    description:
+      'Placa solar FLEXÍVEL 200W MONOCRISTALINO com maior eficiência do mercado (22,3%). Feita de ETFE, melhor material do mercado e maior durabilidade. Características mecânicas: 27 células monocristalinas, dimensões 1145 × 880 mm, peso de 4 kg, caixa de conexão IP67, cabo 4mm² de 30cm e conector MC4 ou compatível.',
     isDefault: true
   }
 ];
 
 const PRESETS_STORAGE_KEY = 'doblo_solar_panel_presets';
 const ACTIVE_PRESET_KEY = 'doblo_solar_active_preset_id';
+const LEGACY_DEFAULT_IDS = new Set(['flex-100w-padrao', 'resun-100w-flex', 'flex-200w-inmetro']);
 
 /**
- * Carrega a lista de presets salvos no LocalStorage mesclando com os padrões
+ * Carrega a lista de presets salvos no LocalStorage mantendo apenas os 2 padrões Inohouse + customizados do usuário
  */
 export function loadPanelPresets(): SolarPanelPreset[] {
   try {
@@ -82,18 +84,11 @@ export function loadPanelPresets(): SolarPanelPreset[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Assegura que os presets padrões existam caso tenham sido atualizados
-        const merged = [...parsed];
-        DEFAULT_SOLAR_PANEL_PRESETS.forEach(def => {
-          const idx = merged.findIndex(p => p.id === def.id);
-          if (idx === -1) {
-            merged.push(def);
-          } else {
-            // Atualiza campos padrão preservando eventuais ajustes
-            merged[idx] = { ...def, ...merged[idx], isDefault: true };
-          }
-        });
-        return merged;
+        const defaultIds = new Set(DEFAULT_SOLAR_PANEL_PRESETS.map(d => d.id));
+        const customOnly = parsed.filter(
+          (p: SolarPanelPreset) => !p.isDefault && !defaultIds.has(p.id) && !LEGACY_DEFAULT_IDS.has(p.id)
+        );
+        return [...DEFAULT_SOLAR_PANEL_PRESETS, ...customOnly];
       }
     }
   } catch (e) {
@@ -119,6 +114,8 @@ export function savePanelPresets(presets: SolarPanelPreset[]): void {
 export function loadActivePresetId(): string {
   try {
     const id = localStorage.getItem(ACTIVE_PRESET_KEY);
+    if (id === 'flex-200w-inmetro') return 'inohouse-200w';
+    if (id && LEGACY_DEFAULT_IDS.has(id)) return 'inohouse-100w';
     if (id) return id;
   } catch (e) {
     console.warn('Erro ao ler active preset id:', e);
