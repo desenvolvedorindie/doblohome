@@ -34,6 +34,9 @@ export class InternalBoxesBuilder {
   ceilingGroup: THREE.Group;
   gridLinesGroup: THREE.Group;
   floorMesh?: THREE.Mesh;
+  public isolatedBoxId: string | null = null;
+  public selectedBoxId: string | null = null;
+  public strictIsolatedBoxId: string | null = null;
 
   // Constantes de compatibilidade estática
   static readonly FLOOR_Y = FLOOR_Y;
@@ -85,6 +88,11 @@ export class InternalBoxesBuilder {
     previewOpen: boolean | InternalBoxesPreviewOptions = false,
     isolatedBoxId: string | null = null
   ) {
+    const activeFocusBoxId = isolatedBoxId || selectedBoxId;
+    this.isolatedBoxId = activeFocusBoxId;
+    this.selectedBoxId = selectedBoxId;
+    this.strictIsolatedBoxId = isolatedBoxId;
+
     this.clearGroup(this.floorGroup);
     this.clearGroup(this.ceilingGroup);
     this.clearGroup(this.gridLinesGroup);
@@ -111,6 +119,48 @@ export class InternalBoxesBuilder {
 
     // 4. Teto / forro do campervan
     this.ceilingBuilder.buildCeiling(grid, widthM, lengthM, floorY, previewOpen);
+
+    // 5. Quando estiver dentro de um módulo, mantém piso, grid e teto fantasmas para não obstruírem
+    if (activeFocusBoxId) {
+      this.applyGhostTransparency(this.floorGroup, 0.08, 0.04);
+      this.applyGhostTransparency(this.gridLinesGroup, 0.08, 0.04);
+      this.applyGhostTransparency(this.ceilingGroup, 0.08, 0.04);
+    }
+  }
+
+  private applyGhostTransparency(group: THREE.Object3D, meshOpacity: number = 0.08, lineOpacity: number = 0.04) {
+    group.traverse((child: any) => {
+      if (child.name === '__box_hitbox' || child.userData?.isInternalBoxHitbox) return;
+      child.userData = { ...(child.userData || {}), isGhost: true };
+      if (child.isMesh) {
+        child.castShadow = false;
+        child.receiveShadow = false;
+        const origMat = child.material;
+        if (origMat) {
+          const cloneMeshMat = (m: any) => {
+            const clone = m.clone();
+            clone.transparent = true;
+            clone.opacity = Math.min(typeof clone.opacity === 'number' ? clone.opacity : 1, meshOpacity);
+            clone.depthWrite = false;
+            if (clone.roughness !== undefined) clone.roughness = 0.9;
+            if (clone.metalness !== undefined) clone.metalness = 0.0;
+            return clone;
+          };
+          child.material = Array.isArray(origMat) ? origMat.map(cloneMeshMat) : cloneMeshMat(origMat);
+        }
+      } else if (child.isLine || child.isLineSegments) {
+        const origMat = child.material;
+        if (origMat) {
+          const cloneLineMat = (m: any) => {
+            const clone = m.clone();
+            clone.transparent = true;
+            clone.opacity = Math.min(typeof clone.opacity === 'number' ? clone.opacity : 1, lineOpacity);
+            return clone;
+          };
+          child.material = Array.isArray(origMat) ? origMat.map(cloneLineMat) : cloneLineMat(origMat);
+        }
+      }
+    });
   }
 
   private clearGroup(g: THREE.Group) {
@@ -149,10 +199,12 @@ export class InternalBoxesBuilder {
     const globalBedOpen = isOptionsObj ? Boolean(previewOpen.openBed) : Boolean(previewOpen);
     const showMattress = isOptionsObj ? (previewOpen.showMattress ?? true) : true;
 
-    // Garante que o módulo selecionado seja construído por último, ficando com prioridade visual total no Three.js
+    const activeFocusBoxId = isolatedBoxId || selectedBoxId;
+
+    // Garante que o módulo em foco/selecionado seja construído por último, ficando com prioridade visual total no Three.js
     const sortedBoxes = [...boxes].sort((a, b) => {
-      if (a.id === selectedBoxId) return 1;
-      if (b.id === selectedBoxId) return -1;
+      if (a.id === activeFocusBoxId) return 1;
+      if (b.id === activeFocusBoxId) return -1;
       return 0;
     });
 
@@ -172,8 +224,9 @@ export class InternalBoxesBuilder {
       const posZ = -(rowStart + rowSpan / 2) * cellLM;
       const posY = floorY + boxHM / 2;
 
-      const isIsolatedTarget = isolatedBoxId ? box.id === isolatedBoxId : false;
-      const isSelected = box.id === selectedBoxId || isIsolatedTarget;
+      const isTargetModule = activeFocusBoxId ? box.id === activeFocusBoxId : false;
+      const isGhost = activeFocusBoxId ? box.id !== activeFocusBoxId : false;
+      const isSelected = isTargetModule ? false : false;
 
       const isDrawerOpen = globalCabinetsOpen || Boolean(box.isOpen);
       const isChestOpen = globalCabinetsOpen || Boolean(box.isOpen);
@@ -188,6 +241,7 @@ export class InternalBoxesBuilder {
       // Metadados para raycasting e inspeção
       boxContainer.userData = {
         isInternalBox: true,
+        isTargetModule,
         boxId: box.id,
         boxName: box.name,
         boxType: box.type,
@@ -199,26 +253,29 @@ export class InternalBoxesBuilder {
         }
       };
 
-      // Hitbox sólida transparente: cobre com precisão todo o volume da caixa,
-      // garantindo clique e hover imediatos sem perfurar o interior oco
-      const hitGeo = new THREE.BoxGeometry(boxWM, boxHM, boxLM);
-      const hitMat = new THREE.MeshBasicMaterial({
-        transparent: true,
-        opacity: 0,
-        depthWrite: false
-      });
-      const hitMesh = new THREE.Mesh(hitGeo, hitMat);
-      hitMesh.name = '__box_hitbox';
-      hitMesh.userData = {
-        isInternalBoxHitbox: true,
-        isInternalBox: true,
-        boxId: box.id,
-        boxName: box.name,
-        boxType: box.type,
-        boxRoot: boxContainer,
-        dimensions: boxContainer.userData.dimensions
-      };
-      boxContainer.add(hitMesh);
+      // Hitbox sólida transparente: cobre todo o volume da caixa para clique e hover imediatos
+      // quando nenhum módulo está aberto. Ao entrar em um módulo, omitimos a hitbox externa
+      // para permitir hover e clique direto nas peças individuais de madeira.
+      if (!activeFocusBoxId) {
+        const hitGeo = new THREE.BoxGeometry(boxWM, boxHM, boxLM);
+        const hitMat = new THREE.MeshBasicMaterial({
+          transparent: true,
+          opacity: 0,
+          depthWrite: false
+        });
+        const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+        hitMesh.name = '__box_hitbox';
+        hitMesh.userData = {
+          isInternalBoxHitbox: true,
+          isInternalBox: true,
+          boxId: box.id,
+          boxName: box.name,
+          boxType: box.type,
+          boxRoot: boxContainer,
+          dimensions: boxContainer.userData.dimensions
+        };
+        boxContainer.add(hitMesh);
+      }
 
       // Material principal do corpo da caixa
       const boxMat = createBoxMaterial(box, isSelected);
@@ -279,38 +336,10 @@ export class InternalBoxesBuilder {
         this.accessoriesBuilder.buildStoveAppliance(boxContainer, boxWM, boxLM, boxHM, box, isSelected, isDrawerOpen || isChestOpen);
       }
 
-      // Se estiver em modo de foco isolado (isolatedBoxId ativo):
-      // Apenas a caixa isolada permanece 100% opaca e destacada.
-      // Todas as demais caixas tornam-se altamente transparentes (10% de opacidade) e sem sombras pesadas.
-      if (isolatedBoxId && !isIsolatedTarget) {
-        boxContainer.traverse((child: any) => {
-          if (child.isMesh && child.name !== '__box_hitbox') {
-            child.castShadow = false;
-            child.receiveShadow = false;
-            const origMat = child.material;
-            if (origMat) {
-              if (Array.isArray(origMat)) {
-                child.material = origMat.map((m: any) => {
-                  const clone = m.clone();
-                  clone.transparent = true;
-                  clone.opacity = 0.10;
-                  clone.depthWrite = false;
-                  if (clone.roughness !== undefined) clone.roughness = 0.9;
-                  if (clone.metalness !== undefined) clone.metalness = 0.0;
-                  return clone;
-                });
-              } else {
-                const clone = origMat.clone();
-                clone.transparent = true;
-                clone.opacity = 0.10;
-                clone.depthWrite = false;
-                if (clone.roughness !== undefined) clone.roughness = 0.9;
-                if (clone.metalness !== undefined) clone.metalness = 0.0;
-                child.material = clone;
-              }
-            }
-          }
-        });
+      // Se estiver em modo de módulo ativo (activeFocusBoxId):
+      // Apenas o módulo em foco permanece 100% opaco e interativo; todas as demais caixas tornam-se fantasmas (8% de opacidade).
+      if (isGhost) {
+        this.applyGhostTransparency(boxContainer, 0.08, 0.04);
       }
 
       this.boxesGroup.add(boxContainer);

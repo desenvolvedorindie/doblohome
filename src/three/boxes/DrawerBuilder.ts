@@ -184,7 +184,15 @@ export class DrawerBuilder {
       const handleMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.2 });
       const handleMesh = new THREE.Mesh(handleGeo, handleMat);
       handleMesh.position.set(0, trayY + tBottom / 2 + lipH / 2, -dL / 2 - 0.01);
-      handleMesh.userData = { isInternalBox: true, boxId: box.id, boxRoot: container };
+      handleMesh.userData = {
+        isInternalBox: true,
+        isHardware: true,
+        boxId: box.id,
+        boxRoot: container,
+        moduleName: box.name,
+        partLabel: `${box.name} • Puxador Metálico Embutido`,
+        category: '🔩 Ferragens de Gaveteiros e Bandejas'
+      };
       drawerBodyGroup.add(handleMesh);
 
       // Par de corrediças telescópicas pesadas com trava de fim de curso
@@ -202,7 +210,27 @@ export class DrawerBuilder {
       });
     } else {
       // Gaveteiro Alto Fechado Convencional
-      buildHollowBox(drawerBodyGroup, dW, dH, dL, tDef, mat, edgeMat, true, box.id, container, undefined, `${box.name} [Gaveta]`, box);
+      buildHollowBox(drawerBodyGroup, dW, dH, dL, tDef, mat, edgeMat, true, box.id, container, undefined, box.name, box);
+
+      // Renomeia as peças internas da gaveta mantendo moduleName limpo e identificando-as claramente no hover/corte
+      drawerBodyGroup.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh && child.userData?.isWoodPart) {
+          const pt = child.userData.partType;
+          const pThickMm = child.userData.thicknessMm || tDefMm;
+          child.userData.moduleName = box.name;
+          if (pt === 'bottom') {
+            child.userData.partLabel = `${box.name} • Fundo Base da Gaveta (${pThickMm}mm)`;
+          } else if (pt === 'left') {
+            child.userData.partLabel = `${box.name} • Lateral Esquerda da Gaveta (${pThickMm}mm)`;
+          } else if (pt === 'right') {
+            child.userData.partLabel = `${box.name} • Lateral Direita da Gaveta (${pThickMm}mm)`;
+          } else if (pt === 'front') {
+            child.userData.partLabel = `${box.name} • Contra-Frente Interna da Gaveta (${pThickMm}mm)`;
+          } else if (pt === 'rear') {
+            child.userData.partLabel = `${box.name} • Parede Traseira da Gaveta (${pThickMm}mm)`;
+          }
+        }
+      });
 
       // Frente da gaveta
       const frontFaceW = w - 0.008;
@@ -232,7 +260,15 @@ export class DrawerBuilder {
       });
       const handleMesh = new THREE.Mesh(handleGeo, handleMat);
       handleMesh.position.set(0, 0, -l / 2 - tFront - 0.01);
-      handleMesh.userData = { isInternalBox: true, boxId: box.id, boxRoot: container };
+      handleMesh.userData = {
+        isInternalBox: true,
+        isHardware: true,
+        boxId: box.id,
+        boxRoot: container,
+        moduleName: box.name,
+        partLabel: `${box.name} • Puxador Metálico Embutido`,
+        category: '🔩 Ferragens de Gaveteiros e Bandejas'
+      };
       drawerGroup.add(handleMesh);
     }
 

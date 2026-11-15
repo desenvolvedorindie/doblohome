@@ -4,7 +4,7 @@ import { useRackWeightAndHeight } from '../rightpanel/useRackWeightAndHeight';
 import { ViewMode } from '../../types';
 
 const WORKSPACE_NAMES: Record<ViewMode, string> = {
-  internal_boxes: '1. Caixas Internas',
+  internal_boxes: '1. Módulos',
   assembled: '2. Doblò + Estrutura',
   bars_lineup: '3. Peças & Corte',
   electrical_planar: '4. Elétrica 2D',

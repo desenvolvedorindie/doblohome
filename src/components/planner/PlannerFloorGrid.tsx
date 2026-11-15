@@ -325,21 +325,6 @@ export const PlannerFloorGrid: React.FC<PlannerFloorGridProps> = ({
                           🪵 Mesa Traseira
                         </span>
                       )}
-                      {(box.hasCentralTable || box.centralTable?.enabled) && (
-                        <span
-                          title="Mesa Dinette Central c/ Pedestal Náutico"
-                          style={{
-                            marginLeft: '4px',
-                            fontSize: '9px',
-                            background: 'rgba(2, 132, 199, 0.4)',
-                            border: '1px solid #38bdf8',
-                            padding: '1px 4px',
-                            borderRadius: '3px'
-                          }}
-                        >
-                          🍽️ Mesa Central
-                        </span>
-                      )}
                       {box.hasStove && (
                         <span
                           title="Fogareiro Portátil (NTK Duo Ceramik)"
@@ -402,7 +387,6 @@ export const PlannerFloorGrid: React.FC<PlannerFloorGridProps> = ({
                         ? `Cama Ripas (${box.slatBedDirection === 'left' ? '◀ Esq' : box.slatBedDirection === 'right' ? '▶ Dir' : box.slatBedDirection === 'rear' ? '▼ Trás' : '▲ Frente'})`
                         : `Baú (${box.chestHingeDirection === 'rear' ? '▼ Trás' : box.chestHingeDirection === 'left' ? '◀ Esq' : box.chestHingeDirection === 'right' ? '▶ Dir' : '▲ Frente'})${box.topPerforated ? ' • Vazado' : ''}`}
                       {box.rearFoldShelf ? ' + 🪵 Mesa Rebatível' : ''}
-                      {(box.hasCentralTable || box.centralTable?.enabled) ? ' + 🍽️ Mesa Central' : ''}
                     </span>
                   </div>
                 </div>

@@ -41,7 +41,7 @@ const DEFAULT_WIDTHS: Record<'internal_boxes' | 'assembled' | 'bars_lineup', num
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onToggleVisible }) => {
-  const { viewMode, setViewMode } = useSolar();
+  const { viewMode } = useSolar();
 
   const [widths, setWidths] = useState(DEFAULT_WIDTHS);
   const [boxesTab, setBoxesTab] = useState<InternalBoxesLeftTab>('all');
@@ -79,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onToggleVisible }) 
     if (mode === 'internal_boxes') {
       if (boxesTab === 'grid') return 'PLANTA & GRID CAMPER';
       if (boxesTab === 'ceiling') return 'TETO, FORRO & ILUMINAÇÃO';
-      return 'CAIXAS INTERNAS & GRID CAMPER';
+      return 'MÓDULOS & GRID CAMPER';
     }
     if (mode === 'bars_lineup') {
       return 'PEÇAS & OTIMIZADOR DE CORTE';
@@ -232,17 +232,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onToggleVisible }) 
         >
           <div className="ide-sidebar-header">
             <span className="ide-sidebar-title">{renderPanelHeaderTitle(viewMode)}</span>
-            {viewMode === 'internal_boxes' && (
-              <button
-                type="button"
-                onClick={() => setViewMode('assembled')}
-                className="btn-compact primary"
-                style={{ fontSize: '10px', padding: '3px 8px', fontWeight: 700 }}
-                title="Ir para Doblò Externa + Sistema Solar"
-              >
-                Doblò Externa ➔
-              </button>
-            )}
           </div>
 
           {viewMode === 'bars_lineup' ? (

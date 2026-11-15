@@ -5,8 +5,8 @@ import { ViewMode } from '../../types';
 const WORKSPACES: Array<{ id: ViewMode; label: string; title: string }> = [
   {
     id: 'internal_boxes',
-    label: '1. Caixas Internas',
-    title: 'Planejamento do Grid Interno, Caixas Camper e Teto/Forro',
+    label: '1. Módulos',
+    title: 'Planejamento do Grid Interno, Módulos Camper e Teto/Forro',
   },
   {
     id: 'assembled',

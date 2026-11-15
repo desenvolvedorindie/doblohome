@@ -41,7 +41,7 @@ export const RightPanelModeSwitcher: React.FC = () => {
           boxShadow: viewMode === 'internal_boxes' ? '0 2px 10px rgba(245, 158, 11, 0.45)' : 'none'
         }}
       >
-        📦 1. Caixas Internas
+        📦 1. Módulos
       </button>
       <button
         onClick={() => setViewMode('assembled')}

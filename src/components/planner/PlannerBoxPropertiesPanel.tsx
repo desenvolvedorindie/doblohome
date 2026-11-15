@@ -141,7 +141,6 @@ export const PlannerBoxPropertiesPanel: React.FC = () => {
                           <div style={{ fontSize: '10px', color: '#94a3b8' }}>
                             {typeLabel}
                             {b.upperCabinet ? ' • Aéreo' : ''}
-                            {b.centralTable?.enabled ? ' • Mesa' : ''}
                             {b.rearFoldShelf ? ' • Traseira' : ''}
                             {b.hasStove ? ' • 🔥 Fogareiro' : ''}
                           </div>

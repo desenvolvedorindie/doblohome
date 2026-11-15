@@ -9,6 +9,9 @@ export const CanvasViewport: React.FC = () => {
     setSceneManager,
     isolatedBoxId,
     setIsolatedBoxId,
+    selectedBoxId,
+    setSelectedBoxId,
+    viewMode,
     internalBoxes
   } = useSolar();
 
@@ -24,7 +27,10 @@ export const CanvasViewport: React.FC = () => {
     };
   }, []);
 
-  const isolatedBox = isolatedBoxId ? internalBoxes.find((b) => b.id === isolatedBoxId) : null;
+  const activeModuleId = viewMode !== 'bars_lineup'
+    ? (isolatedBoxId || (viewMode === 'internal_boxes' ? selectedBoxId : null))
+    : null;
+  const activeModuleBox = activeModuleId ? internalBoxes.find((b) => b.id === activeModuleId) : null;
 
   return (
     <div
@@ -50,7 +56,7 @@ export const CanvasViewport: React.FC = () => {
         }}
       />
 
-      {isolatedBox && (
+      {activeModuleBox && (
         <div
           style={{
             position: 'absolute',
@@ -64,7 +70,10 @@ export const CanvasViewport: React.FC = () => {
           }}
         >
           <button
-            onClick={() => setIsolatedBoxId(null)}
+            onClick={() => {
+              setIsolatedBoxId(null);
+              setSelectedBoxId(null);
+            }}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -101,10 +110,12 @@ export const CanvasViewport: React.FC = () => {
               gap: '6px'
             }}
           >
-            <span style={{ color: '#38bdf8', fontWeight: 800 }}>🎯 Visualização Isolada:</span>
-            <span>{isolatedBox.name}</span>
+            <span style={{ color: '#38bdf8', fontWeight: 800 }}>
+              {isolatedBoxId ? '🎯 Visualização Isolada:' : '🪵 Inspecionando Módulo:'}
+            </span>
+            <span>{activeModuleBox.name}</span>
             <span style={{ color: '#94a3b8', fontSize: '11px', marginLeft: '6px' }}>
-              (demais transparentes)
+              (passe o mouse nas peças de madeira)
             </span>
           </div>
         </div>

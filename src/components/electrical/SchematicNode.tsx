@@ -1,55 +1,18 @@
 import React from 'react';
-import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
+import { type NodeProps, type Node } from '@xyflow/react';
+import { ElectricalNodeData } from '../../types/electricalPlanar';
 import {
-  ElectricalNodeData,
-  ElectricalPort,
-  POLARITY_META,
-  getFuseColorSpec
-} from '../../types/electricalPlanar';
+  CATEGORY_THEME,
+  getSchematicComputedAmps,
+  getSchematicNodeMinWidth
+} from './schematic/schematicTheme';
+import {
+  SchematicBottomPorts,
+  SchematicSidePorts,
+  SchematicTopPorts
+} from './schematic/SchematicPorts';
 
 type SchematicNodeType = Node<ElectricalNodeData, 'schematic'>;
-
-const CATEGORY_THEME: Record<
-  ElectricalNodeData['category'],
-  { border: string; headerBg: string; accent: string; badgeBg: string }
-> = {
-  system_fixed: {
-    border: 'rgba(56, 189, 248, 0.55)',
-    headerBg: 'rgba(14, 165, 233, 0.18)',
-    accent: '#38bdf8',
-    badgeBg: 'rgba(56, 189, 248, 0.16)'
-  },
-  consumption_load: {
-    border: 'rgba(245, 158, 11, 0.55)',
-    headerBg: 'rgba(245, 158, 11, 0.18)',
-    accent: '#fbbf24',
-    badgeBg: 'rgba(245, 158, 11, 0.16)'
-  },
-  distribution_protection: {
-    border: 'rgba(16, 185, 129, 0.55)',
-    headerBg: 'rgba(16, 185, 129, 0.16)',
-    accent: '#34d399',
-    badgeBg: 'rgba(16, 185, 129, 0.16)'
-  },
-  custom: {
-    border: 'rgba(192, 132, 252, 0.55)',
-    headerBg: 'rgba(168, 85, 247, 0.18)',
-    accent: '#c084fc',
-    badgeBg: 'rgba(192, 132, 252, 0.16)'
-  }
-};
-
-function renderPortDotStyle(port: ElectricalPort): React.CSSProperties {
-  const meta = POLARITY_META[port.polarity] || POLARITY_META.pos;
-  return {
-    width: 11,
-    height: 11,
-    background: meta.color,
-    border: `2px solid ${meta.handleBorder}`,
-    borderRadius: '50%',
-    boxShadow: '0 0 0 2px rgba(15, 23, 42, 0.9)'
-  };
-}
 
 export const SchematicNode: React.FC<NodeProps<SchematicNodeType>> = ({
   data,
@@ -66,20 +29,9 @@ export const SchematicNode: React.FC<NodeProps<SchematicNodeType>> = ({
     : ports.filter((p) => p.side === 'left');
   const rightPorts = isBusbar ? [] : ports.filter((p) => p.side === 'right');
 
-  const computedAmps =
-    data.amps > 0
-      ? data.amps
-      : data.watts > 0 && data.voltage > 0
-        ? +(data.watts / data.voltage).toFixed(1)
-        : 0;
-
+  const computedAmps = getSchematicComputedAmps(data);
   const isDisabled = data.isEnabled === false;
-  const minWidth =
-    data.kind === 'fuse_box'
-      ? 260
-      : data.kind === 'busbar'
-        ? 220
-        : Math.max(185, topPorts.length * 64, bottomPorts.length * 42);
+  const minWidth = getSchematicNodeMinWidth(data, topPorts.length, bottomPorts.length);
 
   return (
     <div
@@ -99,59 +51,7 @@ export const SchematicNode: React.FC<NodeProps<SchematicNodeType>> = ({
       }}
     >
       {/* Handles no TOPO */}
-      {topPorts.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-around',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '5px 10px 3px 10px',
-            borderBottom: '1px dashed rgba(148, 163, 184, 0.18)',
-            background: 'rgba(2, 6, 23, 0.35)',
-            borderTopLeftRadius: '9px',
-            borderTopRightRadius: '9px'
-          }}
-        >
-          {topPorts.map((port) => {
-            const meta = POLARITY_META[port.polarity];
-            return (
-              <div
-                key={port.id}
-                style={{
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  paddingTop: '2px'
-                }}
-              >
-                <Handle
-                  id={port.id}
-                  type={port.direction === 'in' ? 'target' : 'source'}
-                  position={Position.Top}
-                  style={{
-                    ...renderPortDotStyle(port),
-                    top: -10,
-                    left: '50%',
-                    transform: 'translateX(-50%)'
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: '9.5px',
-                    fontWeight: 700,
-                    color: port.polarity === 'neg' ? '#cbd5e1' : meta.handleBorder,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {port.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <SchematicTopPorts ports={topPorts} />
 
       {/* Cabeçalho Esquemático */}
       <div
@@ -313,207 +213,10 @@ export const SchematicNode: React.FC<NodeProps<SchematicNodeType>> = ({
       )}
 
       {/* Terminais ESQUERDA e DIREITA */}
-      {(leftPorts.length > 0 || rightPorts.length > 0) && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: '14px',
-            padding: '6px 0'
-          }}
-        >
-          {/* Coluna Esquerda */}
-          {leftPorts.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flex: 1 }}>
-              {leftPorts.map((port) => {
-                const meta = POLARITY_META[port.polarity];
-                return (
-                  <div
-                    key={port.id}
-                    style={{
-                      position: 'relative',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      paddingLeft: '11px',
-                      minHeight: '18px'
-                    }}
-                  >
-                    <Handle
-                      id={port.id}
-                      type={port.direction === 'out' ? 'source' : 'target'}
-                      position={Position.Left}
-                      style={{
-                        ...renderPortDotStyle(port),
-                        left: -6,
-                        top: '50%',
-                        transform: 'translateY(-50%)'
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        color: port.polarity === 'neg' ? '#cbd5e1' : meta.handleBorder,
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {port.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Coluna Direita */}
-          {rightPorts.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-end',
-                gap: '5px',
-                flex: 1
-              }}
-            >
-              {rightPorts.map((port) => {
-                const meta = POLARITY_META[port.polarity];
-                const fuseSpec = port.fuseAmps ? getFuseColorSpec(port.fuseAmps) : null;
-                return (
-                  <div
-                    key={port.id}
-                    style={{
-                      position: 'relative',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      gap: '5px',
-                      paddingRight: '11px',
-                      minHeight: '18px',
-                      width: '100%'
-                    }}
-                  >
-                    {fuseSpec ? (
-                      <span
-                        title={`Fusível ${fuseSpec.amps}A (${fuseSpec.colorName})${port.isManualFuse ? ' · Manual' : ' · Auto'}`}
-                        style={{
-                          fontSize: '8.5px',
-                          fontWeight: 800,
-                          fontFamily: 'var(--font-mono)',
-                          background: fuseSpec.hex,
-                          color: fuseSpec.textColor,
-                          padding: '1px 5px',
-                          borderRadius: '3px',
-                          border: '1px solid rgba(255,255,255,0.25)',
-                          lineHeight: 1.2
-                        }}
-                      >
-                        {fuseSpec.amps}A
-                      </span>
-                    ) : port.id.startsWith('fuse_') ? (
-                      <span
-                        title="Via livre — conecte um item para calcular o fusível"
-                        style={{
-                          fontSize: '8.5px',
-                          fontWeight: 700,
-                          fontFamily: 'var(--font-mono)',
-                          background: 'rgba(148, 163, 184, 0.12)',
-                          color: '#64748b',
-                          padding: '1px 5px',
-                          borderRadius: '3px',
-                          border: '1px dashed rgba(148, 163, 184, 0.3)',
-                          lineHeight: 1.2
-                        }}
-                      >
-                        --
-                      </span>
-                    ) : null}
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        color: port.polarity === 'neg' ? '#cbd5e1' : meta.handleBorder,
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {port.label}
-                    </span>
-                    <Handle
-                      id={port.id}
-                      type={port.direction === 'in' ? 'target' : 'source'}
-                      position={Position.Right}
-                      style={{
-                        ...renderPortDotStyle(port),
-                        right: -6,
-                        top: '50%',
-                        transform: 'translateY(-50%)'
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+      <SchematicSidePorts leftPorts={leftPorts} rightPorts={rightPorts} />
 
       {/* Handles na BASE (Bottom) */}
-      {bottomPorts.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-around',
-            alignItems: 'center',
-            gap: '6px',
-            flexWrap: 'wrap',
-            padding: '4px 10px 6px 10px',
-            borderTop: '1px dashed rgba(148, 163, 184, 0.18)',
-            background: 'rgba(2, 6, 23, 0.4)',
-            borderBottomLeftRadius: '9px',
-            borderBottomRightRadius: '9px'
-          }}
-        >
-          {bottomPorts.map((port) => {
-            const meta = POLARITY_META[port.polarity];
-            return (
-              <div
-                key={port.id}
-                style={{
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  paddingBottom: '2px'
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '9px',
-                    fontWeight: 700,
-                    color: port.polarity === 'neg' ? '#cbd5e1' : meta.handleBorder,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {port.label}
-                </span>
-                <Handle
-                  id={port.id}
-                  type={port.direction === 'in' ? 'target' : 'source'}
-                  position={Position.Bottom}
-                  style={{
-                    ...renderPortDotStyle(port),
-                    bottom: -10,
-                    left: '50%',
-                    transform: 'translateX(-50%)'
-                  }}
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <SchematicBottomPorts ports={bottomPorts} />
     </div>
   );
 };

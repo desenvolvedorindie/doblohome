@@ -211,7 +211,15 @@ export class SlatBedBuilder {
       });
       const handleMesh = new THREE.Mesh(handleGeo, handleMat);
       handleMesh.position.set(outerX + (direction === 'left' ? 0.012 : -0.012), 0, 0);
-      handleMesh.userData = { isInternalBox: true, boxId: box.id, boxRoot: container };
+      handleMesh.userData = {
+        isInternalBox: true,
+        isHardware: true,
+        boxId: box.id,
+        boxRoot: container,
+        moduleName: box.name,
+        partLabel: `${box.name} • Puxador Metálico da Longarina Móvel`,
+        category: '🔩 Ferragens de Sustentação & Articulação'
+      };
       mobileGroup.add(handleMesh);
 
       // Hitbox do conjunto móvel
@@ -394,7 +402,15 @@ export class SlatBedBuilder {
       });
       const handleMesh = new THREE.Mesh(handleGeo, handleMat);
       handleMesh.position.set(0, 0, outerZ + (direction === 'front' ? 0.012 : -0.012));
-      handleMesh.userData = { isInternalBox: true, boxId: box.id, boxRoot: container };
+      handleMesh.userData = {
+        isInternalBox: true,
+        isHardware: true,
+        boxId: box.id,
+        boxRoot: container,
+        moduleName: box.name,
+        partLabel: `${box.name} • Puxador Metálico da Longarina Móvel`,
+        category: '🔩 Ferragens de Sustentação & Articulação'
+      };
       mobileGroup.add(handleMesh);
 
       // Hitbox do conjunto móvel

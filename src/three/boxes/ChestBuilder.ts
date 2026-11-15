@@ -101,7 +101,15 @@ export class ChestBuilder {
         hingeGeo.rotateZ(Math.PI / 2);
         const hingeMesh = new THREE.Mesh(hingeGeo, hingeMat);
         hingeMesh.position.set(0, tTop, 0);
-        hingeMesh.userData = { isInternalBox: true, boxId: box.id, boxRoot: container };
+        hingeMesh.userData = {
+          isInternalBox: true,
+          isHardware: true,
+          boxId: box.id,
+          boxRoot: container,
+          moduleName: box.name,
+          partLabel: `${box.name} • Dobradiça Contínua (Piano) Inox`,
+          category: '🔩 Ferragens de Sustentação & Articulação'
+        };
         lidPivot.add(hingeMesh);
       } else if (hingeDirection === 'left') {
         // 2. Dobradiça no Lado Esquerdo / Motorista (+X olhando da traseira): levanta o lado direito
@@ -124,7 +132,15 @@ export class ChestBuilder {
         hingeGeo.rotateX(Math.PI / 2);
         const hingeMesh = new THREE.Mesh(hingeGeo, hingeMat);
         hingeMesh.position.set(0, tTop, 0);
-        hingeMesh.userData = { isInternalBox: true, boxId: box.id, boxRoot: container };
+        hingeMesh.userData = {
+          isInternalBox: true,
+          isHardware: true,
+          boxId: box.id,
+          boxRoot: container,
+          moduleName: box.name,
+          partLabel: `${box.name} • Dobradiça Contínua (Piano) Inox`,
+          category: '🔩 Ferragens de Sustentação & Articulação'
+        };
         lidPivot.add(hingeMesh);
       } else if (hingeDirection === 'right') {
         // 3. Dobradiça no Lado Direito / Passageiro (-X olhando da traseira): levanta o lado esquerdo
@@ -147,7 +163,15 @@ export class ChestBuilder {
         hingeGeo.rotateX(Math.PI / 2);
         const hingeMesh = new THREE.Mesh(hingeGeo, hingeMat);
         hingeMesh.position.set(0, tTop, 0);
-        hingeMesh.userData = { isInternalBox: true, boxId: box.id, boxRoot: container };
+        hingeMesh.userData = {
+          isInternalBox: true,
+          isHardware: true,
+          boxId: box.id,
+          boxRoot: container,
+          moduleName: box.name,
+          partLabel: `${box.name} • Dobradiça Contínua (Piano) Inox`,
+          category: '🔩 Ferragens de Sustentação & Articulação'
+        };
         lidPivot.add(hingeMesh);
       } else {
         // 4. Padrão: Dobradiça na Frente (+Z / bancos): levanta a ponta traseira
@@ -169,7 +193,15 @@ export class ChestBuilder {
         hingeGeo.rotateZ(Math.PI / 2);
         const hingeMesh = new THREE.Mesh(hingeGeo, hingeMat);
         hingeMesh.position.set(0, tTop, 0);
-        hingeMesh.userData = { isInternalBox: true, boxId: box.id, boxRoot: container };
+        hingeMesh.userData = {
+          isInternalBox: true,
+          isHardware: true,
+          boxId: box.id,
+          boxRoot: container,
+          moduleName: box.name,
+          partLabel: `${box.name} • Dobradiça Contínua (Piano) Inox`,
+          category: '🔩 Ferragens de Sustentação & Articulação'
+        };
         lidPivot.add(hingeMesh);
       }
 

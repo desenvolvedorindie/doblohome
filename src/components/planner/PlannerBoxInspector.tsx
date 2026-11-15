@@ -9,7 +9,6 @@ import {
   BoxPanelsConfig
 } from '../../types';
 import { PlannerSlatBedSection } from './PlannerSlatBedSection';
-import { PlannerDinetteTableSection } from './PlannerDinetteTableSection';
 import { PlannerRearTableSection } from './PlannerRearTableSection';
 import { PlannerUpperCabinetSection } from './PlannerUpperCabinetSection';
 import { PlannerFridgeSection } from './PlannerFridgeSection';
@@ -448,7 +447,6 @@ export const PlannerBoxInspector: React.FC<PlannerBoxInspectorProps> = ({ cols: 
       <PlannerPortaPottiSection selectedBox={selectedBox} boxWMm={boxWMm} boxLMm={boxLMm} />
       <PlannerStoveSection selectedBox={selectedBox} boxWMm={boxWMm} boxLMm={boxLMm} />
       <PlannerBoxPanelsSection selectedBox={selectedBox} />
-      <PlannerDinetteTableSection selectedBox={selectedBox} />
       <PlannerRearTableSection selectedBox={selectedBox} />
       <PlannerUpperCabinetSection selectedBox={selectedBox} />
     </div>

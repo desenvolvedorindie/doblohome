@@ -11,7 +11,7 @@ import {
 type MenuKey = 'arquivo' | 'cadastros' | 'energia' | 'visualizar' | null;
 
 const WORKSPACE_SUBTITLES: Record<ViewMode, string> = {
-  internal_boxes: 'Caixas Internas',
+  internal_boxes: 'Módulos',
   assembled: 'Doblò + Estrutura',
   bars_lineup: 'Peças & Corte',
   electrical_planar: 'Elétrica 2D',

@@ -3,6 +3,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CameraPreset } from '../../types';
 
 export class SceneCameraManager {
+  private static currentAnimationId: number | null = null;
+
   static createCamera(container: HTMLElement): THREE.PerspectiveCamera {
     const width = container.clientWidth || window.innerWidth || 800;
     const height = container.clientHeight || window.innerHeight || 600;
@@ -69,6 +71,11 @@ export class SceneCameraManager {
     targetLookAt: THREE.Vector3,
     duration: number = 750
   ) {
+    if (SceneCameraManager.currentAnimationId !== null) {
+      cancelAnimationFrame(SceneCameraManager.currentAnimationId);
+      SceneCameraManager.currentAnimationId = null;
+    }
+
     const startPos = camera.position.clone();
     const startLookAt = controls.target.clone();
     const startTime = performance.now();
@@ -83,11 +90,13 @@ export class SceneCameraManager {
       controls.update();
 
       if (t < 1.0) {
-        requestAnimationFrame(step);
+        SceneCameraManager.currentAnimationId = requestAnimationFrame(step);
+      } else {
+        SceneCameraManager.currentAnimationId = null;
       }
     }
 
-    requestAnimationFrame(step);
+    SceneCameraManager.currentAnimationId = requestAnimationFrame(step);
   }
 
   static focusOnBox(

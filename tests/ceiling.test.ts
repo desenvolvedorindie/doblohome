@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import * as THREE from 'three';
 import { InternalBoxesBuilder } from '../src/three/InternalBoxesBuilder';
 import { extractWoodCutGroups } from '../src/utils/woodUtils';
 import { DEFAULT_CEILING_CONFIG, DEFAULT_INTERNAL_GRID } from '../src/data/internalBoxesPresets';
@@ -249,5 +250,187 @@ describe('Ceiling / Forro do Campervan System', () => {
     const leftmostClamped = sortedClamped[0];
     // A elevação máxima entre o centro e as laterais deve respeitar o teto de 30mm (0.03m)
     expect(centerClamped.position.y - leftmostClamped.position.y).toBeCloseTo(0.03, 2);
+  });
+
+  it('positions longitudinal LED strips on the bottom face of curved ceilings, visible from underneath without poking out the top', () => {
+    const builder = new InternalBoxesBuilder();
+    const w = 1.2;
+    const archM = 0.025;
+
+    // 1. Teto ripado longitudinal (12mm) com curvatura de 25mm e 2 fitas laterais
+    const gridSlatted: InternalGridConfig = {
+      ...DEFAULT_INTERNAL_GRID,
+      ceiling: {
+        ...DEFAULT_CEILING_CONFIG,
+        enabled: true,
+        type: 'slatted',
+        slatThicknessMm: 12,
+        curvatureMm: 25,
+        widthMm: 1200,
+        lengthMm: 1700,
+        led: {
+          enabled: true,
+          type: 'strip_double',
+          color: '#fef3c7',
+          brightness: 90
+        }
+      }
+    };
+    builder.update(gridSlatted, []);
+    builder.ceilingGroup.updateMatrixWorld(true);
+
+    const strips = builder.ceilingGroup.children.filter((c) => c.name.startsWith('CeilingLedStrip_'));
+    expect(strips.length).toBe(2);
+
+    strips.forEach((strip) => {
+      const { yDrop, rotZ } = InternalBoxesBuilder.getCeilingArchOffset(strip.position.x, w, archM);
+      const topSurfaceY = InternalBoxesBuilder.CEILING_Y + yDrop;
+      const bottomSurfaceY = topSurfaceY - 0.012;
+
+      const box = new THREE.Box3().setFromObject(strip);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+
+      // Disposição longitudinal: comprimento em Z muito maior que largura em X
+      expect(size.z).toBeGreaterThan(1.5);
+      expect(size.z).toBeGreaterThan(size.x * 10);
+
+      // Visível por baixo (face inferior abaixo das ripas) e sem ultrapassar o topo
+      expect(box.min.y).toBeLessThan(bottomSurfaceY - 0.002);
+      expect(box.max.y).toBeLessThan(topSurfaceY);
+      expect(strip.rotation.z).toBeCloseTo(rotZ, 4);
+
+      // Difusor emissivo deve estar na face inferior (-Y) do perfil (menor Y que a fita COB interna)
+      const meshes = strip.children.filter((ch): ch is THREE.Mesh => (ch as THREE.Mesh).isMesh);
+      const diffuserMesh = meshes[2]; // aluMesh, cobMesh, diffMesh
+      const cobMesh = meshes[1];
+      const diffBox = new THREE.Box3().setFromObject(diffuserMesh);
+      const cobBox = new THREE.Box3().setFromObject(cobMesh);
+      expect(diffBox.min.y).toBeLessThan(cobBox.min.y);
+    });
+
+    // 2. Teto em chapa fina (6mm) com curvatura de 25mm e 3 fitas: não deve vazar por cima
+    const gridThinSheet: InternalGridConfig = {
+      ...DEFAULT_INTERNAL_GRID,
+      ceiling: {
+        ...DEFAULT_CEILING_CONFIG,
+        enabled: true,
+        type: 'sheet',
+        sheetMaterial: 'white_mdf',
+        thicknessMm: 6,
+        curvatureMm: 25,
+        widthMm: 1200,
+        lengthMm: 1700,
+        led: {
+          enabled: true,
+          type: 'strip_triple',
+          color: '#ffffff',
+          brightness: 85
+        }
+      }
+    };
+    builder.update(gridThinSheet, []);
+    builder.ceilingGroup.updateMatrixWorld(true);
+
+    const thinStrips = builder.ceilingGroup.children.filter((c) => c.name.startsWith('CeilingLedStrip_'));
+    expect(thinStrips.length).toBe(3);
+
+    thinStrips.forEach((strip) => {
+      const { yDrop } = InternalBoxesBuilder.getCeilingArchOffset(strip.position.x, w, archM);
+      const topSurfaceY = InternalBoxesBuilder.CEILING_Y + yDrop;
+      const bottomSurfaceY = topSurfaceY - 0.006;
+      const box = new THREE.Box3().setFromObject(strip);
+
+      expect(box.min.y).toBeLessThan(bottomSurfaceY - 0.002);
+      expect(box.max.y).toBeLessThan(topSurfaceY);
+    });
+  });
+
+  it('arranges ceiling spots longitudinally on the bottom face of the curved ceiling', () => {
+    const builder = new InternalBoxesBuilder();
+    const w = 1.2;
+    const archM = 0.025;
+
+    // 2 spots: devem ficar dispostos longitudinalmente (ao longo de Z) na face inferior
+    const gridTwoSpots: InternalGridConfig = {
+      ...DEFAULT_INTERNAL_GRID,
+      ceiling: {
+        ...DEFAULT_CEILING_CONFIG,
+        enabled: true,
+        type: 'sheet',
+        thicknessMm: 9,
+        curvatureMm: 25,
+        widthMm: 1200,
+        lengthMm: 1700,
+        led: {
+          enabled: true,
+          type: 'spots',
+          spotsCount: 2,
+          color: '#fef3c7',
+          brightness: 85
+        }
+      }
+    };
+    builder.update(gridTwoSpots, []);
+    builder.ceilingGroup.updateMatrixWorld(true);
+
+    const twoSpots = builder.ceilingGroup.children.filter((c) => c.name.startsWith('CeilingSpot_'));
+    expect(twoSpots.length).toBe(2);
+    expect(Math.abs(twoSpots[0].position.z - twoSpots[1].position.z)).toBeGreaterThan(0.5);
+    expect(twoSpots[0].position.x).toBeCloseTo(twoSpots[1].position.x, 4);
+
+    twoSpots.forEach((spot) => {
+      const { yDrop } = InternalBoxesBuilder.getCeilingArchOffset(spot.position.x, w, archM);
+      const topSurfaceY = InternalBoxesBuilder.CEILING_Y + yDrop;
+      const bottomSurfaceY = topSurfaceY - 0.009;
+      const box = new THREE.Box3().setFromObject(spot);
+
+      expect(box.min.y).toBeLessThan(bottomSurfaceY - 0.002);
+      expect(box.max.y).toBeLessThan(topSurfaceY);
+    });
+
+    // 6 spots em teto ripado curvo: duas linhas longitudinais na face inferior
+    const gridSixSpots: InternalGridConfig = {
+      ...DEFAULT_INTERNAL_GRID,
+      ceiling: {
+        ...DEFAULT_CEILING_CONFIG,
+        enabled: true,
+        type: 'slatted',
+        slatThicknessMm: 12,
+        curvatureMm: 25,
+        widthMm: 1200,
+        lengthMm: 1700,
+        led: {
+          enabled: true,
+          type: 'spots',
+          spotsCount: 6,
+          color: '#ffffff',
+          brightness: 80
+        }
+      }
+    };
+    builder.update(gridSixSpots, []);
+    builder.ceilingGroup.updateMatrixWorld(true);
+
+    const sixSpots = builder.ceilingGroup.children.filter((c) => c.name.startsWith('CeilingSpot_'));
+    expect(sixSpots.length).toBe(6);
+
+    sixSpots.forEach((spot) => {
+      const { yDrop, rotZ } = InternalBoxesBuilder.getCeilingArchOffset(spot.position.x, w, archM);
+      const topSurfaceY = InternalBoxesBuilder.CEILING_Y + yDrop;
+      const bottomSurfaceY = topSurfaceY - 0.012;
+      const box = new THREE.Box3().setFromObject(spot);
+
+      expect(box.min.y).toBeLessThan(bottomSurfaceY - 0.002);
+      expect(box.max.y).toBeLessThan(topSurfaceY);
+      expect(spot.rotation.z).toBeCloseTo(rotZ, 4);
+
+      // Lente emissiva deve estar mais baixa que o bezel metálico para ficar visível por baixo
+      const bezel = spot.children[0] as THREE.Mesh;
+      const lens = spot.children[1] as THREE.Mesh;
+      const bezelBox = new THREE.Box3().setFromObject(bezel);
+      const lensBox = new THREE.Box3().setFromObject(lens);
+      expect(lensBox.min.y).toBeLessThan(bezelBox.min.y);
+    });
   });
 });

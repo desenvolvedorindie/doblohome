@@ -50,6 +50,9 @@ export class CeilingBuilder {
     const isTranslucent = opacity < 0.99;
 
     const isSlatted = (ceiling.type || 'slatted') === 'slatted';
+    const ceilingThicknessM = isSlatted
+      ? (ceiling.slatThicknessMm || 12) / 1000
+      : (ceiling.thicknessMm || 9) / 1000;
 
     if (isSlatted) {
       this.buildSlattedCeiling(ceiling, ceilingW, ceilingL, ceilingY, centerZ, opacity, isTranslucent, archM);
@@ -59,7 +62,17 @@ export class CeilingBuilder {
 
     // Iluminação LED no Teto
     if (ceiling.led && ceiling.led.enabled !== false) {
-      this.ledBuilder.buildCeilingLed(ceiling.led, ceilingW, ceilingL, ceilingY, centerZ, isSlatted, archM);
+      this.ledBuilder.buildCeilingLed(
+        ceiling.led,
+        ceilingW,
+        ceilingL,
+        ceilingY,
+        centerZ,
+        isSlatted,
+        archM,
+        ceilingThicknessM,
+        ceiling
+      );
     }
   }
 

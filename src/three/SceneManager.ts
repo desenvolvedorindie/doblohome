@@ -346,6 +346,7 @@ export class SceneManager {
     previewOpen: boolean | InternalBoxesPreviewOptions = false,
     isolatedBoxId: string | null = null
   ) {
+    this.clearBarHover();
     this.internalBoxesBuilder.update(grid, boxes, selectedBoxId, previewOpen, isolatedBoxId);
 
     // Sincroniza componentes elétricos instalados nos módulos para evitar duplicatas flutuantes

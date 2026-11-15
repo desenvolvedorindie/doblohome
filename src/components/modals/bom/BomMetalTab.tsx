@@ -427,7 +427,7 @@ export const BomMetalTab: React.FC<BomMetalTabProps> = ({
               <td>Fechamento e trava de segurança marítima das portas basculantes dos armários aéreos</td>
             </tr>
           )}
-          {(internalGrid.centralTable?.enabled || internalBoxes.some((b) => b.hasCentralTable || b.centralTable?.enabled)) && (
+          {internalGrid.centralTable?.enabled && (
             <tr>
               <td><strong>Pedestal Tubular Central Náutico c/ Flange de Piso e Braçadeiras (Mesa Dinette)</strong></td>
               <td>Flange circular de piso Ø160mm fixada diretamente no assoalho · coluna tubular de aço preto acetinado Ø45mm · 2 braçadeiras de fixação rápida c/ manípulo lever · flange superior náutica de encaixe</td>

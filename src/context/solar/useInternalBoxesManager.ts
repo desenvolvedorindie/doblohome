@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   InternalBoxItem,
   InternalGridConfig,
@@ -27,18 +27,32 @@ import {
 } from '../../data/internalBoxesPresets';
 import { dbSet } from '../../data/db';
 
+export interface ExternalBoxFocusState {
+  selectedBoxId: string | null;
+  setSelectedBoxIdState: React.Dispatch<React.SetStateAction<string | null>>;
+  isolatedBoxId: string | null;
+  setIsolatedBoxIdState: React.Dispatch<React.SetStateAction<string | null>>;
+}
+
 export function useInternalBoxesManager(
   isDbLoaded: boolean,
   flashToast: (msg: string) => void,
   sceneManager: any,
   viewMode: string,
   setViewMode: (mode: any) => void,
-  isVehicleVisible: boolean
+  isVehicleVisible: boolean,
+  externalSelection?: ExternalBoxFocusState
 ) {
   const [internalGrid, setInternalGridState] = useState<InternalGridConfig>(DEFAULT_INTERNAL_GRID);
   const [internalBoxes, setInternalBoxesState] = useState<InternalBoxItem[]>(INTERNAL_BOXES_PRESETS[0].boxes);
-  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
-  const [isolatedBoxId, setIsolatedBoxIdState] = useState<string | null>(null);
+  const [localSelectedBoxId, setLocalSelectedBoxIdState] = useState<string | null>(null);
+  const [localIsolatedBoxId, setLocalIsolatedBoxIdState] = useState<string | null>(null);
+
+  const selectedBoxId = externalSelection ? externalSelection.selectedBoxId : localSelectedBoxId;
+  const setSelectedBoxIdState = externalSelection ? externalSelection.setSelectedBoxIdState : setLocalSelectedBoxIdState;
+  const isolatedBoxId = externalSelection ? externalSelection.isolatedBoxId : localIsolatedBoxId;
+  const setIsolatedBoxIdState = externalSelection ? externalSelection.setIsolatedBoxIdState : setLocalIsolatedBoxIdState;
+
   const [isOpenPreview, setIsOpenPreview] = useState<boolean>(false);
   const [isCabinetsOpenPreview, setIsCabinetsOpenPreview] = useState<boolean>(false);
   const [isBedOpenPreview, setIsBedOpenPreview] = useState<boolean>(false);
@@ -91,23 +105,61 @@ export function useInternalBoxesManager(
     }
   };
 
-  const setIsIsolatedBoxId = (id: string | null) => {
-    setIsolatedBoxIdState(id);
-    if (id) {
-      setSelectedBoxId(id);
-      if (viewMode !== 'internal_boxes') {
-        setViewMode('internal_boxes');
-        if (sceneManager) sceneManager.setViewMode('internal_boxes', isVehicleVisible);
+  const setSelectedBoxId = (id: string | null) => {
+    const prevSelected = selectedBoxId;
+    setSelectedBoxIdState(id);
+    if (sceneManager) {
+      sceneManager.clearBarHover();
+    }
+    if (id !== null) {
+      if (isolatedBoxId && isolatedBoxId !== id) {
+        setIsolatedBoxIdState(id);
       }
-      const targetBox = internalBoxes.find((b) => b.id === id);
-      flashToast(`🎯 Modo Foco: Visualizando apenas "${targetBox?.name || 'Baú'}"`);
-      if (sceneManager) {
+      if (
+        sceneManager &&
+        id !== prevSelected &&
+        sceneManager.internalBoxesBuilder?.boxesGroup?.getObjectByName(`BoxContainer_${id}`)
+      ) {
         sceneManager.focusOnBox(id);
       }
     } else {
-      flashToast('👁️ Exibindo todos os baús');
-      if (sceneManager) {
+      setIsolatedBoxIdState(null);
+      if (sceneManager && viewMode === 'internal_boxes') {
         sceneManager.focusOnBox(null);
+      }
+    }
+  };
+
+  const setIsIsolatedBoxId = (id: string | null) => {
+    const prevIsolated = isolatedBoxId;
+    const prevSelected = selectedBoxId;
+    setIsolatedBoxIdState(id);
+    if (sceneManager) {
+      sceneManager.clearBarHover();
+    }
+    if (id) {
+      setSelectedBoxIdState(id);
+      const switchedMode = viewMode !== 'internal_boxes';
+      if (switchedMode) {
+        setViewMode('internal_boxes');
+        if (sceneManager) sceneManager.setViewMode('internal_boxes', isVehicleVisible);
+      }
+      if (prevIsolated !== id) {
+        const targetBox = internalBoxes.find((b) => b.id === id);
+        flashToast(`🎯 Modo Foco: Visualizando apenas "${targetBox?.name || 'Baú'}"`);
+      }
+      if (sceneManager && (switchedMode || prevSelected !== id)) {
+        if (sceneManager.internalBoxesBuilder?.boxesGroup?.getObjectByName(`BoxContainer_${id}`)) {
+          sceneManager.focusOnBox(id);
+        }
+      }
+    } else {
+      setSelectedBoxIdState(null);
+      if (prevIsolated || prevSelected) {
+        flashToast('👁️ Exibindo todos os baús');
+      }
+      if (sceneManager && viewMode === 'internal_boxes') {
+        sceneManager.setViewMode('internal_boxes', isVehicleVisible);
       }
     }
   };
@@ -160,13 +212,14 @@ export function useInternalBoxesManager(
         }
       }
 
-      if (e.key === 'Escape' && isolatedBoxId) {
+      if (e.key === 'Escape' && (isolatedBoxId || selectedBoxId)) {
+        e.preventDefault();
         setIsIsolatedBoxId(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isolatedBoxId, viewMode, rulerState.isActive, rulerState.lockedAxis, sceneManager]);
+  }, [isolatedBoxId, selectedBoxId, viewMode, rulerState.isActive, rulerState.lockedAxis, sceneManager]);
 
   // Persiste caixas e grid no IndexedDB apenas após a carga inicial
   useEffect(() => {
@@ -303,6 +356,7 @@ export function useInternalBoxesManager(
     setInternalBoxes,
     selectedBoxId,
     setSelectedBoxId,
+    setSelectedBoxIdState,
     isolatedBoxId,
     setIsolatedBoxIdState,
     setIsolatedBoxId: setIsIsolatedBoxId,

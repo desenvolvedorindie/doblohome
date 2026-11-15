@@ -37,39 +37,39 @@ export function getWoodMaterialName(material?: string): string {
   }
 }
 
-export function createBoxMaterial(box: InternalBoxItem, isSelected: boolean): THREE.Material {
-  const color = isSelected ? 0x38bdf8 : new THREE.Color(box.color).getHex();
+export function createBoxMaterial(box: InternalBoxItem, _isSelected: boolean): THREE.Material {
+  const color = new THREE.Color(box.color || '#d97706').getHex();
 
   switch (box.material) {
     case 'plywood':
       return new THREE.MeshStandardMaterial({
-        color: isSelected ? 0x38bdf8 : 0xd4a373,
+        color: 0xd4a373,
         roughness: 0.75,
         metalness: 0.05
       });
     case 'dark_wood':
       return new THREE.MeshStandardMaterial({
-        color: isSelected ? 0x38bdf8 : 0x78350f,
+        color: 0x78350f,
         roughness: 0.65,
         metalness: 0.05
       });
     case 'white_mdf':
       return new THREE.MeshStandardMaterial({
-        color: isSelected ? 0x38bdf8 : 0xf8fafc,
+        color: 0xf8fafc,
         roughness: 0.35,
         metalness: 0.1
       });
     case 'aluminum_box':
       return new THREE.MeshStandardMaterial({
-        color: isSelected ? 0x38bdf8 : 0x94a3b8,
+        color: 0x94a3b8,
         roughness: 0.25,
         metalness: 0.8
       });
     default:
       return new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.5,
-        metalness: 0.2
+        roughness: 0.65,
+        metalness: 0.08
       });
   }
 }

@@ -21,6 +21,8 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<any>(null);
   const isDbLoadedRef = useRef<boolean>(false);
+  const [selectedBoxId, setSelectedBoxIdState] = useState<string | null>(null);
+  const [isolatedBoxId, setIsolatedBoxIdState] = useState<string | null>(null);
 
   const flashToast = (msg: string) => {
     setToastMessage(msg);
@@ -66,8 +68,14 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     sceneManager,
     flashToast,
     isDbLoadedRef.current,
-    null,
-    () => {}
+    isolatedBoxId,
+    (id) => {
+      setIsolatedBoxIdState(id);
+      if (!id) {
+        setSelectedBoxIdState(null);
+        sceneManager?.clearBarHover();
+      }
+    }
   );
 
   // Internal Boxes & Grid
@@ -77,8 +85,23 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     sceneManager,
     viewMgr.viewMode,
     viewMgr.setViewModeState,
-    viewMgr.isVehicleVisible
+    viewMgr.isVehicleVisible,
+    {
+      selectedBoxId,
+      setSelectedBoxIdState,
+      isolatedBoxId,
+      setIsolatedBoxIdState
+    }
   );
+
+  // Limpa seleção/isolamento ao sair do modo internal_boxes
+  useEffect(() => {
+    if (viewMgr.viewMode !== 'internal_boxes' && (selectedBoxId || isolatedBoxId)) {
+      setSelectedBoxIdState(null);
+      setIsolatedBoxIdState(null);
+      sceneManager?.clearBarHover();
+    }
+  }, [viewMgr.viewMode, selectedBoxId, isolatedBoxId, sceneManager]);
 
   // Carrega configurações do Banco de Dados ao montar
   useEffect(() => {
@@ -159,6 +182,13 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     sceneManager.solarSystem.setGroupOffsetY(structureMgr.offsetY);
     sceneManager.setExpansion(structureMgr.expansionProgress);
 
+    appliancesMgr.updateCalculations();
+  }, [sceneManager]);
+
+  // Mantém os callbacks do SceneManager sempre sincronizados (evita closures obsoletas)
+  useEffect(() => {
+    if (!sceneManager) return;
+
     sceneManager.onBarHoverChange = (data, x, y) => {
       viewMgr.setHoveredBar(data);
       viewMgr.setHoverPos({ x, y });
@@ -170,7 +200,14 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     sceneManager.onBoxSelect = (boxId: string | null) => {
-      boxesMgr.setSelectedBoxId(boxId);
+      if (boxId !== null) {
+        boxesMgr.setSelectedBoxId(boxId);
+      } else {
+        boxesMgr.setSelectedBoxId(null);
+        if (boxesMgr.isolatedBoxId) {
+          boxesMgr.setIsolatedBoxId(null);
+        }
+      }
     };
 
     sceneManager.onBoxDoubleClick = (boxId: string | null) => {
@@ -180,14 +217,20 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     sceneManager.onRulerStateChange = (state) => {
       boxesMgr.setRulerState(state);
     };
-
-    appliancesMgr.updateCalculations();
-  }, [sceneManager]);
+  }, [
+    sceneManager,
+    viewMgr.viewMode,
+    boxesMgr.internalBoxes,
+    boxesMgr.selectedBoxId,
+    boxesMgr.isolatedBoxId
+  ]);
 
   useEffect(() => {
     if (!sceneManager) return;
     sceneManager.solarSystem.setAwningConfig(cargoAndEquipMgr.awning);
   }, [sceneManager, cargoAndEquipMgr.awning]);
+
+  const prevBoxesCountRef = useRef<number>(boxesMgr.internalBoxes.length);
 
   useEffect(() => {
     if (!sceneManager) return;
@@ -202,8 +245,18 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       },
       boxesMgr.isolatedBoxId
     );
+
+    if (
+      boxesMgr.internalBoxes.length > prevBoxesCountRef.current &&
+      viewMgr.viewMode === 'internal_boxes' &&
+      boxesMgr.selectedBoxId
+    ) {
+      sceneManager.focusOnBox(boxesMgr.selectedBoxId);
+    }
+    prevBoxesCountRef.current = boxesMgr.internalBoxes.length;
   }, [
     sceneManager,
+    viewMgr.viewMode,
     boxesMgr.internalGrid,
     boxesMgr.internalBoxes,
     boxesMgr.selectedBoxId,
