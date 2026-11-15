@@ -5,10 +5,12 @@ import { MechanicalAudio } from './Audio';
 import { DobloVehicle } from './DobloModel';
 import { SolarSystem } from './SolarSystem';
 import { SolarSimulation } from './SolarSimulation';
-import { BarMeasurementData, CameraPreset, ViewMode, PartsGroupFilter, InternalBoxItem, InternalGridConfig } from '../types';
+import { BarMeasurementData, CameraPreset, ViewMode, PartsGroupFilter, InternalBoxItem, InternalGridConfig, InternalBoxesPreviewOptions } from '../types';
 import { CollisionChecker, CollisionSummary } from './CollisionChecker';
 import { FloatingChecker, FloatingSummary } from './FloatingChecker';
 import { InternalBoxesBuilder } from './InternalBoxesBuilder';
+import { MetalonTubeFactory } from './MetalonTube';
+import { extractPvcCutStats } from '../utils/pvcUtils';
 
 export class SceneManager {
   container: HTMLElement;
@@ -278,14 +280,14 @@ export class SceneManager {
         targetPos.set(0.01, 7.5, 0);
         break;
       case 'front':
-        targetPos.set(0, 2.2, -5.8);
+        targetPos.set(0, 2.2, 5.8);
         break;
       case 'side':
         targetPos.set(5.5, 2.2, 0);
         break;
       case 'panels':
-        targetPos.set(1.6, 2.7, 1.9);
-        targetLookAt.set(0, 2.1, 0.4);
+        targetPos.set(1.6, 2.7, -1.2);
+        targetLookAt.set(0, 2.1, -0.68);
         break;
     }
 
@@ -533,30 +535,14 @@ export class SceneManager {
     };
 
     let target: THREE.Object3D | null = null;
+
+    // Prioridade 1: Se o cursor estiver diretamente sobre um componente elétrico (inclusive dentro de uma caixa)
     for (const hit of intersects) {
       const obj = hit.object;
       if (!isAncestorVisible(obj)) continue;
-
-      // Ignora sprites, linhas, colisores invisíveis do teto e helpers
       if ((obj as any).isSprite || (obj as any).isLine || (obj as any).isLineSegments) continue;
-      if (obj.name === '__roof_collider' || obj.userData?.isRoofCollider) continue;
+      if (obj.name === '__box_hitbox' || obj.name === '__hitbox' || obj.userData?.isInternalBoxHitbox) continue;
 
-      // 0. Hitbox de caixa interna do camper (prioridade imediata)
-      if (obj.name === '__box_hitbox' || obj.userData?.isInternalBoxHitbox) {
-        target = obj.userData?.boxRoot || obj.parent;
-        break;
-      }
-
-      // Ignora hitboxes transparentes (não bloqueiam o scan)
-      if (obj.name === '__hitbox') {
-        if (obj.parent && obj.parent.userData && (obj.parent.userData.isBar || obj.parent.userData.isElectrical)) {
-          target = obj.parent.userData.electricalRoot || obj.parent;
-          break;
-        }
-        continue; // hitbox sem componente associado
-      }
-
-      // 1. Checa se o objeto ou algum ancestral é componente elétrico
       let electricalNode: THREE.Object3D | null = null;
       if (obj.userData && obj.userData.isElectrical) {
         electricalNode = obj;
@@ -571,7 +557,6 @@ export class SceneManager {
       }
 
       if (electricalNode) {
-        // Encontra o grupo raiz do componente elétrico para iluminar o conjunto como um todo unificado
         let root: THREE.Object3D = electricalNode.userData?.electricalRoot || electricalNode;
         let curr: THREE.Object3D | null = electricalNode;
         while (curr && curr !== this.scene) {
@@ -587,55 +572,113 @@ export class SceneManager {
         target = root;
         break;
       }
+    }
 
-      // 2. Checa se é barra estrutural ou peça da bancada de cortes
-      if (obj.userData && (obj.userData.isBar || obj.userData.isLineupPart)) {
-        target = obj;
-        break;
-      }
+    if (!target) {
+      for (const hit of intersects) {
+        const obj = hit.object;
+        if (!isAncestorVisible(obj)) continue;
 
-      // 3. Checa se é caixa interna do camper
-      if (obj.userData && obj.userData.isInternalBox) {
-        target = obj.userData?.boxRoot || obj;
-        break;
-      }
-      let pBox: THREE.Object3D | null = obj.parent;
-      for (let depth = 0; depth < 5 && pBox && pBox !== this.scene; depth++, pBox = pBox.parent) {
-        if (pBox.userData && pBox.userData.isInternalBox) {
-          target = pBox.userData?.boxRoot || pBox;
+        // Ignora sprites, linhas, colisores invisíveis do teto e helpers
+        if ((obj as any).isSprite || (obj as any).isLine || (obj as any).isLineSegments) continue;
+        if (obj.name === '__roof_collider' || obj.userData?.isRoofCollider) continue;
+
+        // 0. Hitbox de caixa interna do camper (prioridade imediata)
+        if (obj.name === '__box_hitbox' || obj.userData?.isInternalBoxHitbox) {
+          target = obj.userData?.boxRoot || obj.parent;
           break;
         }
-      }
-      if (target && target.userData?.isInternalBox) break;
 
-      // 4. Checa se é a chapa de compensado naval de 15mm da base
-      if (obj.userData && (obj.userData.isInternalFloorPlywood || obj.userData.isBasePlywood)) {
-        target = obj;
-        break;
-      }
+        // Ignora hitboxes transparentes (não bloqueiam o scan)
+        if (obj.name === '__hitbox') {
+          if (obj.parent && obj.parent.userData && (obj.parent.userData.isBar || obj.parent.userData.isElectrical)) {
+            target = obj.parent.userData.electricalRoot || obj.parent;
+            break;
+          }
+          continue; // hitbox sem componente associado
+        }
 
-      // Checa a cadeia de pais (até 5 níveis) para encontrar se pertence a uma barra estrutural
-      let p: THREE.Object3D | null = obj.parent;
-      let found = false;
-      for (let depth = 0; depth < 5 && p && p !== this.scene; depth++, p = p.parent) {
-        if (p.userData && p.userData.isBar) {
-          target = p;
-          found = true;
+        // 1. Checa se o objeto ou algum ancestral é componente elétrico
+        let electricalNode: THREE.Object3D | null = null;
+        if (obj.userData && obj.userData.isElectrical) {
+          electricalNode = obj;
+        } else {
+          let p: THREE.Object3D | null = obj.parent;
+          for (let depth = 0; depth < 6 && p && p !== this.scene; depth++, p = p.parent) {
+            if (p.userData && p.userData.isElectrical) {
+              electricalNode = p;
+              break;
+            }
+          }
+        }
+
+        if (electricalNode) {
+          // Encontra o grupo raiz do componente elétrico para iluminar o conjunto como um todo unificado
+          let root: THREE.Object3D = electricalNode.userData?.electricalRoot || electricalNode;
+          let curr: THREE.Object3D | null = electricalNode;
+          while (curr && curr !== this.scene) {
+            if (curr.userData && curr.userData.isElectricalRoot) {
+              root = curr;
+              break;
+            }
+            if (curr.userData && curr.userData.isElectrical) {
+              root = curr;
+            }
+            curr = curr.parent;
+          }
+          target = root;
           break;
         }
-      }
-      if (found) break;
 
-      // Objeto opaco sem isBar/isElectrical bloqueia o raycast (ex: lataria externa do veículo)
-      const mesh = obj as THREE.Mesh;
-      if (mesh.isMesh && mesh.material) {
-        const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-        const matAny = mat as any;
-        if (matAny.opacity === 0) continue;
-        const transparent = matAny.transparent === true;
-        const opacity = typeof matAny.opacity === 'number' ? matAny.opacity : 1;
-        if (!transparent || opacity > 0.7) {
+        // 2. Checa se é barra estrutural ou peça da bancada de cortes
+        if (obj.userData && (obj.userData.isBar || obj.userData.isLineupPart)) {
+          target = obj;
           break;
+        }
+
+        // 3. Checa se é caixa interna do camper
+        if (obj.userData && obj.userData.isInternalBox) {
+          target = obj.userData?.boxRoot || obj;
+          break;
+        }
+        let pBox: THREE.Object3D | null = obj.parent;
+        for (let depth = 0; depth < 5 && pBox && pBox !== this.scene; depth++, pBox = pBox.parent) {
+          if (pBox.userData && pBox.userData.isInternalBox) {
+            target = pBox.userData?.boxRoot || pBox;
+            break;
+          }
+        }
+        if (target && target.userData?.isInternalBox) break;
+
+        // 4. Checa se é a chapa de compensado naval de 15mm da base
+        if (obj.userData && (obj.userData.isInternalFloorPlywood || obj.userData.isBasePlywood)) {
+          target = obj;
+          break;
+        }
+
+        // Checa a cadeia de pais (até 5 níveis) para encontrar se pertence a uma barra estrutural ou peça da bancada
+        let p: THREE.Object3D | null = obj.parent;
+        let found = false;
+        for (let depth = 0; depth < 5 && p && p !== this.scene; depth++, p = p.parent) {
+          if (p.userData && (p.userData.isBar || p.userData.isLineupPart)) {
+            target = p;
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+
+        // Objeto opaco sem isBar/isElectrical bloqueia o raycast (ex: lataria externa do veículo)
+        const mesh = obj as THREE.Mesh;
+        if (mesh.isMesh && mesh.material) {
+          const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+          const matAny = mat as any;
+          if (matAny.opacity === 0) continue;
+          const transparent = matAny.transparent === true;
+          const opacity = typeof matAny.opacity === 'number' ? matAny.opacity : 1;
+          if (!transparent || opacity > 0.7) {
+            break;
+          }
         }
       }
     }
@@ -716,7 +759,7 @@ export class SceneManager {
     let emissiveIntensity = 0.55;
 
     if (d.isLineupPart) {
-      emissiveColor = d.isWoodPart ? 0xd97706 : 0x38bdf8;
+      emissiveColor = d.isWoodPart ? 0xd97706 : (d.isPvcPart ? 0x0ea5e9 : 0x38bdf8);
       emissiveIntensity = 0.6;
     } else if (d.isElectrical) {
       if (d.electricalType === 'battery') {
@@ -745,7 +788,7 @@ export class SceneManager {
 
     const applyHighlightToMesh = (mesh: THREE.Mesh) => {
       if (!mesh.isMesh || !mesh.material) return;
-      if (mesh.name === '__box_hitbox' || mesh.name === '__hitbox' || mesh.userData?.isInternalBoxHitbox) return;
+      if (mesh.name === '__box_hitbox' || mesh.name === '__hitbox' || mesh.name === '__pvc_hitbox' || mesh.userData?.isInternalBoxHitbox) return;
       if (this.hoveredOriginalMaterials.has(mesh)) return;
       this.hoveredOriginalMaterials.set(mesh, mesh.material);
 
@@ -801,10 +844,21 @@ export class SceneManager {
     grid: InternalGridConfig,
     boxes: InternalBoxItem[],
     selectedBoxId: string | null = null,
-    previewOpen: boolean = false,
+    previewOpen: boolean | InternalBoxesPreviewOptions = false,
     isolatedBoxId: string | null = null
   ) {
     this.internalBoxesBuilder.update(grid, boxes, selectedBoxId, previewOpen, isolatedBoxId);
+
+    // Sincroniza componentes elétricos instalados nos módulos para evitar duplicatas flutuantes
+    const assigned = new Set<string>();
+    boxes.forEach((b) => {
+      b.electronics?.forEach((e) => assigned.add(e.id));
+    });
+    this.solarSystem.setAssignedElectronics(assigned);
+
+    if (this.viewMode === 'bars_lineup') {
+      this.buildBarsLineup(this.currentLineupFilter);
+    }
   }
 
   focusOnBox(boxId: string | null) {
@@ -860,12 +914,14 @@ export class SceneManager {
       this.barsLineupGroup.visible = true;
 
       const totalSpanX = this.barsLineupGroup.userData.totalSpanX || 3.5;
-      const maxLen = this.barsLineupGroup.userData.maxLen || 2.0;
+      const totalDepthZ = this.barsLineupGroup.userData.totalDepthZ || this.barsLineupGroup.userData.maxLen || 3.0;
       const centerX = this.barsLineupGroup.userData.centerX || 0;
-      const camDist = Math.max(3.8, Math.max(totalSpanX * 0.62, maxLen * 1.35));
+      const centerZ = this.barsLineupGroup.userData.centerZ || (totalDepthZ / 2);
+      const camDist = Math.max(4.0, Math.max(totalSpanX * 0.65, totalDepthZ * 0.85));
+
       this.animateCameraTo(
-        new THREE.Vector3(centerX, camDist * 0.72, camDist * 0.82),
-        new THREE.Vector3(centerX, 0.05, maxLen * 0.35)
+        new THREE.Vector3(centerX + camDist * 0.15, camDist * 0.80, centerZ + camDist * 0.90),
+        new THREE.Vector3(centerX, 0.05, centerZ)
       );
     } else {
       // assembled
@@ -886,12 +942,14 @@ export class SceneManager {
     if (this.viewMode === 'bars_lineup') {
       this.buildBarsLineup(filter);
       const totalSpanX = this.barsLineupGroup.userData.totalSpanX || 3.5;
-      const maxLen = this.barsLineupGroup.userData.maxLen || 2.0;
+      const totalDepthZ = this.barsLineupGroup.userData.totalDepthZ || this.barsLineupGroup.userData.maxLen || 3.0;
       const centerX = this.barsLineupGroup.userData.centerX || 0;
-      const camDist = Math.max(3.8, Math.max(totalSpanX * 0.62, maxLen * 1.35));
+      const centerZ = this.barsLineupGroup.userData.centerZ || (totalDepthZ / 2);
+      const camDist = Math.max(4.0, Math.max(totalSpanX * 0.65, totalDepthZ * 0.85));
+
       this.animateCameraTo(
-        new THREE.Vector3(centerX, camDist * 0.72, camDist * 0.82),
-        new THREE.Vector3(centerX, 0.05, maxLen * 0.35)
+        new THREE.Vector3(centerX + camDist * 0.15, camDist * 0.80, centerZ + camDist * 0.90),
+        new THREE.Vector3(centerX, 0.05, centerZ)
       );
     }
   }
@@ -903,16 +961,32 @@ export class SceneManager {
     }
 
     interface LineupItem {
-      sourceMesh: THREE.Mesh;
-      type: 'metal' | 'wood';
+      sourceMesh: THREE.Mesh | null;
+      type: 'metal' | 'wood' | 'pvc';
       length: number;
       width: number;
       thickness: number;
+      thicknessMm: number;
+      woodMaterial?: string;
       area: number;
       name: string;
       profileSpec: string;
       material: string;
       isPerforated?: boolean;
+      hasCabinetExclusion?: boolean;
+      pvcFittingType?: 'elbow_90' | 'cap' | 'pipe';
+    }
+
+    interface LineupRowGroup {
+      key: string;
+      type: 'metal' | 'wood' | 'pvc';
+      title: string;
+      subtitle: string;
+      woodMaterial?: string;
+      thicknessMm?: number;
+      profileSpec?: string;
+      colorHex: number;
+      items: LineupItem[];
     }
 
     const metalItems: LineupItem[] = [];
@@ -951,6 +1025,7 @@ export class SceneManager {
         length,
         width,
         thickness,
+        thicknessMm: Math.round(thickness * 1000),
         area,
         name: obj.userData.barLabel || 'Barra Estrutural',
         profileSpec: obj.userData.profileSpec || 'Perfil Metálico Estrutural',
@@ -972,9 +1047,18 @@ export class SceneManager {
 
       const length = dims[0];
       const width = Math.max(0.015, dims[1]);
-      const thickness = Math.max(0.005, dims[2]);
+      const rawThickness = Math.max(0.003, dims[2]);
       const area = length * width;
       const isPerforated = Boolean(obj.userData.isPerforated);
+      const hasCabinetExclusion = Boolean(obj.userData.hasCabinetExclusion);
+
+      const thicknessMm = Number(obj.userData.thicknessMm) || Math.round(rawThickness * 1000);
+      const thickness = thicknessMm > 0 ? thicknessMm / 1000 : rawThickness;
+      const woodMaterial = String(
+        obj.userData.woodMaterial ||
+        InternalBoxesBuilder.getWoodMaterialName(obj.userData.material) ||
+        'Compensado Naval'
+      );
 
       woodItems.push({
         sourceMesh: obj as THREE.Mesh,
@@ -982,223 +1066,408 @@ export class SceneManager {
         length,
         width,
         thickness,
+        thicknessMm,
+        woodMaterial,
         area,
         isPerforated,
-        name: obj.userData.partLabel || obj.userData.name || 'Chapa Compensado 15mm',
-        profileSpec: `Chapa ${Math.round(width * 1000)} × ${Math.round(length * 1000)} × ${Math.round(thickness * 1000)} mm${isPerforated ? ' [Vazada CNC]' : ''}`,
-        material: obj.userData.material || (isPerforated ? 'Compensado Naval 15mm Vazado (Alívio Peso)' : 'Compensado Naval 15mm Impermeabilizado')
+        hasCabinetExclusion,
+        name: obj.userData.partLabel || obj.userData.name || `Chapa ${woodMaterial} ${thicknessMm}mm`,
+        profileSpec: `Chapa ${Math.round(width * 1000)} × ${Math.round(length * 1000)} × ${thicknessMm} mm${isPerforated ? (hasCabinetExclusion ? ' [Vazada CNC + Base Maciça Aéreo]' : ' [Vazada CNC]') : ''}`,
+        material: obj.userData.material || `${woodMaterial} ${thicknessMm}mm Impermeabilizado`
       });
     });
 
-    // Ordenação do Grupo Ferragens: da maior para a menor barra pelo comprimento (depois pela área)
-    metalItems.sort((a, b) => {
-      if (Math.abs(b.length - a.length) > 0.001) return b.length - a.length;
-      if (Math.abs(b.area - a.area) > 0.0001) return b.area - a.area;
-      return a.name.localeCompare(b.name);
+    // ─── 3. AGRUPAMENTO EM GRID: CADA LINHA É UM GRUPO (TIPO DE MADEIRA + ESPESSURA) ───
+    // Requisito: "um grid em que cada linha é um grupo de madeira diferente sempre posicionando lado a lado
+    // da mesma espessura e em baixo para madeira e espessura diferente"
+    const woodRowMap = new Map<string, LineupRowGroup>();
+
+    woodItems.forEach((item) => {
+      const thickMm = item.thicknessMm || 15;
+      const woodMat = item.woodMaterial || 'Compensado Naval';
+      const key = `${woodMat}__${thickMm}`;
+
+      if (!woodRowMap.has(key)) {
+        let colorHex = 0xd97706; // Compensado naval quente padrão
+        if (woodMat.includes('MDF')) {
+          colorHex = 0x38bdf8; // Azul claro para MDF
+        } else if (woodMat.includes('Maciça') || woodMat.includes('Nobre')) {
+          colorHex = 0xb45309; // Madeira nobre maciça
+        } else if (thickMm >= 18) {
+          colorHex = 0xf59e0b;
+        }
+
+        woodRowMap.set(key, {
+          key,
+          type: 'wood',
+          title: `🪵 ${woodMat.toUpperCase()} • ${thickMm}mm`,
+          subtitle: '',
+          woodMaterial: woodMat,
+          thicknessMm: thickMm,
+          colorHex,
+          items: []
+        });
+      }
+      woodRowMap.get(key)!.items.push(item);
     });
 
-    // Ordenação do Grupo Madeira: da maior para a menor peça rigorosamente pela área de corte (m²)
-    woodItems.sort((a, b) => {
-      if (Math.abs(b.area - a.area) > 0.0001) return b.area - a.area;
-      if (Math.abs(b.length - a.length) > 0.001) return b.length - a.length;
-      return a.name.localeCompare(b.name);
+    // Ordenar as linhas de madeira:
+    // 1. Tipo de madeira alfabético (Compensado Naval, MDF, etc.)
+    // 2. Espessura decrescente (ex: 25mm, 18mm, 15mm, 12mm...)
+    const sortedWoodRows = Array.from(woodRowMap.values()).sort((a, b) => {
+      if (a.woodMaterial !== b.woodMaterial) return (a.woodMaterial || '').localeCompare(b.woodMaterial || '');
+      return (b.thicknessMm || 0) - (a.thicknessMm || 0);
     });
 
-    const gapX = 0.04; // 4 cm de espaçamento entre cada peça adjacente
-    const zBaseline = 0; // linha de base comum na frente da bancada de medição
+    // Dentro de cada linha de madeira, ordenar as peças da maior para a menor área de corte
+    sortedWoodRows.forEach((row) => {
+      row.items.sort((a, b) => {
+        if (Math.abs(b.area - a.area) > 0.0001) return b.area - a.area;
+        if (Math.abs(b.length - a.length) > 0.001) return b.length - a.length;
+        return a.name.localeCompare(b.name);
+      });
+      const totalArea = row.items.reduce((acc, it) => acc + it.area, 0);
+      row.subtitle = `${row.items.length} peças • ${totalArea.toFixed(2)} m²`;
+    });
 
-    const totalWidthMetal = metalItems.reduce((sum, item) => sum + item.width, 0);
-    const spanMetal = totalWidthMetal + Math.max(0, metalItems.length - 1) * gapX;
-    const maxLenMetal = metalItems.reduce((max, item) => Math.max(max, item.length), 0.1);
+    // ─── 4. AGRUPAMENTO DAS FERRAGENS METÁLICAS EM LINHAS POR PERFIL ───
+    const metalRowMap = new Map<string, LineupRowGroup>();
 
-    const totalWidthWood = woodItems.reduce((sum, item) => sum + item.width, 0);
-    const spanWood = totalWidthWood + Math.max(0, woodItems.length - 1) * gapX;
-    const maxLenWood = woodItems.reduce((max, item) => Math.max(max, item.length), 0.1);
+    metalItems.forEach((item) => {
+      const spec = item.profileSpec || 'Perfil Metálico';
+      const key = spec;
 
-    const maxLen = Math.max(maxLenMetal, maxLenWood);
+      if (!metalRowMap.has(key)) {
+        metalRowMap.set(key, {
+          key,
+          type: 'metal',
+          title: `🔩 ${spec.toUpperCase()}`,
+          subtitle: '',
+          profileSpec: spec,
+          colorHex: 0x38bdf8,
+          items: []
+        });
+      }
+      metalRowMap.get(key)!.items.push(item);
+    });
 
-    let totalSpanX = 0;
-    let centerX = 0;
+    const sortedMetalRows = Array.from(metalRowMap.values()).sort((a, b) => {
+      return b.items.length - a.items.length;
+    });
 
-    // Função auxiliar para renderizar uma bancada completa de itens
-    const renderItems = (
-      items: LineupItem[],
-      startX: number,
-      categoryLabel: string,
-      prefix: string,
-      outlineColorHex: number
-    ) => {
-      let currentX = startX;
+    sortedMetalRows.forEach((row) => {
+      row.items.sort((a, b) => {
+        if (Math.abs(b.length - a.length) > 0.001) return b.length - a.length;
+        return a.name.localeCompare(b.name);
+      });
+      const totalMeters = row.items.reduce((acc, it) => acc + it.length, 0);
+      row.subtitle = `${row.items.length} barras • ${totalMeters.toFixed(1)} m`;
+    });
+
+    // ─── 4.1 COLETA DOS CANOS & CONEXÕES DE PVC DA CAIXA D'ÁGUA EM U ───
+    const pvcItems: LineupItem[] = [];
+    const pvcFittingItems: LineupItem[] = [];
+    const sortedPvcRows: LineupRowGroup[] = [];
+    if (this.solarSystem.waterTankConfig?.enabled) {
+      const pvcStats = extractPvcCutStats(this.solarSystem.waterTankConfig);
+      const diamM = pvcStats.diameterMm / 1000;
+      pvcStats.cutItems.forEach((c) => {
+        pvcItems.push({
+          sourceMesh: null,
+          type: 'pvc',
+          length: c.lengthM,
+          width: diamM,
+          thickness: diamM,
+          thicknessMm: pvcStats.diameterMm,
+          area: c.lengthM * diamM,
+          name: c.label,
+          profileSpec: c.spec,
+          material: `PVC Série R / Esgoto Ø${pvcStats.diameterMm}mm`,
+          pvcFittingType: 'pipe'
+        });
+      });
+
+      if (pvcItems.length > 0) {
+        sortedPvcRows.push({
+          key: 'pvc_water_pipes',
+          type: 'pvc',
+          title: `💧 TUBOS PVC • Ø${pvcStats.diameterMm}mm (CAIXA D'ÁGUA EM U)`,
+          subtitle: `${pvcItems.length} tubos lineares • ${pvcStats.totalLinearMeters}m corte • ${pvcStats.totalCapacityL}L total`,
+          profileSpec: `Tubo PVC Ø${pvcStats.diameterMm}mm`,
+          colorHex: 0x0ea5e9,
+          items: pvcItems
+        });
+      }
+
+      // Joelhos 90° e CAPs traseiros de vedação
+      pvcFittingItems.push(
+        {
+          sourceMesh: null,
+          type: 'pvc',
+          length: diamM * 1.25,
+          width: diamM * 1.25,
+          thickness: diamM,
+          thicknessMm: pvcStats.diameterMm,
+          area: 0.05,
+          name: 'Joelho 90° PVC com Bolsa Reforçada (Dianteiro Esq.)',
+          profileSpec: `Joelho 90° Ø${pvcStats.diameterMm}mm`,
+          material: `PVC Série R / Esgoto Ø${pvcStats.diameterMm}mm`,
+          pvcFittingType: 'elbow_90'
+        },
+        {
+          sourceMesh: null,
+          type: 'pvc',
+          length: diamM * 1.25,
+          width: diamM * 1.25,
+          thickness: diamM,
+          thicknessMm: pvcStats.diameterMm,
+          area: 0.05,
+          name: 'Joelho 90° PVC com Bolsa Reforçada (Dianteiro Dir.)',
+          profileSpec: `Joelho 90° Ø${pvcStats.diameterMm}mm`,
+          material: `PVC Série R / Esgoto Ø${pvcStats.diameterMm}mm`,
+          pvcFittingType: 'elbow_90'
+        },
+        {
+          sourceMesh: null,
+          type: 'pvc',
+          length: 0.08,
+          width: diamM * 1.06,
+          thickness: diamM * 1.06,
+          thicknessMm: pvcStats.diameterMm,
+          area: 0.02,
+          name: 'CAP (Tampão) de Vedação PVC Traseiro (Esq.)',
+          profileSpec: `CAP Soldável Ø${pvcStats.diameterMm}mm`,
+          material: `PVC Série R / Esgoto Ø${pvcStats.diameterMm}mm`,
+          pvcFittingType: 'cap'
+        },
+        {
+          sourceMesh: null,
+          type: 'pvc',
+          length: 0.08,
+          width: diamM * 1.06,
+          thickness: diamM * 1.06,
+          thicknessMm: pvcStats.diameterMm,
+          area: 0.02,
+          name: 'CAP (Tampão) de Vedação PVC Traseiro (Dir.)',
+          profileSpec: `CAP Soldável Ø${pvcStats.diameterMm}mm`,
+          material: `PVC Série R / Esgoto Ø${pvcStats.diameterMm}mm`,
+          pvcFittingType: 'cap'
+        }
+      );
+
+      sortedPvcRows.push({
+        key: 'pvc_water_fittings',
+        type: 'pvc',
+        title: `💧 CONEXÕES PVC & VEDAÇÃO • Ø${pvcStats.diameterMm}mm (JOELHOS 90° & CAPS)`,
+        subtitle: `4 conexões (2× Joelhos 90° c/ bolsa + 2× CAPs soldáveis) • Caixa d'Água em U`,
+        profileSpec: `Conexões PVC Ø${pvcStats.diameterMm}mm`,
+        colorHex: 0x38bdf8,
+        items: pvcFittingItems
+      });
+    }
+
+    // Seleção das linhas a serem renderizadas com base no filtro
+    let activeRows: LineupRowGroup[] = [];
+    if (filter === 'wood') {
+      activeRows = sortedWoodRows;
+    } else if (filter === 'metal') {
+      activeRows = sortedMetalRows;
+    } else if (filter === 'pvc') {
+      activeRows = sortedPvcRows;
+    } else {
+      activeRows = [...sortedWoodRows, ...sortedMetalRows, ...sortedPvcRows];
+    }
+
+    // ─── 5. POSICIONAMENTO EM GRID 2D NO SOLO: LADO A LADO NA MESMA LINHA E EM BAIXO PARA O PRÓXIMO GRUPO ───
+    const gapX = 0.05; // 5 cm de folga entre peças adjacentes na mesma linha
+    const rowGapZ = 0.55; // 55 cm de corredor livre entre uma linha e outra
+    let currentZ = 0;
+    let maxRowSpanX = 0;
+
+    activeRows.forEach((row, rowIdx) => {
+      const items = row.items;
+      if (items.length === 0) return;
+
+      const rowSpanX = items.reduce((sum, it) => sum + it.width, 0) + Math.max(0, items.length - 1) * gapX;
+      const rowMaxLen = items.reduce((max, it) => Math.max(max, it.length), 0.1);
+      if (rowSpanX > maxRowSpanX) maxRowSpanX = rowSpanX;
+
+      const startX = -rowSpanX / 2;
+      const rowBaselineZ = currentZ;
+
+      // Linha guia visual no solo delimitando a bancada desta linha
+      const linePts = [
+        new THREE.Vector3(startX - 0.25, 0.004, rowBaselineZ),
+        new THREE.Vector3(startX + rowSpanX + 0.25, 0.004, rowBaselineZ)
+      ];
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(linePts);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: row.colorHex,
+        transparent: true,
+        opacity: 0.85
+      });
+      this.barsLineupGroup.add(new THREE.Line(lineGeo, lineMat));
+
+      // Header 3D da Linha (Placa suspensa com identificação do grupo e espessura)
+      const headerColor = row.type === 'metal' ? '#38bdf8' : (row.woodMaterial?.includes('MDF') ? '#38bdf8' : '#f59e0b');
+      const headerSprite = this.createGroupHeaderSprite(
+        row.title,
+        row.subtitle,
+        headerColor
+      );
+      headerSprite.position.set(0, 0.45, rowBaselineZ - 0.28);
+      this.barsLineupGroup.add(headerSprite);
+
+      // Renderização das peças lado a lado nesta linha
+      let curX = startX;
       items.forEach((item, idx) => {
-        const xPos = currentX + item.width / 2;
-        currentX += item.width + gapX;
+        const xPos = curX + item.width / 2;
+        curX += item.width + gapX;
 
         const yPos = item.thickness / 2;
-        const zPos = zBaseline + item.length / 2;
+        const zPos = rowBaselineZ + item.length / 2;
 
-        const geo = item.isPerforated
-          ? InternalBoxesBuilder.createPerforatedGeometry(item.width, item.thickness, item.length)
-          : new THREE.BoxGeometry(item.width, item.thickness, item.length);
-        const mesh = new THREE.Mesh(geo, item.sourceMesh.material);
-        mesh.position.set(xPos, yPos, zPos);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
+        let partObj: THREE.Object3D;
+        const isFitting = item.type === 'pvc' && (item.pvcFittingType === 'elbow_90' || item.pvcFittingType === 'cap');
 
-        const edgeGeo = new THREE.EdgesGeometry(geo, item.isPerforated ? 25 : undefined);
-        const edgeMat = new THREE.LineBasicMaterial({
-          color: outlineColorHex,
-          transparent: true,
-          opacity: 0.75
-        });
-        const edgeLine = new THREE.LineSegments(edgeGeo, edgeMat);
-        mesh.add(edgeLine);
+        if (item.type === 'pvc') {
+          const pvcMat = new THREE.MeshStandardMaterial({
+            color: 0x1e293b,
+            roughness: 0.35,
+            metalness: 0.20,
+            side: THREE.DoubleSide
+          });
 
-        mesh.userData = {
+          if (item.pvcFittingType === 'elbow_90') {
+            partObj = MetalonTubeFactory.createPvcElbowMesh(item.thicknessMm / 1000, pvcMat);
+          } else if (item.pvcFittingType === 'cap') {
+            partObj = MetalonTubeFactory.createPvcCapMesh(item.thicknessMm / 1000, pvcMat);
+          } else {
+            // Tubo cilíndrico oco real em PVC com espessura de parede (~4.2mm) e furo passante
+            const wallThickM = Math.max(0.0032, Math.min(0.0055, item.width * 0.022));
+            const geo = MetalonTubeFactory.getPvcPipeGeometry(item.length, item.width, wallThickM, 'z', 36);
+            const mesh = new THREE.Mesh(geo, pvcMat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+
+            // Hitbox invisível cilíndrica para detecção e hover imediatos
+            const hitGeo = new THREE.CylinderGeometry(item.width / 2, item.width / 2, item.length, 16);
+            hitGeo.rotateX(Math.PI / 2);
+            const hitMesh = new THREE.Mesh(hitGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+            hitMesh.name = '__pvc_hitbox';
+            mesh.add(hitMesh);
+
+            const edgeGeo = new THREE.EdgesGeometry(geo, 25);
+            const edgeMat = new THREE.LineBasicMaterial({
+              color: row.colorHex,
+              transparent: true,
+              opacity: 0.9
+            });
+            mesh.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+            partObj = mesh;
+          }
+        } else {
+          let geo: THREE.BufferGeometry;
+          const isMetalonOrTube = item.type === 'metal' && (item.profileSpec?.includes('Metalon') || item.profileSpec?.includes('Tubo'));
+          if (item.isPerforated) {
+            geo = InternalBoxesBuilder.createPerforatedGeometry(item.width, item.thickness, item.length, {
+              holeDiameterMm: item.sourceMesh?.userData?.holeDiameterMm,
+              spacingMm: item.sourceMesh?.userData?.spacingMm,
+              exclusionZones: item.sourceMesh?.userData?.exclusionZones
+            });
+          } else if (isMetalonOrTube) {
+            const tMm = item.profileSpec?.includes('40') ? (this.solarSystem.metalonThickness40 || 2.0) : (this.solarSystem.metalonThickness30 || 1.5);
+            geo = MetalonTubeFactory.getTubeGeometry(item.length, item.width, item.thickness, tMm / 1000, 'z');
+          } else {
+            geo = new THREE.BoxGeometry(item.width, item.thickness, item.length);
+          }
+
+          const baseMat = item.sourceMesh
+            ? (Array.isArray(item.sourceMesh.material) ? item.sourceMesh.material[0] : item.sourceMesh.material)
+            : null;
+          const mat = baseMat ? (baseMat.clone ? baseMat.clone() : baseMat) : new THREE.MeshStandardMaterial({ color: row.colorHex });
+          if ('transparent' in mat) (mat as any).transparent = false;
+          if ('opacity' in mat) (mat as any).opacity = 1.0;
+
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+
+          const edgeGeo = new THREE.EdgesGeometry(geo, item.isPerforated ? 25 : undefined);
+          const edgeMat = new THREE.LineBasicMaterial({
+            color: row.colorHex,
+            transparent: true,
+            opacity: 0.75
+          });
+          mesh.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+          partObj = mesh;
+        }
+
+        partObj.position.set(xPos, yPos, zPos);
+
+        partObj.userData = {
           isLineupPart: true,
           isBar: item.type === 'metal',
           isWoodPart: item.type === 'wood',
+          isPvcPart: item.type === 'pvc',
+          isPvcFitting: isFitting,
+          pvcFittingType: item.pvcFittingType,
           isPerforated: item.isPerforated,
+          hasCabinetExclusion: item.hasCabinetExclusion,
+          woodMaterial: item.woodMaterial,
+          thicknessMm: item.thicknessMm,
+          groupKey: row.key,
+          rowIndex: rowIdx + 1,
           rank: idx + 1,
-          name: `${prefix} #${idx + 1} • ${item.name}${item.isPerforated ? ' 🕳️ [Vazado CNC]' : ''}`,
+          name: `${row.title} #${idx + 1} • ${item.name}${item.isPerforated ? (item.hasCabinetExclusion ? ' 🕳️ [Vazado CNC + Base Maciça Aéreo]' : ' 🕳️ [Vazado CNC]') : ''}`,
           barLength: item.length,
           barWidth: item.width,
           barThickness: item.thickness,
           area: item.area,
           profileSpec: item.profileSpec,
           material: item.material,
-          category: categoryLabel,
-          purpose: `${item.isPerforated ? '🍃 Vazado CNC (-35% peso / Aeração) | ' : ''}Área: ${item.area >= 0.1 ? item.area.toFixed(2) + ' m²' : Math.round(item.area * 10000) + ' cm²'} (${Math.round(item.width * 1000)} × ${Math.round(item.length * 1000)} mm)`
+          category: row.title,
+          purpose: isFitting
+            ? (item.pvcFittingType === 'elbow_90'
+              ? 'Conexão 90° de alta resistência com bolsas para fusão soldável a frio na tubulação de água limpa'
+              : 'Vedação estanque final traseira com ponto rosqueado para inspeção/dreno de fundo')
+            : `${item.isPerforated ? (item.hasCabinetExclusion ? '🍃 Vazado CNC c/ Apoio Maciço p/ Armário Aéreo | ' : '🍃 Vazado CNC (-35% peso / Aeração) | ') : ''}Área: ${item.area >= 0.1 ? item.area.toFixed(2) + ' m²' : Math.round(item.area * 10000) + ' cm²'} (${Math.round(item.width * 1000)} × ${Math.round(item.length * 1000)} mm)`
         };
 
-        this.barsLineupGroup.add(mesh);
+        this.barsLineupGroup.add(partObj);
 
-        const labelSprite = this.createBarLengthSprite(idx + 1, item.length, item.width, item.area, item.type);
-        labelSprite.position.set(xPos, yPos + 0.05, zBaseline + item.length + 0.05);
+        const customLabel = item.pvcFittingType === 'elbow_90'
+          ? 'Joelho 90°'
+          : item.pvcFittingType === 'cap'
+            ? 'CAP Tampão'
+            : undefined;
+        const labelSprite = this.createBarLengthSprite(idx + 1, item.length, item.width, item.area, item.type, customLabel);
+        labelSprite.position.set(xPos, yPos + 0.05, rowBaselineZ + item.length + 0.05);
         this.barsLineupGroup.add(labelSprite);
       });
-    };
 
-    if (filter === 'metal') {
-      // ─── APENAS GRUPO 1: FERRAGENS & PERFIS METÁLICOS ───
-      totalSpanX = spanMetal;
-      centerX = 0;
-      const startX = -spanMetal / 2;
+      // Avança no eixo Z para posicionar o próximo grupo em baixo
+      currentZ += rowMaxLen + rowGapZ;
+    });
 
-      // Linha guia no solo
-      const baseLinePts = [
-        new THREE.Vector3(startX - 0.2, 0.004, zBaseline),
-        new THREE.Vector3(startX + spanMetal + 0.2, 0.004, zBaseline)
-      ];
-      const baseLineGeo = new THREE.BufferGeometry().setFromPoints(baseLinePts);
-      const baseLineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 });
-      this.barsLineupGroup.add(new THREE.Line(baseLineGeo, baseLineMat));
-
-      // Header 3D do Grupo 1
-      const headerSprite = this.createGroupHeaderSprite(
-        '🔩 GRUPO 1: FERRAGENS & ESTRUTURA METÁLICA',
-        `${metalItems.length} perfis e trilhos de alumínio/metalon`,
-        '#38bdf8'
-      );
-      headerSprite.position.set(0, 0.45, zBaseline - 0.45);
-      this.barsLineupGroup.add(headerSprite);
-
-      renderItems(metalItems, startX, '🔩 Perfil Metálico Estrutural', '🔩 Ferragem', 0x38bdf8);
-    } else if (filter === 'wood') {
-      // ─── APENAS GRUPO 2: MARCENARIA & PEÇAS DE MADEIRA ───
-      totalSpanX = spanWood;
-      centerX = 0;
-      const startX = -spanWood / 2;
-
-      // Linha guia no solo
-      const baseLinePts = [
-        new THREE.Vector3(startX - 0.2, 0.004, zBaseline),
-        new THREE.Vector3(startX + spanWood + 0.2, 0.004, zBaseline)
-      ];
-      const baseLineGeo = new THREE.BufferGeometry().setFromPoints(baseLinePts);
-      const baseLineMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.85 });
-      this.barsLineupGroup.add(new THREE.Line(baseLineGeo, baseLineMat));
-
-      // Header 3D do Grupo 2
-      const headerSprite = this.createGroupHeaderSprite(
-        '🪵 GRUPO 2: MARCENARIA & PEÇAS DE MADEIRA',
-        `${woodItems.length} peças e ripas de compensado naval 15mm`,
-        '#f59e0b'
-      );
-      headerSprite.position.set(0, 0.45, zBaseline - 0.45);
-      this.barsLineupGroup.add(headerSprite);
-
-      renderItems(woodItems, startX, '🪵 Madeira / Compensado 15mm', '🪵 Madeira', 0xd97706);
-    } else {
-      // ─── AMBOS OS GRUPOS LADO A LADO COM CORREDOR CENTRAL ───
-      const aisleWidth = 0.85; // 85 cm de corredor separando as bancadas de ferragem e madeira
-      totalSpanX = spanMetal + aisleWidth + spanWood;
-      centerX = 0;
-
-      // 1. Grupo Ferragens (à Esquerda do observador: X < 0)
-      const startXMetal = -aisleWidth / 2 - spanMetal;
-      const baseLineMetalPts = [
-        new THREE.Vector3(startXMetal - 0.2, 0.004, zBaseline),
-        new THREE.Vector3(-aisleWidth / 2 + 0.05, 0.004, zBaseline)
-      ];
-      const baseLineMetal = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(baseLineMetalPts),
-        new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 })
-      );
-      this.barsLineupGroup.add(baseLineMetal);
-
-      const headerMetal = this.createGroupHeaderSprite(
-        '🔩 GRUPO 1: FERRAGENS',
-        `${metalItems.length} barras e trilhos metálicos`,
-        '#38bdf8'
-      );
-      headerMetal.position.set(startXMetal + spanMetal / 2, 0.45, zBaseline - 0.45);
-      this.barsLineupGroup.add(headerMetal);
-
-      renderItems(metalItems, startXMetal, '🔩 Perfil Metálico Estrutural', '🔩 Ferragem', 0x38bdf8);
-
-      // 2. Corredor Central Divisório Iluminado
-      const aisleLinePts = [
-        new THREE.Vector3(0, 0.005, -0.65),
-        new THREE.Vector3(0, 0.005, maxLen + 0.35)
-      ];
-      const aisleLine = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(aisleLinePts),
-        new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.5 })
-      );
-      this.barsLineupGroup.add(aisleLine);
-
-      // 3. Grupo Madeira (à Direita do observador: X > 0)
-      const startXWood = aisleWidth / 2;
-      const baseLineWoodPts = [
-        new THREE.Vector3(aisleWidth / 2 - 0.05, 0.004, zBaseline),
-        new THREE.Vector3(startXWood + spanWood + 0.2, 0.004, zBaseline)
-      ];
-      const baseLineWood = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(baseLineWoodPts),
-        new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.85 })
-      );
-      this.barsLineupGroup.add(baseLineWood);
-
-      const headerWood = this.createGroupHeaderSprite(
-        '🪵 GRUPO 2: MADEIRA',
-        `${woodItems.length} peças de compensado naval 15mm`,
-        '#f59e0b'
-      );
-      headerWood.position.set(startXWood + spanWood / 2, 0.45, zBaseline - 0.45);
-      this.barsLineupGroup.add(headerWood);
-
-      renderItems(woodItems, startXWood, '🪵 Madeira / Compensado 15mm', '🪵 Madeira', 0xd97706);
-    }
-
+    const totalPvc = pvcItems.length + pvcFittingItems.length;
     const totalRendered =
-      filter === 'metal' ? metalItems.length : filter === 'wood' ? woodItems.length : metalItems.length + woodItems.length;
+      filter === 'metal' ? metalItems.length
+        : filter === 'wood' ? woodItems.length
+          : filter === 'pvc' ? totalPvc
+            : metalItems.length + woodItems.length + totalPvc;
 
     this.barsLineupGroup.userData.totalBars = totalRendered;
-    this.barsLineupGroup.userData.totalSpanX = totalSpanX;
-    this.barsLineupGroup.userData.maxLen = maxLen;
-    this.barsLineupGroup.userData.centerX = centerX;
+    this.barsLineupGroup.userData.totalSpanX = Math.max(maxRowSpanX, 3.5);
+    this.barsLineupGroup.userData.totalDepthZ = Math.max(currentZ, 2.0);
+    this.barsLineupGroup.userData.maxLen = Math.max(currentZ, 2.0);
+    this.barsLineupGroup.userData.centerX = 0;
+    this.barsLineupGroup.userData.centerZ = currentZ / 2;
     this.barsLineupGroup.userData.metalCount = metalItems.length;
     this.barsLineupGroup.userData.woodCount = woodItems.length;
+    this.barsLineupGroup.userData.pvcCount = totalPvc;
 
     return totalRendered;
   }
@@ -1209,14 +1478,14 @@ export class SceneManager {
     colorHex: string
   ): THREE.Sprite {
     const canvas = document.createElement('canvas');
-    canvas.width = 560;
-    canvas.height = 130;
+    canvas.width = 960;
+    canvas.height = 140;
     const ctx = canvas.getContext('2d')!;
 
     // Fundo escuro elegante translúcido
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
     ctx.beginPath();
-    ctx.roundRect(8, 8, 544, 114, 16);
+    ctx.roundRect(8, 8, canvas.width - 16, canvas.height - 16, 16);
     ctx.fill();
 
     // Borda luminosa colorida
@@ -1224,23 +1493,38 @@ export class SceneManager {
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    // Título Principal
+    const maxWidth = canvas.width - 64; // Margem de segurança de 32px de cada lado
+    const centerX = canvas.width / 2;
+
+    // Título Principal com escala dinâmica de fonte para evitar qualquer corte de texto
+    let titleFontSize = 28;
+    ctx.font = `bold ${titleFontSize}px "Segoe UI", Inter, Arial, sans-serif`;
+    let titleMetrics = ctx.measureText(title);
+    if (titleMetrics.width > maxWidth) {
+      titleFontSize = Math.max(18, Math.floor((maxWidth / titleMetrics.width) * titleFontSize));
+      ctx.font = `bold ${titleFontSize}px "Segoe UI", Inter, Arial, sans-serif`;
+    }
     ctx.fillStyle = colorHex;
-    ctx.font = 'bold 30px "Segoe UI", Inter, Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(title, 280, 48);
+    ctx.fillText(title, centerX, 50);
 
-    // Subtítulo descritivo
+    // Subtítulo descritivo com escala dinâmica
+    let subFontSize = 19;
+    ctx.font = `600 ${subFontSize}px "Segoe UI", Inter, Arial, sans-serif`;
+    let subMetrics = ctx.measureText(subtitle);
+    if (subMetrics.width > maxWidth) {
+      subFontSize = Math.max(14, Math.floor((maxWidth / subMetrics.width) * subFontSize));
+      ctx.font = `600 ${subFontSize}px "Segoe UI", Inter, Arial, sans-serif`;
+    }
     ctx.fillStyle = '#cbd5e1';
-    ctx.font = '600 20px "Segoe UI", Inter, Arial, sans-serif';
-    ctx.fillText(subtitle, 280, 88);
+    ctx.fillText(subtitle, centerX, 94);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
     const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(material);
-    sprite.scale.set(1.8, 0.42, 1);
+    sprite.scale.set(2.40, 0.35, 1);
     return sprite;
   }
 
@@ -1249,47 +1533,60 @@ export class SceneManager {
     lengthM: number,
     widthM: number,
     areaM2: number,
-    type: 'metal' | 'wood'
+    type: 'metal' | 'wood' | 'pvc',
+    customLabel?: string
   ): THREE.Sprite {
     const canvas = document.createElement('canvas');
-    canvas.width = 180;
-    canvas.height = 72;
+    canvas.width = 220;
+    canvas.height = 76;
     const ctx = canvas.getContext('2d')!;
 
     const isWood = type === 'wood';
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
-    ctx.strokeStyle = isWood ? 'rgba(245, 158, 11, 0.8)' : 'rgba(56, 189, 248, 0.8)';
-    ctx.lineWidth = 2;
+    const isPvc = type === 'pvc';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+    ctx.strokeStyle = isWood
+      ? 'rgba(245, 158, 11, 0.85)'
+      : isPvc
+        ? 'rgba(14, 165, 233, 0.85)'
+        : 'rgba(56, 189, 248, 0.85)';
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.roundRect(4, 4, 172, 64, 8);
+    ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 10);
     ctx.fill();
     ctx.stroke();
 
     // Rank & Type Icon
-    ctx.fillStyle = isWood ? '#f59e0b' : '#38bdf8';
-    ctx.font = 'bold 13px sans-serif';
+    ctx.fillStyle = isWood ? '#f59e0b' : isPvc ? '#38bdf8' : '#38bdf8';
+    ctx.font = 'bold 13.5px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`${isWood ? '🪵' : '🔩'} #${rank}`, 12, 24);
+    ctx.fillText(`${isWood ? '🪵' : isPvc ? '💧' : '🔩'} #${rank}`, 12, 26);
 
-    // Area
+    // Area / Diameter
     ctx.fillStyle = '#f8fafc';
-    ctx.font = 'bold 12px monospace';
+    ctx.font = 'bold 12.5px monospace';
     ctx.textAlign = 'right';
-    const areaStr = areaM2 >= 0.1 ? `${areaM2.toFixed(2)}m²` : `${Math.round(areaM2 * 10000)}cm²`;
-    ctx.fillText(areaStr, 168, 24);
+    const areaStr = isPvc
+      ? `Ø${Math.round(widthM * 1000)}mm`
+      : (areaM2 >= 0.1 ? `${areaM2.toFixed(2)}m²` : `${Math.round(areaM2 * 10000)}cm²`);
+    ctx.fillText(areaStr, canvas.width - 12, 26);
 
-    // Dimensions: Length × Width (mm)
-    ctx.fillStyle = isWood ? '#fed7aa' : '#bae6fd';
+    // Dimensions: Length × Width (mm) or Custom Label
+    ctx.fillStyle = isWood ? '#fed7aa' : isPvc ? '#7dd3fc' : '#bae6fd';
     ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'center';
-    const lMm = Math.round(lengthM * 1000);
-    const wMm = Math.round(widthM * 1000);
-    ctx.fillText(`${lMm} × ${wMm} mm`, 90, 50);
+    const centerX = canvas.width / 2;
+    if (customLabel) {
+      ctx.fillText(customLabel, centerX, 53);
+    } else {
+      const lMm = Math.round(lengthM * 1000);
+      const wMm = Math.round(widthM * 1000);
+      ctx.fillText(isPvc ? `${lMm} mm` : `${lMm} × ${wMm} mm`, centerX, 53);
+    }
 
     const tex = new THREE.CanvasTexture(canvas);
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(mat);
-    sprite.scale.set(0.08, 0.032, 1);
+    sprite.scale.set(0.095, 0.033, 1);
     return sprite;
   }
 

@@ -29,11 +29,13 @@ import {
   BarMeasurementData,
   InternalBoxItem,
   InternalGridConfig,
-  InternalBoxesPreset
+  InternalBoxesPreset,
+  CeilingConfig
 } from '../types';
 import {
   DEFAULT_INTERNAL_GRID,
-  INTERNAL_BOXES_PRESETS
+  INTERNAL_BOXES_PRESETS,
+  DEFAULT_CEILING_CONFIG
 } from '../data/internalBoxesPresets';
 import { dbGet, dbSet } from '../data/db';
 import {
@@ -59,6 +61,7 @@ interface SolarContextType {
   structureMaterial: StructureMaterial;
   steelProfileUnit: SteelProfileUnit;
   aluminumColor: AluminumColor;
+  metalonColor: string;
   offsetZ: number;
   offsetY: number;
   expansionProgress: number;
@@ -123,6 +126,8 @@ interface SolarContextType {
   // Armazenadores e Caixas Internas (Grid Camper)
   internalGrid: InternalGridConfig;
   setInternalGrid: (grid: InternalGridConfig | ((prev: InternalGridConfig) => InternalGridConfig)) => void;
+  setCeiling: (updates: Partial<CeilingConfig> | ((prev: CeilingConfig) => Partial<CeilingConfig>)) => void;
+  toggleCeiling3D: () => void;
   internalBoxes: InternalBoxItem[];
   setInternalBoxes: (boxes: InternalBoxItem[] | ((prev: InternalBoxItem[]) => InternalBoxItem[])) => void;
   selectedBoxId: string | null;
@@ -131,6 +136,12 @@ interface SolarContextType {
   setIsolatedBoxId: (id: string | null) => void;
   isOpenPreview: boolean;
   setIsOpenPreview: (open: boolean | ((prev: boolean) => boolean)) => void;
+  isCabinetsOpenPreview: boolean;
+  setIsCabinetsOpenPreview: (open: boolean | ((prev: boolean) => boolean)) => void;
+  isBedOpenPreview: boolean;
+  setIsBedOpenPreview: (open: boolean | ((prev: boolean) => boolean)) => void;
+  showMattress: boolean;
+  setShowMattress: (show: boolean | ((prev: boolean) => boolean)) => void;
   applyInternalBoxesPreset: (presetId: string) => void;
   addInternalBox: (box: Omit<InternalBoxItem, 'id'>) => string;
   updateInternalBox: (id: string, updates: Partial<InternalBoxItem>) => void;
@@ -147,6 +158,13 @@ interface SolarContextType {
   setStructureMaterial: (material: StructureMaterial) => void;
   setSteelProfileUnit: (unit: SteelProfileUnit) => void;
   setAluminumColor: (color: AluminumColor) => void;
+  setMetalonColor: (color: string) => void;
+  metalonWallThickness: number;
+  metalonThickness40: number;
+  metalonThickness30: number;
+  setMetalonWallThickness: (thickness: number) => void;
+  setMetalonThickness40: (thickness: number) => void;
+  setMetalonThickness30: (thickness: number) => void;
   setOffsetZ: (z: number) => void;
   setOffsetY: (y: number) => void;
   setExpansion: (val: number) => void;
@@ -156,6 +174,7 @@ interface SolarContextType {
   setCargoBoxEnabled: (enabled: boolean) => void;
   setCargoBoxDimensions: (length: number, width: number, height: number) => void;
   setCargoBoxVerticalLift: (liftMm: number) => void;
+  setCargoBoxTelescopic: (isTelescopic: boolean) => void;
   setCargoBoxHingeSide: (side: 'driver' | 'passenger') => void;
   setTiltAngle: (angle: number) => void;
   setBoxLidAngle: (angle: number) => void;
@@ -241,7 +260,11 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [structureMaterial, setStructureMaterialState] = useState<StructureMaterial>('aluminum');
   const [steelProfileUnit, setSteelProfileUnitState] = useState<SteelProfileUnit>('mm');
   const [aluminumColor, setAluminumColorState] = useState<AluminumColor>('silver');
-  const [offsetZ, setOffsetZState] = useState<number>(0.40);
+  const [metalonColor, setMetalonColorState] = useState<string>('#333b47');
+  const [metalonWallThickness, setMetalonWallThicknessState] = useState<number>(1.5);
+  const [metalonThickness40, setMetalonThickness40State] = useState<number>(2.0);
+  const [metalonThickness30, setMetalonThickness30State] = useState<number>(1.5);
+  const [offsetZ, setOffsetZState] = useState<number>(-0.68);
   const [offsetY, setOffsetYState] = useState<number>(0.00);
   const [expansionProgress, setExpansionProgressState] = useState<number>(0.0);
 
@@ -311,7 +334,15 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(true);
   const [isAutoAnimating, setIsAutoAnimating] = useState<boolean>(false);
   const [viewMode, setViewModeState] = useState<ViewMode>('assembled');
-  const [partsFilter, setPartsFilterState] = useState<PartsGroupFilter>('all');
+  const [partsFilter, setPartsFilterState] = useState<PartsGroupFilter>(() => {
+    try {
+      const saved = localStorage.getItem('doblo_parts_filter');
+      if (saved === 'all' || saved === 'wood' || saved === 'metal' || saved === 'pvc') {
+        return saved as PartsGroupFilter;
+      }
+    } catch {}
+    return 'all';
+  });
   const [activeCameraPreset, setActiveCameraPreset] = useState<CameraPreset>('iso');
   const [sunHour, setSunHourState] = useState<number>(12.0);
 
@@ -337,6 +368,9 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
   const [isolatedBoxId, setIsolatedBoxIdState] = useState<string | null>(null);
   const [isOpenPreview, setIsOpenPreview] = useState<boolean>(false);
+  const [isCabinetsOpenPreview, setIsCabinetsOpenPreview] = useState<boolean>(false);
+  const [isBedOpenPreview, setIsBedOpenPreview] = useState<boolean>(false);
+  const [showMattress, setShowMattress] = useState<boolean>(true);
 
   // Métricas
   const [energyStats, setEnergyStats] = useState<EnergyStats>({
@@ -425,7 +459,14 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     (async () => {
       try {
-        const cfg = await dbGet<SavedConfig>('doblo_solar_config');
+        let cfg = await dbGet<SavedConfig>('doblo_solar_config');
+        if (!cfg) {
+          const legacyFullCfg = await dbGet<any>('doblo_solar_full_config');
+          if (legacyFullCfg) {
+            cfg = legacyFullCfg;
+          }
+        }
+
         if (cfg) {
           if (cfg.stackLevels) setStackLevelsState(cfg.stackLevels);
           if (cfg.level1) setLevel1State(cfg.level1);
@@ -433,6 +474,10 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           if (cfg.structureMaterial) setStructureMaterialState(cfg.structureMaterial);
           if (cfg.steelProfileUnit) setSteelProfileUnitState(cfg.steelProfileUnit);
           if (cfg.aluminumColor) setAluminumColorState(cfg.aluminumColor);
+          if (cfg.metalonColor) setMetalonColorState(cfg.metalonColor);
+          if (cfg.metalonWallThickness !== undefined) setMetalonWallThicknessState(cfg.metalonWallThickness);
+          if (cfg.metalonThickness40 !== undefined) setMetalonThickness40State(cfg.metalonThickness40);
+          if (cfg.metalonThickness30 !== undefined) setMetalonThickness30State(cfg.metalonThickness30);
           if (cfg.cargoBox) {
             const maxLift = Math.max(60, Math.floor(((cfg.cargoBox.height || 330) - 100) / 10) * 10);
             setCargoBoxState({
@@ -450,7 +495,19 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           if (cfg.awning) {
             setAwningState(cfg.awning);
           }
-          if (cfg.offsetZ !== undefined) setOffsetZState(cfg.offsetZ);
+          if (cfg.b2bEngineHours !== undefined) {
+            setB2BCharger(prev => ({ ...prev, engineHoursPerDay: cfg.b2bEngineHours! }));
+          }
+          if (cfg.panelPresetId) {
+            setActivePanelPresetIdState(cfg.panelPresetId);
+          }
+          if (cfg.cargoBoxPresetId) {
+            setActiveCargoPresetIdState(cfg.cargoBoxPresetId);
+          }
+          if (cfg.offsetZ !== undefined) {
+            const zVal = cfg.offsetZ > 0.1 ? -cfg.offsetZ : cfg.offsetZ;
+            setOffsetZState(zVal);
+          }
           if (cfg.offsetY !== undefined) {
             const safeOffsetY = Math.max(0, cfg.offsetY);
             setOffsetYState(safeOffsetY);
@@ -458,14 +515,40 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           if (cfg.expansionProgress !== undefined) setExpansionProgressState(cfg.expansionProgress);
         }
 
+        const savedPanelPresets = await dbGet<SolarPanelPreset[]>('doblo_solar_panel_presets');
+        if (savedPanelPresets && Array.isArray(savedPanelPresets) && savedPanelPresets.length > 0) {
+          setPanelPresetsState(loadPanelPresets());
+        }
+        const savedActivePanelId = await dbGet<string>('doblo_solar_active_preset_id');
+        if (savedActivePanelId) {
+          setActivePanelPresetIdState(savedActivePanelId);
+        }
+
+        const savedCargoPresets = await dbGet<CargoBoxPreset[]>('doblo_cargo_box_presets');
+        if (savedCargoPresets && Array.isArray(savedCargoPresets) && savedCargoPresets.length > 0) {
+          setCargoBoxPresetsState(loadCargoBoxPresets());
+        }
+        const savedActiveCargoId = await dbGet<string>('doblo_active_cargo_preset_id');
+        if (savedActiveCargoId) {
+          setActiveCargoPresetIdState(savedActiveCargoId);
+        }
+
         const savedGrid = await dbGet<InternalGridConfig>('doblo_internal_grid');
         if (savedGrid && savedGrid.colsX && savedGrid.rowsZ) {
+          if (!savedGrid.ceiling) {
+            savedGrid.ceiling = { ...DEFAULT_CEILING_CONFIG };
+          }
           setInternalGridState(savedGrid);
         }
 
         const savedBoxes = await dbGet<InternalBoxItem[]>('doblo_internal_boxes');
         if (savedBoxes && Array.isArray(savedBoxes)) {
           setInternalBoxesState(savedBoxes);
+        }
+
+        const savedPartsFilter = await dbGet<PartsGroupFilter>('doblo_parts_filter');
+        if (savedPartsFilter) {
+          setPartsFilterState(savedPartsFilter);
         }
       } catch (e) {
         console.warn('Erro ao restaurar configurações do banco de dados:', e);
@@ -512,6 +595,8 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     sceneManager.solarSystem.setStructureMaterial(structureMaterial);
     sceneManager.solarSystem.setSteelProfileUnit(steelProfileUnit);
     sceneManager.solarSystem.setAluminumColor(aluminumColor);
+    sceneManager.solarSystem.setMetalonColor(metalonColor);
+    sceneManager.solarSystem.setMetalonThickness(metalonThickness40, metalonThickness30);
 
     sceneManager.solarSystem.setGroupOffsetZ(offsetZ);
     sceneManager.solarSystem.setGroupOffsetY(offsetY);
@@ -538,6 +623,12 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     updateCalculations();
   }, [sceneManager]);
 
+  // Sincroniza o toldo 3D sempre que o estado awning ou o sceneManager mudar
+  useEffect(() => {
+    if (!sceneManager) return;
+    sceneManager.solarSystem.setAwningConfig(awning);
+  }, [sceneManager, awning]);
+
   const setIsolatedBoxId = (id: string | null) => {
     setIsolatedBoxIdState(id);
     if (id) {
@@ -562,8 +653,18 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // Sincroniza o sistema 3D de caixas internas sempre que mudar
   useEffect(() => {
     if (!sceneManager) return;
-    sceneManager.updateInternalBoxes(internalGrid, internalBoxes, selectedBoxId, isOpenPreview, isolatedBoxId);
-  }, [sceneManager, internalGrid, internalBoxes, selectedBoxId, isOpenPreview, isolatedBoxId]);
+    sceneManager.updateInternalBoxes(
+      internalGrid,
+      internalBoxes,
+      selectedBoxId,
+      {
+        openCabinets: isCabinetsOpenPreview || isOpenPreview,
+        openBed: isBedOpenPreview || isOpenPreview,
+        showMattress: showMattress
+      },
+      isolatedBoxId
+    );
+  }, [sceneManager, internalGrid, internalBoxes, selectedBoxId, isCabinetsOpenPreview, isBedOpenPreview, showMattress, isOpenPreview, isolatedBoxId]);
 
   // Tecla ESC para sair do modo de foco isolado
   useEffect(() => {
@@ -596,6 +697,32 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
       return next;
     });
+  };
+
+  const setCeiling = (updates: Partial<CeilingConfig> | ((prev: CeilingConfig) => Partial<CeilingConfig>)) => {
+    setInternalGridState(prev => {
+      const currentCeiling = prev.ceiling || { ...DEFAULT_CEILING_CONFIG };
+      const resolved = typeof updates === 'function' ? updates(currentCeiling) : updates;
+      const sanitizedUpdates = { ...resolved };
+      if (typeof sanitizedUpdates.curvatureMm === 'number') {
+        sanitizedUpdates.curvatureMm = Math.max(0, Math.min(30, sanitizedUpdates.curvatureMm));
+      }
+      const next: InternalGridConfig = {
+        ...prev,
+        ceiling: {
+          ...currentCeiling,
+          ...sanitizedUpdates
+        }
+      };
+      if (isDbLoadedRef.current) {
+        dbSet('doblo_internal_grid', next);
+      }
+      return next;
+    });
+  };
+
+  const toggleCeiling3D = () => {
+    setCeiling(prev => ({ visibleIn3D: !(prev.visibleIn3D !== false) }));
   };
 
   const setInternalBoxes = (newBoxes: InternalBoxItem[] | ((prev: InternalBoxItem[]) => InternalBoxItem[])) => {
@@ -684,11 +811,19 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       structureMaterial: overrides?.structureMaterial ?? structureMaterial,
       steelProfileUnit: overrides?.steelProfileUnit ?? steelProfileUnit,
       aluminumColor: overrides?.aluminumColor ?? aluminumColor,
+      metalonColor: overrides?.metalonColor ?? metalonColor,
+      metalonWallThickness: overrides?.metalonWallThickness ?? metalonWallThickness,
+      metalonThickness40: overrides?.metalonThickness40 ?? metalonThickness40,
+      metalonThickness30: overrides?.metalonThickness30 ?? metalonThickness30,
       cargoBox: overrides?.cargoBox ?? cargoBox,
       waterTank: overrides?.waterTank ?? waterTank,
+      awning: overrides?.awning ?? awning,
       offsetZ: overrides?.offsetZ ?? offsetZ,
       offsetY: overrides?.offsetY ?? offsetY,
-      expansionProgress: overrides?.expansionProgress ?? expansionProgress
+      expansionProgress: overrides?.expansionProgress ?? expansionProgress,
+      b2bEngineHours: overrides?.b2bEngineHours ?? b2bCharger.engineHoursPerDay,
+      panelPresetId: overrides?.panelPresetId ?? activePanelPresetId,
+      cargoBoxPresetId: overrides?.cargoBoxPresetId ?? activeCargoPresetId
     };
     dbSet('doblo_solar_config', configToSave);
     flashToast('✅ Configuração Salva no Banco de Dados');
@@ -807,6 +942,54 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       sceneManager.audio.playLockClick();
     }
     saveConfig({ aluminumColor: color });
+  };
+
+  const setMetalonColor = (color: string) => {
+    setMetalonColorState(color);
+    if (sceneManager) {
+      sceneManager.solarSystem.setMetalonColor(color);
+      sceneManager.audio.playLockClick();
+    }
+    saveConfig({ metalonColor: color });
+  };
+
+  const setMetalonWallThickness = (thickness: number) => {
+    const clamped = Math.max(0.5, Math.min(6.0, Number(thickness) || 1.5));
+    setMetalonWallThicknessState(clamped);
+    setMetalonThickness40State(clamped);
+    setMetalonThickness30State(clamped);
+    if (sceneManager) {
+      sceneManager.solarSystem.setMetalonThickness(clamped, clamped);
+      sceneManager.audio.playLockClick();
+      updateCalculations();
+    }
+    saveConfig({
+      metalonWallThickness: clamped,
+      metalonThickness40: clamped,
+      metalonThickness30: clamped
+    });
+  };
+
+  const setMetalonThickness40 = (thickness: number) => {
+    const clamped = Math.max(0.5, Math.min(6.0, Number(thickness) || 2.0));
+    setMetalonThickness40State(clamped);
+    if (sceneManager) {
+      sceneManager.solarSystem.setMetalonThickness(clamped, metalonThickness30);
+      sceneManager.audio.playLockClick();
+      updateCalculations();
+    }
+    saveConfig({ metalonThickness40: clamped });
+  };
+
+  const setMetalonThickness30 = (thickness: number) => {
+    const clamped = Math.max(0.5, Math.min(6.0, Number(thickness) || 1.5));
+    setMetalonThickness30State(clamped);
+    if (sceneManager) {
+      sceneManager.solarSystem.setMetalonThickness(metalonThickness40, clamped);
+      sceneManager.audio.playLockClick();
+      updateCalculations();
+    }
+    saveConfig({ metalonThickness30: clamped });
   };
 
   const setOffsetZ = (z: number) => {
@@ -1191,6 +1374,22 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setCargoBox({ verticalLiftMm: clamped });
   };
 
+  const setCargoBoxTelescopic = (isTelescopic: boolean) => {
+    const next = {
+      ...cargoBox,
+      isTelescopic,
+      verticalLiftMm: isTelescopic ? (cargoBox.verticalLiftMm || 0) : 0
+    };
+    setCargoBoxState(next);
+    if (sceneManager) {
+      sceneManager.cancelCurrentAnimation();
+      sceneManager.solarSystem.setCargoBox(next);
+      updateCalculations();
+    }
+    saveConfig({ cargoBox: next });
+    flashToast(isTelescopic ? '↕ Torres Telescópicas de Elevação Ativadas' : '🔒 Torres Fixas Ativadas (Mínima Altura)');
+  };
+
   const setCargoBoxHingeSide = (hingeSide: 'driver' | 'passenger') => {
     setCargoBox({ hingeSide, tiltAngle: 0, lidAngle: 0 });
     flashToast(`🔄 Dobradiças no lado do ${hingeSide === 'driver' ? 'Motorista (abre para calçada)' : 'Passageiro'}`);
@@ -1287,26 +1486,27 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // ─── Toldo Retrátil Overland (Traseiro ou Asa de Morcego 270°) ────────
   const setAwning = (updates: Partial<AwningConfig>) => {
-    setAwningState((prev) => {
-      const next = { ...prev, ...updates };
-      if (sceneManager) {
-        sceneManager.solarSystem.setAwningConfig(next);
-      }
-      saveConfig({ awning: next } as any);
-      return next;
-    });
+    const next: AwningConfig = { ...awning, ...updates };
+    setAwningState(next);
+    if (sceneManager) {
+      sceneManager.solarSystem.setAwningConfig(next);
+      updateCalculations();
+    }
+    if (updates.enabled !== undefined) {
+      flashToast(updates.enabled ? '⛺ Toldo Retrátil Overland Ativado' : '🚫 Toldo Overland Desativado');
+    }
+    saveConfig({ awning: next });
   };
 
   const toggleAwningOpen = () => {
-    setAwningState((prev) => {
-      const next = { ...prev, isOpen: !prev.isOpen };
-      if (sceneManager) {
-        sceneManager.solarSystem.setAwningConfig(next);
-      }
-      flashToast(next.isOpen ? '⛺ Toldo Overland Aberto / Desdobrado!' : '⛺ Toldo Recolhido no Estojo');
-      saveConfig({ awning: next } as any);
-      return next;
-    });
+    const next: AwningConfig = { ...awning, isOpen: !awning.isOpen };
+    setAwningState(next);
+    if (sceneManager) {
+      sceneManager.solarSystem.setAwningConfig(next);
+      updateCalculations();
+    }
+    flashToast(next.isOpen ? '⛺ Toldo Overland Aberto / Desdobrado!' : '⛺ Toldo Recolhido no Estojo');
+    saveConfig({ awning: next });
   };
 
   // ─── Carregador Inteligente DC-DC B2B1230 ──────────────────────────────────
@@ -1449,6 +1649,12 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const setPartsFilter = (filter: PartsGroupFilter) => {
     setPartsFilterState(filter);
+    try {
+      localStorage.setItem('doblo_parts_filter', filter);
+    } catch {}
+    if (isDbLoadedRef.current) {
+      dbSet('doblo_parts_filter', filter);
+    }
     if (sceneManager) {
       sceneManager.setBarsLineupFilter(filter);
       if (viewMode === 'bars_lineup') {
@@ -1474,6 +1680,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         structureMaterial,
         steelProfileUnit,
         aluminumColor,
+        metalonColor,
         offsetZ,
         offsetY,
         expansionProgress,
@@ -1516,6 +1723,8 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         appliances,
         internalGrid,
         setInternalGrid,
+        setCeiling,
+        toggleCeiling3D,
         internalBoxes,
         setInternalBoxes,
         selectedBoxId,
@@ -1524,6 +1733,12 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setIsolatedBoxId,
         isOpenPreview,
         setIsOpenPreview,
+        isCabinetsOpenPreview,
+        setIsCabinetsOpenPreview,
+        isBedOpenPreview,
+        setIsBedOpenPreview,
+        showMattress,
+        setShowMattress,
         applyInternalBoxesPreset,
         addInternalBox,
         updateInternalBox,
@@ -1539,6 +1754,13 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setStructureMaterial,
         setSteelProfileUnit,
         setAluminumColor,
+        setMetalonColor,
+        metalonWallThickness,
+        metalonThickness40,
+        metalonThickness30,
+        setMetalonWallThickness,
+        setMetalonThickness40,
+        setMetalonThickness30,
         setOffsetZ,
         setOffsetY,
         setExpansion,
@@ -1546,6 +1768,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setCargoBoxEnabled,
         setCargoBoxDimensions,
         setCargoBoxVerticalLift,
+        setCargoBoxTelescopic,
         setCargoBoxHingeSide,
         setTiltAngle,
         setBoxLidAngle,

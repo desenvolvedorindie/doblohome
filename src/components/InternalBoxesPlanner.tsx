@@ -1,12 +1,29 @@
 import React, { useState, useRef } from 'react';
 import { useSolar } from '../context/SolarContext';
-import { InternalBoxItem, InternalBoxMaterial, InternalBoxType, ChestHingeDirection, SlatBedDirection, BoxPanelsConfig } from '../types';
-import { INTERNAL_BOXES_PRESETS } from '../data/internalBoxesPresets';
+import {
+  InternalBoxItem,
+  InternalBoxMaterial,
+  InternalBoxType,
+  ChestHingeDirection,
+  SlatBedDirection,
+  BoxPanelsConfig,
+  CeilingConfig,
+  CeilingType,
+  CeilingSheetMaterial,
+  CeilingSlattedWood,
+  CeilingLedType,
+  CeilingLedConfig,
+  UpperCabinetClosure,
+  getUpperCabinetClosure
+} from '../types';
+import { INTERNAL_BOXES_PRESETS, DEFAULT_CEILING_CONFIG } from '../data/internalBoxesPresets';
 
 export const InternalBoxesPlanner: React.FC = () => {
   const {
     internalGrid,
     setInternalGrid,
+    setCeiling,
+    toggleCeiling3D,
     internalBoxes,
     selectedBoxId,
     setSelectedBoxId,
@@ -14,20 +31,77 @@ export const InternalBoxesPlanner: React.FC = () => {
     setIsolatedBoxId,
     isOpenPreview,
     setIsOpenPreview,
+    isCabinetsOpenPreview,
+    setIsCabinetsOpenPreview,
     applyInternalBoxesPreset,
     addInternalBox,
     updateInternalBox,
     removeInternalBox,
-    clearInternalBoxes
+    clearInternalBoxes,
+    flashToast
   } = useSolar();
+
+  // Estado para diálogo de confirmação de Ações Críticas (Limpar e Aplicar Presets)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    type: 'clear' | 'preset';
+    title: string;
+    message: string;
+    targetPresetId?: string;
+    presetName?: string;
+  } | null>(null);
+
+  const handleRequestClear = () => {
+    if (internalBoxes.length === 0) {
+      flashToast?.('ℹ️ O grid já está vazio!');
+      return;
+    }
+    setConfirmDialog({
+      isOpen: true,
+      type: 'clear',
+      title: 'Limpar Todo o Layout do Grid?',
+      message: `Tem certeza que deseja remover todos os ${internalBoxes.length} módulos e caixas do assoalho da Doblò? Esta ação apagará as caixas configuradas.`
+    });
+  };
+
+  const handleRequestPreset = (preset: typeof INTERNAL_BOXES_PRESETS[0]) => {
+    if (internalBoxes.length === 0) {
+      applyInternalBoxesPreset(preset.id);
+      return;
+    }
+    setConfirmDialog({
+      isOpen: true,
+      type: 'preset',
+      title: `Substituir pelo Preset "${preset.name.split(':')[0]}"?`,
+      message: `Deseja substituir o layout atual (${internalBoxes.length} módulos no assoalho) pelas caixas do preset "${preset.name}"? As alterações não salvas serão substituídas.`,
+      targetPresetId: preset.id,
+      presetName: preset.name
+    });
+  };
+
+  const handleConfirmAction = () => {
+    if (!confirmDialog) return;
+    if (confirmDialog.type === 'clear') {
+      clearInternalBoxes();
+    } else if (confirmDialog.type === 'preset' && confirmDialog.targetPresetId) {
+      applyInternalBoxesPreset(confirmDialog.targetPresetId);
+    }
+    setConfirmDialog(null);
+  };
+
+  const handleCancelAction = () => {
+    setConfirmDialog(null);
+  };
 
   // Estado de seleção por arraste (drag-to-select)
   const [dragStart, setDragStart] = useState<{ col: number; row: number } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ col: number; row: number } | null>(null);
   const isDraggingRef = useRef<boolean>(false);
+  const [lastMdfType, setLastMdfType] = useState<CeilingSheetMaterial>('white_mdf');
 
   const cols = Math.max(1, internalGrid.colsX);
   const rows = Math.max(1, internalGrid.rowsZ);
+  const hasUpperCabinets = internalBoxes.some((b) => b.upperCabinet);
 
   const cellWidthCm = (internalGrid.widthMm / cols / 10).toFixed(1);
   const cellLengthCm = (internalGrid.lengthMm / rows / 10).toFixed(1);
@@ -123,6 +197,136 @@ export const InternalBoxesPlanner: React.FC = () => {
 
   return (
     <div className="internal-boxes-planner" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Modal de Confirmação para Limpar e Aplicar Presets */}
+      {confirmDialog && confirmDialog.isOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(10, 15, 29, 0.78)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={handleCancelAction}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(145deg, #0f172a 0%, #1e293b 100%)',
+              border: confirmDialog.type === 'clear' ? '1.5px solid #ef4444' : '1.5px solid #38bdf8',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '460px',
+              width: '100%',
+              boxShadow: confirmDialog.type === 'clear'
+                ? '0 20px 40px -10px rgba(239, 68, 68, 0.45)'
+                : '0 20px 40px -10px rgba(56, 189, 248, 0.45)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              animation: 'fadeIn 0.15s ease-out'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Cabeçalho do Alerta */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '10px',
+                  background: confirmDialog.type === 'clear' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '22px',
+                  border: confirmDialog.type === 'clear' ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)'
+                }}
+              >
+                {confirmDialog.type === 'clear' ? '🧹' : '📦'}
+              </div>
+              <div>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: '15px',
+                    fontWeight: 800,
+                    color: confirmDialog.type === 'clear' ? '#f87171' : '#38bdf8'
+                  }}
+                >
+                  {confirmDialog.title}
+                </h3>
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  {confirmDialog.type === 'clear' ? 'Atenção: Ação irreversível' : 'Substituição de Layout'}
+                </span>
+              </div>
+            </div>
+
+            {/* Mensagem Explicativa */}
+            <p
+              style={{
+                margin: 0,
+                fontSize: '12.5px',
+                color: '#cbd5e1',
+                lineHeight: 1.6,
+                background: 'rgba(15, 23, 42, 0.6)',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                borderLeft: confirmDialog.type === 'clear' ? '3px solid #ef4444' : '3px solid #38bdf8'
+              }}
+            >
+              {confirmDialog.message}
+            </p>
+
+            {/* Botões Cancelar e Confirmar */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+              <button
+                type="button"
+                onClick={handleCancelAction}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  background: 'rgba(30, 41, 59, 0.8)',
+                  border: '1px solid rgba(148, 163, 184, 0.3)',
+                  color: '#e2e8f0',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAction}
+                style={{
+                  padding: '8px 20px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  borderRadius: '8px',
+                  background: confirmDialog.type === 'clear'
+                    ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                    : 'linear-gradient(135deg, #0284c7, #2563eb)',
+                  border: 'none',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  boxShadow: confirmDialog.type === 'clear'
+                    ? '0 4px 12px rgba(239, 68, 68, 0.4)'
+                    : '0 4px 12px rgba(2, 132, 199, 0.4)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {confirmDialog.type === 'clear' ? 'Sim, Limpar Grid' : 'Confirmar e Aplicar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. Barra de Ações Rápidas e Presets */}
       <div
         style={{
@@ -144,7 +348,7 @@ export const InternalBoxesPlanner: React.FC = () => {
           {INTERNAL_BOXES_PRESETS.map((p) => (
             <button
               key={p.id}
-              onClick={() => applyInternalBoxesPreset(p.id)}
+              onClick={() => handleRequestPreset(p)}
               className="btn-compact"
               style={{
                 fontSize: '10.5px',
@@ -214,8 +418,69 @@ export const InternalBoxesPlanner: React.FC = () => {
           >
             {isOpenPreview ? '🛋️ Modo Sofá / Fechar' : '🛌 Abrir Toda a Cama (100%)'}
           </button>
+
+          {hasUpperCabinets && (
+            <button
+              type="button"
+              onClick={() => setIsCabinetsOpenPreview((prev) => !prev)}
+              className="btn-compact"
+              style={{
+                fontSize: '11px',
+                padding: '5px 12px',
+                fontWeight: 700,
+                background: isCabinetsOpenPreview
+                  ? 'linear-gradient(135deg, #10b981, #059669)'
+                  : 'linear-gradient(135deg, #0284c7, #2563eb)',
+                borderColor: isCabinetsOpenPreview ? '#34d399' : '#38bdf8',
+                color: '#ffffff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+              title="Abrir ou fechar as portas dos armários aéreos no modelo 3D (sistema basculante náutico)"
+            >
+              <span>{isCabinetsOpenPreview ? '🔓' : '🚪'}</span>
+              <span>{isCabinetsOpenPreview ? 'Aéreos: Abertos (Fechar)' : 'Abrir Armários Aéreos'}</span>
+            </button>
+          )}
+
+          {internalGrid.ceiling?.enabled !== false && (
+            <button
+              type="button"
+              onClick={toggleCeiling3D}
+              className="btn-compact"
+              style={{
+                fontSize: '11px',
+                padding: '5px 12px',
+                fontWeight: 700,
+                background: internalGrid.ceiling?.visibleIn3D !== false
+                  ? 'rgba(15, 23, 42, 0.85)'
+                  : 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                borderColor: internalGrid.ceiling?.visibleIn3D !== false
+                  ? 'rgba(56, 189, 248, 0.4)'
+                  : '#fbbf24',
+                color: '#ffffff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+              title={
+                internalGrid.ceiling?.visibleIn3D !== false
+                  ? 'Ocultar teto no 3D para visualizar o interior dos móveis por cima (as peças continuam no plano de corte)'
+                  : 'Exibir teto no 3D'
+              }
+            >
+              <span>{internalGrid.ceiling?.visibleIn3D !== false ? '👁️' : '🙈'}</span>
+              <span>
+                {internalGrid.ceiling?.visibleIn3D !== false
+                  ? `Teto 3D: Visível (${internalGrid.ceiling?.type === 'slatted' ? 'Ripado' : 'Chapa'})`
+                  : 'Teto 3D: Oculto'}
+              </span>
+            </button>
+          )}
+
           <button
-            onClick={clearInternalBoxes}
+            onClick={handleRequestClear}
             className="btn-compact"
             style={{
               fontSize: '11px',
@@ -593,68 +858,228 @@ export const InternalBoxesPlanner: React.FC = () => {
       </div>
 
       {/* 3. Editor e Inspetor da Caixa Selecionada */}
-      {selectedBox && (
-        <div
-          style={{
-            background: 'rgba(15, 23, 42, 0.95)',
-            borderRadius: '12px',
-            border: '1px solid rgba(56, 189, 248, 0.4)',
-            padding: '16px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 800, color: '#38bdf8' }}>
-                🛠️ PROPRIEDADES DO ARMAZENADOR SELECIONADO
+      {selectedBox && (() => {
+        const boxWMm = Math.round(selectedBox.colSpan * (internalGrid.widthMm / cols));
+        const boxLMm = Math.round(selectedBox.rowSpan * (internalGrid.lengthMm / rows));
+
+        return (
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.95)',
+              borderRadius: '12px',
+              border: '1px solid rgba(56, 189, 248, 0.4)',
+              padding: '16px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#38bdf8' }}>
+                  🛠️ PROPRIEDADES DO ARMAZENADOR SELECIONADO
+                </div>
+                {isolatedBoxId === selectedBox.id && (
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      background: 'rgba(2, 132, 199, 0.4)',
+                      border: '1px solid #38bdf8',
+                      color: '#7dd3fc',
+                      padding: '2px 8px',
+                      borderRadius: '12px'
+                    }}
+                  >
+                    🎯 MODO FOCO ATIVO
+                  </span>
+                )}
               </div>
-              {isolatedBoxId === selectedBox.id && (
-                <span
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsolatedBoxId(isolatedBoxId === selectedBox.id ? null : selectedBox.id)}
+                  className="btn-compact"
                   style={{
-                    fontSize: '10px',
-                    fontWeight: 800,
-                    background: 'rgba(2, 132, 199, 0.4)',
-                    border: '1px solid #38bdf8',
-                    color: '#7dd3fc',
-                    padding: '2px 8px',
-                    borderRadius: '12px'
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '4px 10px',
+                    background: isolatedBoxId === selectedBox.id ? '#0284c7' : 'rgba(56, 189, 248, 0.15)',
+                    color: isolatedBoxId === selectedBox.id ? '#ffffff' : '#38bdf8',
+                    border: '1px solid #38bdf8'
+                  }}
+                  title={isolatedBoxId === selectedBox.id ? 'Voltar para exibir todos os demais baús' : 'Isolar este baú no 3D e tornar os outros transparentes'}
+                >
+                  {isolatedBoxId === selectedBox.id ? '← Voltar (Exibir Todos)' : '🎯 Isolar no 3D (2x cliques)'}
+                </button>
+                <button
+                  onClick={() => removeInternalBox(selectedBox.id)}
+                  className="btn-compact"
+                  style={{
+                    fontSize: '10.5px',
+                    padding: '4px 8px',
+                    color: '#f87171',
+                    borderColor: 'rgba(239, 68, 68, 0.4)'
                   }}
                 >
-                  🎯 MODO FOCO ATIVO
-                </span>
-              )}
+                  🗑️ Excluir Caixa
+                </button>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setIsolatedBoxId(isolatedBoxId === selectedBox.id ? null : selectedBox.id)}
-                className="btn-compact"
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  padding: '4px 10px',
-                  background: isolatedBoxId === selectedBox.id ? '#0284c7' : 'rgba(56, 189, 248, 0.15)',
-                  color: isolatedBoxId === selectedBox.id ? '#ffffff' : '#38bdf8',
-                  border: '1px solid #38bdf8'
-                }}
-                title={isolatedBoxId === selectedBox.id ? 'Voltar para exibir todos os demais baús' : 'Isolar este baú no 3D e tornar os outros transparentes'}
-              >
-                {isolatedBoxId === selectedBox.id ? '← Voltar (Exibir Todos)' : '🎯 Isolar no 3D (2x cliques)'}
-              </button>
-              <button
-                onClick={() => removeInternalBox(selectedBox.id)}
-                className="btn-compact"
-                style={{
-                  fontSize: '10.5px',
-                  padding: '4px 8px',
-                  color: '#f87171',
-                  borderColor: 'rgba(239, 68, 68, 0.4)'
-                }}
-              >
-                🗑️ Excluir Caixa
-              </button>
+
+            {/* ─── 1. PRIMEIRAS OPÇÕES: ALTURA & AJUSTE NO GRID ─── */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.75), rgba(15, 23, 42, 0.9))',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}
+            >
+              {/* Altura da Caixa */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span>📏</span>
+                    <span>1. Altura do Módulo:</span>
+                  </span>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc', fontFamily: 'var(--font-mono)' }}>
+                    {selectedBox.heightMm} mm <span style={{ color: '#94a3b8', fontSize: '10.5px', fontWeight: 600 }}>({(selectedBox.heightMm / 10).toFixed(0)} cm)</span>
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={200}
+                  max={700}
+                  step={10}
+                  value={selectedBox.heightMm}
+                  onChange={(e) => updateInternalBox(selectedBox.id, { heightMm: Number(e.target.value) })}
+                  style={{ width: '100%', accentColor: '#38bdf8' }}
+                />
+                <div style={{ display: 'flex', gap: '4px', marginTop: '6px', flexWrap: 'wrap' }}>
+                  {[300, 350, 400, 450, 500].map((hVal) => (
+                    <button
+                      key={hVal}
+                      type="button"
+                      onClick={() => updateInternalBox(selectedBox.id, { heightMm: hVal })}
+                      className="btn-compact"
+                      style={{
+                        fontSize: '9.5px',
+                        padding: '2px 7px',
+                        background: selectedBox.heightMm === hVal ? 'rgba(56, 189, 248, 0.3)' : 'rgba(30, 41, 59, 0.6)',
+                        borderColor: selectedBox.heightMm === hVal ? '#38bdf8' : 'rgba(148, 163, 184, 0.25)',
+                        color: selectedBox.heightMm === hVal ? '#38bdf8' : '#94a3b8'
+                      }}
+                    >
+                      {hVal} mm
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Ajuste no Grid: Dimensões (Colunas/Linhas) e Posição */}
+              <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.18)', paddingTop: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span>📐</span>
+                    <span>2. Ajuste de Ocupação no Grid:</span>
+                  </span>
+                  <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>
+                    Dimensões: <strong style={{ color: '#fbbf24' }}>{boxWMm} × {boxLMm} mm</strong> ({selectedBox.colSpan} col × {selectedBox.rowSpan} lin)
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {/* Largura (+/- Coluna) */}
+                  <button
+                    type="button"
+                    disabled={selectedBox.colSpan <= 1}
+                    onClick={() => updateInternalBox(selectedBox.id, { colSpan: selectedBox.colSpan - 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '10.5px', padding: '4px 8px' }}
+                    title="Diminuir largura ocupada no grid"
+                  >
+                    ◀ Encolher Largura
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedBox.colStart + selectedBox.colSpan >= cols}
+                    onClick={() => updateInternalBox(selectedBox.id, { colSpan: selectedBox.colSpan + 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '10.5px', padding: '4px 8px' }}
+                    title="Aumentar largura ocupada no grid"
+                  >
+                    Esticar Largura ▶
+                  </button>
+
+                  {/* Comprimento (+/- Linha) */}
+                  <button
+                    type="button"
+                    disabled={selectedBox.rowSpan <= 1}
+                    onClick={() => updateInternalBox(selectedBox.id, { rowSpan: selectedBox.rowSpan - 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '10.5px', padding: '4px 8px' }}
+                    title="Diminuir comprimento ocupado no grid"
+                  >
+                    ▲ Encolher Comp.
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedBox.rowStart + selectedBox.rowSpan >= rows}
+                    onClick={() => updateInternalBox(selectedBox.id, { rowSpan: selectedBox.rowSpan + 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '10.5px', padding: '4px 8px' }}
+                    title="Aumentar comprimento ocupado no grid"
+                  >
+                    Esticar Comp. ▼
+                  </button>
+
+                  {/* Mover */}
+                  <button
+                    type="button"
+                    disabled={selectedBox.colStart <= 0}
+                    onClick={() => updateInternalBox(selectedBox.id, { colStart: selectedBox.colStart - 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '10.5px', padding: '4px 8px' }}
+                    title="Mover módulo para a esquerda"
+                  >
+                    ⬅ Mover Esq.
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedBox.colStart + selectedBox.colSpan >= cols}
+                    onClick={() => updateInternalBox(selectedBox.id, { colStart: selectedBox.colStart + 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '10.5px', padding: '4px 8px' }}
+                    title="Mover módulo para a direita"
+                  >
+                    Mover Dir. ➡
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedBox.rowStart <= 0}
+                    onClick={() => updateInternalBox(selectedBox.id, { rowStart: selectedBox.rowStart - 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '10.5px', padding: '4px 8px' }}
+                    title="Mover módulo para frente (direção dos bancos)"
+                  >
+                    ⬆ Mover Frente
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedBox.rowStart + selectedBox.rowSpan >= rows}
+                    onClick={() => updateInternalBox(selectedBox.id, { rowStart: selectedBox.rowStart + 1 })}
+                    className="btn-compact"
+                    style={{ fontSize: '10.5px', padding: '4px 8px' }}
+                    title="Mover módulo para trás (direção do porta-malas)"
+                  >
+                    Mover Trás ⬇
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
             {/* Nome */}
@@ -895,23 +1320,6 @@ export const InternalBoxesPlanner: React.FC = () => {
                 <option value="white_mdf">⚪ MDF Branco Acetinado</option>
                 <option value="aluminum_box">⚙️ Gabinete Alumínio Estrutural</option>
               </select>
-            </div>
-
-            {/* Altura da Caixa */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8', marginBottom: '4px' }}>
-                <span>Altura da Caixa:</span>
-                <span style={{ fontWeight: 800, color: '#38bdf8' }}>{selectedBox.heightMm} mm ({(selectedBox.heightMm / 10).toFixed(0)} cm)</span>
-              </div>
-              <input
-                type="range"
-                min={200}
-                max={700}
-                step={10}
-                value={selectedBox.heightMm}
-                onChange={(e) => updateInternalBox(selectedBox.id, { heightMm: Number(e.target.value) })}
-                style={{ width: '100%' }}
-              />
             </div>
           </div>
 
@@ -1749,14 +2157,20 @@ export const InternalBoxesPlanner: React.FC = () => {
                     </select>
                   </div>
 
-                  {/* Fechamento: Porta c/ Trava Push-Lock vs Nicho Aberto */}
+                  {/* Fechamento: Porta c/ Trava Push-Lock vs Corrediça Telescópica vs Nicho Aberto */}
                   <div>
                     <label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>
                       Fechamento Frontal:
                     </label>
                     <select
-                      value={selectedBox.upperCabinetDoors !== false ? 'doors' : 'open'}
-                      onChange={(e) => updateInternalBox(selectedBox.id, { upperCabinetDoors: e.target.value === 'doors' })}
+                      value={getUpperCabinetClosure(selectedBox)}
+                      onChange={(e) => {
+                        const val = e.target.value as UpperCabinetClosure;
+                        updateInternalBox(selectedBox.id, {
+                          upperCabinetClosure: val,
+                          upperCabinetDoors: val !== 'open'
+                        });
+                      }}
                       style={{
                         width: '100%',
                         background: 'rgba(30, 41, 59, 0.9)',
@@ -1768,6 +2182,7 @@ export const InternalBoxesPlanner: React.FC = () => {
                       }}
                     >
                       <option value="doors">🚪 Porta c/ Botão Trava Náutico Push-Lock</option>
+                      <option value="drawer">🗄️ Gaveta Deslizante c/ Corrediça Telescópica (Trava Náutica)</option>
                       <option value="open">🕳️ Nicho Aberto c/ Friso Anti-Queda</option>
                     </select>
                   </div>
@@ -1775,7 +2190,9 @@ export const InternalBoxesPlanner: React.FC = () => {
 
                 {/* Prateleiras Internas */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>Prateleiras Internas Divisórias:</span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                    {getUpperCabinetClosure(selectedBox) === 'drawer' ? 'Divisórias Internas da Gaveta:' : 'Prateleiras Internas Divisórias:'}
+                  </span>
                   <div style={{ display: 'flex', gap: '4px' }}>
                     {[1, 2, 3].map(num => (
                       <button
@@ -1785,94 +2202,59 @@ export const InternalBoxesPlanner: React.FC = () => {
                         onClick={() => updateInternalBox(selectedBox.id, { upperCabinetShelves: num })}
                         style={{ fontSize: '10px', padding: '3px 8px' }}
                       >
-                        {num} {num === 1 ? 'Prateleira' : 'Prateleiras'}
+                        {num} {num === 1 ? (getUpperCabinetClosure(selectedBox) === 'drawer' ? 'Vão' : 'Prateleira') : (getUpperCabinetClosure(selectedBox) === 'drawer' ? 'Vãos' : 'Prateleiras')}
                       </button>
                     ))}
                   </div>
                 </div>
+
+                {/* Teste de Abertura Basculante da Porta ou Deslizamento da Corrediça */}
+                {getUpperCabinetClosure(selectedBox) !== 'open' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(15, 23, 42, 0.4)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                    <div>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#e2e8f0' }}>
+                        {getUpperCabinetClosure(selectedBox) === 'drawer' ? 'Deslizamento da Corrediça no 3D:' : 'Abertura da Porta no 3D:'}
+                      </div>
+                      <div style={{ fontSize: '9px', color: '#94a3b8' }}>
+                        {getUpperCabinetClosure(selectedBox) === 'drawer'
+                          ? 'Simula o avanço da gaveta nas corrediças telescópicas'
+                          : 'Simula o pistão basculante abrindo 75° para cima'}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const isCurrentlyOpen = isCabinetsOpenPreview || Boolean(selectedBox.isOpen);
+                        if (isCabinetsOpenPreview) {
+                          setIsCabinetsOpenPreview(false);
+                        }
+                        updateInternalBox(selectedBox.id, { isOpen: !isCurrentlyOpen });
+                      }}
+                      className="btn-compact"
+                      style={{
+                        fontSize: '10.5px',
+                        fontWeight: 700,
+                        padding: '4px 10px',
+                        background: (isCabinetsOpenPreview || Boolean(selectedBox.isOpen))
+                          ? 'linear-gradient(135deg, #10b981, #059669)'
+                          : 'linear-gradient(135deg, #0284c7, #2563eb)',
+                        borderColor: (isCabinetsOpenPreview || Boolean(selectedBox.isOpen)) ? '#34d399' : '#38bdf8',
+                        color: '#ffffff'
+                      }}
+                    >
+                      {(isCabinetsOpenPreview || Boolean(selectedBox.isOpen))
+                        ? (getUpperCabinetClosure(selectedBox) === 'drawer' ? '🔒 Recolher Gaveta' : '🔓 Fechar Porta')
+                        : (getUpperCabinetClosure(selectedBox) === 'drawer' ? '🗄️ Deslizar Gaveta (Abrir)' : '🚪 Abrir Porta')}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Ajuste Fino de Posição e Expansão de Células */}
-          <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(148, 163, 184, 0.15)' }}>
-            <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-              Ajustar Ocupação no Grid:
-            </span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
-              {/* Largura (+/- Coluna) */}
-              <button
-                disabled={selectedBox.colSpan <= 1}
-                onClick={() => updateInternalBox(selectedBox.id, { colSpan: selectedBox.colSpan - 1 })}
-                className="btn-compact"
-                style={{ fontSize: '10.5px', padding: '4px 8px' }}
-              >
-                ◀ Encolher Largura
-              </button>
-              <button
-                disabled={selectedBox.colStart + selectedBox.colSpan >= cols}
-                onClick={() => updateInternalBox(selectedBox.id, { colSpan: selectedBox.colSpan + 1 })}
-                className="btn-compact"
-                style={{ fontSize: '10.5px', padding: '4px 8px' }}
-              >
-                Esticar Largura ▶
-              </button>
-
-              {/* Comprimento (+/- Linha) */}
-              <button
-                disabled={selectedBox.rowSpan <= 1}
-                onClick={() => updateInternalBox(selectedBox.id, { rowSpan: selectedBox.rowSpan - 1 })}
-                className="btn-compact"
-                style={{ fontSize: '10.5px', padding: '4px 8px' }}
-              >
-                ▲ Encolher Comp.
-              </button>
-              <button
-                disabled={selectedBox.rowStart + selectedBox.rowSpan >= rows}
-                onClick={() => updateInternalBox(selectedBox.id, { rowSpan: selectedBox.rowSpan + 1 })}
-                className="btn-compact"
-                style={{ fontSize: '10.5px', padding: '4px 8px' }}
-              >
-                Esticar Comp. ▼
-              </button>
-
-              {/* Mover */}
-              <button
-                disabled={selectedBox.colStart <= 0}
-                onClick={() => updateInternalBox(selectedBox.id, { colStart: selectedBox.colStart - 1 })}
-                className="btn-compact"
-                style={{ fontSize: '10.5px', padding: '4px 8px' }}
-              >
-                ⬅ Mover Esq.
-              </button>
-              <button
-                disabled={selectedBox.colStart + selectedBox.colSpan >= cols}
-                onClick={() => updateInternalBox(selectedBox.id, { colStart: selectedBox.colStart + 1 })}
-                className="btn-compact"
-                style={{ fontSize: '10.5px', padding: '4px 8px' }}
-              >
-                Mover Dir. ➡
-              </button>
-              <button
-                disabled={selectedBox.rowStart <= 0}
-                onClick={() => updateInternalBox(selectedBox.id, { rowStart: selectedBox.rowStart - 1 })}
-                className="btn-compact"
-                style={{ fontSize: '10.5px', padding: '4px 8px' }}
-              >
-                ⬆ Mover Frente
-              </button>
-              <button
-                disabled={selectedBox.rowStart + selectedBox.rowSpan >= rows}
-                onClick={() => updateInternalBox(selectedBox.id, { rowStart: selectedBox.rowStart + 1 })}
-                className="btn-compact"
-                style={{ fontSize: '10.5px', padding: '4px 8px' }}
-              >
-                Mover Trás ⬇
-              </button>
-            </div>
-          </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* 4. Configuração Paramétrica das Divisórias do Grid */}
       <div
@@ -1938,6 +2320,878 @@ export const InternalBoxesPlanner: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 5. Teto & Forro do Campervan (Ripado / Chapa MDF ou Compensado + Iluminação LED) */}
+      {(() => {
+        const ceilingCfg: CeilingConfig = internalGrid.ceiling || DEFAULT_CEILING_CONFIG;
+        const isCeilingEnabled = ceilingCfg.enabled !== false;
+        const isSlatted = (ceilingCfg.type || 'slatted') === 'slatted';
+        const isCeilingVisible3D = ceilingCfg.visibleIn3D !== false;
+        const ceilingOpacity = ceilingCfg.opacity ?? 1.0;
+        const ledCfg: CeilingLedConfig = ceilingCfg.led || {
+          enabled: true,
+          type: 'strip_double',
+          color: '#fef3c7',
+          brightness: 85,
+          spotsCount: 4
+        };
+        const isLedEnabled = Boolean(ledCfg.enabled);
+
+        const slatW = ceilingCfg.slatWidthMm || 40;
+        const slatGap = ceilingCfg.slatGapMm || 10;
+        const slatThick = ceilingCfg.slatThicknessMm || 12;
+        const ceilingW = ceilingCfg.widthMm || internalGrid.widthMm;
+        const ceilingL = ceilingCfg.lengthMm || internalGrid.lengthMm;
+        const isTransverse = ceilingCfg.slatDirection === 'transverse';
+        const pitch = slatW + slatGap;
+        const calculatedSlatCount = isTransverse
+          ? Math.max(1, Math.floor((ceilingL - slatGap) / pitch))
+          : Math.max(1, Math.floor((ceilingW - slatGap) / pitch));
+        const slatLength = isTransverse ? ceilingW : ceilingL;
+        const totalSlatAreaM2 = ((calculatedSlatCount * slatW * slatLength) / 1_000_000).toFixed(2);
+
+        return (
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.85)',
+              borderRadius: '12px',
+              border: isCeilingEnabled ? '1.5px solid rgba(245, 158, 11, 0.45)' : '1px solid rgba(148, 163, 184, 0.25)',
+              padding: '16px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.45)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            {/* Cabeçalho da Seção */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px' }}>🪵</span>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    5. TETO & FORRO DO CAMPERVAN
+                  </div>
+                </div>
+                <div style={{ fontSize: '10.5px', color: '#94a3b8', marginTop: '2px' }}>
+                  Forro de teto acústico e térmico: ripado de madeira nobre ou chapa contínua (MDF / compensado) com LED
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {isCeilingEnabled && (
+                  <button
+                    onClick={toggleCeiling3D}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '5px 10px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      border: isCeilingVisible3D ? '1px solid rgba(56, 189, 248, 0.4)' : '1.5px solid #fbbf24',
+                      background: isCeilingVisible3D ? 'rgba(30, 41, 59, 0.6)' : 'rgba(217, 119, 6, 0.25)',
+                      color: isCeilingVisible3D ? '#94a3b8' : '#fbbf24',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title={
+                      isCeilingVisible3D
+                        ? 'Ocultar teto no 3D para visualizar o interior dos baús por cima'
+                        : 'Exibir teto no 3D'
+                    }
+                  >
+                    <span>{isCeilingVisible3D ? '👁️' : '🙈'}</span>
+                    <span>{isCeilingVisible3D ? 'Teto 3D Visível' : 'Teto 3D Oculto'}</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    setCeiling({
+                      enabled: !isCeilingEnabled
+                    });
+                  }}
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    border: 'none',
+                    background: isCeilingEnabled
+                      ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                      : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    color: '#ffffff',
+                    boxShadow: isCeilingEnabled
+                      ? '0 2px 8px rgba(239, 68, 68, 0.4)'
+                      : '0 2px 8px rgba(245, 158, 11, 0.4)'
+                  }}
+                >
+                  {isCeilingEnabled ? '🗑️ Desativar Teto' : '➕ Ativar Teto no Projeto'}
+                </button>
+              </div>
+            </div>
+
+            {!isCeilingEnabled ? (
+              <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.55, background: 'rgba(15, 23, 42, 0.5)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(148, 163, 184, 0.15)' }}>
+                💡 <em>O teto do campervan isola termicamente a cabine da Doblò contra o calor do teto de metal, oferece acabamento de alto padrão (madeira ripada ou chapa lisa) e acomoda fita LED linear ou spots embutidos para iluminação geral do veículo. Clique no botão acima para incluir o teto no seu projeto.</em>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* 1. SELETOR DE TIPO: RIPADO vs CHAPA */}
+                <div style={{ background: 'rgba(2, 6, 23, 0.5)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(148, 163, 184, 0.2)' }}>
+                  <div style={{ fontSize: '10.5px', fontWeight: 800, color: '#f8fafc', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Tipo de Forro do Teto
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <button
+                      onClick={() => setCeiling({ type: 'slatted' })}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        border: isSlatted ? '2px solid #f59e0b' : '1px solid rgba(148, 163, 184, 0.3)',
+                        background: isSlatted ? 'rgba(245, 158, 11, 0.18)' : 'rgba(30, 41, 59, 0.6)',
+                        color: isSlatted ? '#fbbf24' : '#cbd5e1',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span style={{ fontSize: '18px' }}>🪵</span>
+                      <strong style={{ fontSize: '12px' }}>Teto Ripado</strong>
+                      <span style={{ fontSize: '9.5px', color: '#94a3b8', textAlign: 'center' }}>
+                        Ripas de madeira com fundo acústico
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => setCeiling({ type: 'sheet' })}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        border: !isSlatted ? '2px solid #38bdf8' : '1px solid rgba(148, 163, 184, 0.3)',
+                        background: !isSlatted ? 'rgba(56, 189, 248, 0.18)' : 'rgba(30, 41, 59, 0.6)',
+                        color: !isSlatted ? '#38bdf8' : '#cbd5e1',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span style={{ fontSize: '18px' }}>📄</span>
+                      <strong style={{ fontSize: '12px' }}>Chapa Contínua</strong>
+                      <span style={{ fontSize: '9.5px', color: '#94a3b8', textAlign: 'center' }}>
+                        MDF Branco Ultra ou Compensado Naval
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. CONFIGURAÇÕES ESPECÍFICAS DO TETO RIPADO */}
+                {isSlatted && (
+                  <div style={{ background: 'rgba(2, 6, 23, 0.5)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.25)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ fontSize: '10.5px', fontWeight: 800, color: '#fbbf24', textTransform: 'uppercase' }}>
+                      📐 Configurações das Ripas de Madeira
+                    </div>
+
+                    {/* Madeira / Acabamento das Ripas */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '10.5px', color: '#e2e8f0', marginBottom: '4px', fontWeight: 700 }}>
+                        🌲 Espécie / Tonalidade da Madeira:
+                      </label>
+                      <select
+                        value={ceilingCfg.slattedWood || 'freijo'}
+                        onChange={(e) => setCeiling({ slattedWood: e.target.value as CeilingSlattedWood })}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          background: '#0f172a',
+                          color: '#ffffff',
+                          border: '1px solid rgba(148, 163, 184, 0.3)',
+                          fontSize: '11px'
+                        }}
+                      >
+                        <option value="freijo">Freijó Nobre Natural (Tons Quentes / Van Life Moderno)</option>
+                        <option value="pinus">Pinus Claro Maciço (Nórdico / Claro)</option>
+                        <option value="teak">Teca Náutica Selada (Elegante & Resistente)</option>
+                        <option value="dark_wood">Imbuia / Nogueira Nobre Escura (Contraste Marcante)</option>
+                        <option value="cedro">Cedro Rosa Real (Tons Avermelhados Clássicos)</option>
+                        <option value="plywood">Compensado Naval 12mm (Marcenaria Pura)</option>
+                        <option value="white_mdf">MDF Branco Ultra (Minimalista Clean)</option>
+                      </select>
+                    </div>
+
+                    {/* Largura da Ripa & Espaçamento / Fenda */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#e2e8f0' }}>
+                          <span>Largura da Ripa:</span>
+                          <strong style={{ color: '#fbbf24' }}>{slatW} mm</strong>
+                        </div>
+                        <input
+                          type="range"
+                          min={25}
+                          max={70}
+                          step={5}
+                          value={slatW}
+                          onChange={(e) => setCeiling({ slatWidthMm: Number(e.target.value) })}
+                          style={{ width: '100%', marginTop: '4px' }}
+                        />
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#e2e8f0' }}>
+                          <span>Espaçamento (Fenda):</span>
+                          <strong style={{ color: '#fbbf24' }}>{slatGap} mm</strong>
+                        </div>
+                        <input
+                          type="range"
+                          min={5}
+                          max={20}
+                          step={1}
+                          value={slatGap}
+                          onChange={(e) => setCeiling({ slatGapMm: Number(e.target.value) })}
+                          style={{ width: '100%', marginTop: '4px' }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Espessura / Profundidade da Ripa & Orientação */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '10.5px', color: '#e2e8f0', marginBottom: '4px', fontWeight: 700 }}>
+                          Espessura / Profundidade:
+                        </label>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          {[10, 12, 15, 18].map((t) => (
+                            <button
+                              key={t}
+                              onClick={() => setCeiling({ slatThicknessMm: t })}
+                              style={{
+                                flex: 1,
+                                padding: '4px 6px',
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                border: slatThick === t ? '1.5px solid #fbbf24' : '1px solid rgba(148, 163, 184, 0.3)',
+                                background: slatThick === t ? 'rgba(245, 158, 11, 0.25)' : 'rgba(30, 41, 59, 0.5)',
+                                color: slatThick === t ? '#ffffff' : '#94a3b8'
+                              }}
+                            >
+                              {t}mm
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '10.5px', color: '#e2e8f0', marginBottom: '4px', fontWeight: 700 }}>
+                          Direção das Ripas:
+                        </label>
+                        <select
+                          value={ceilingCfg.slatDirection || 'longitudinal'}
+                          onChange={(e) => setCeiling({ slatDirection: e.target.value as any })}
+                          style={{
+                            width: '100%',
+                            padding: '5px 8px',
+                            borderRadius: '6px',
+                            background: '#0f172a',
+                            color: '#ffffff',
+                            border: '1px solid rgba(148, 163, 184, 0.3)',
+                            fontSize: '11px'
+                          }}
+                        >
+                          <option value="longitudinal">Longitudinal (Frente ➔ Traseira)</option>
+                          <option value="transverse">Transversal (Largura)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Fundo Acústico Preto */}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '11px', color: '#cbd5e1' }}>
+                      <input
+                        type="checkbox"
+                        checked={ceilingCfg.acousticFeltBacking !== false}
+                        onChange={(e) => setCeiling({ acousticFeltBacking: e.target.checked })}
+                      />
+                      <span>Fundo acústico automotivo preto (feltro / TNT escuro atrás das ripas)</span>
+                    </label>
+
+                    {/* Resumo do Ripado */}
+                    <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.3)', fontSize: '10px', color: '#fbbf24', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                      <span>📊 Total: <strong>{calculatedSlatCount} ripas</strong> de {slatW} × {slatLength} × {slatThick} mm</span>
+                      <span>Área: <strong>{totalSlatAreaM2} m²</strong></span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. CONFIGURAÇÕES ESPECÍFICAS DO TETO EM CHAPA */}
+                {!isSlatted && (
+                  <div style={{ background: 'rgba(2, 6, 23, 0.5)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.25)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ fontSize: '10.5px', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase' }}>
+                      📐 Configurações da Chapa de Teto (MDF / Compensado)
+                    </div>
+
+                    {/* 1. Seleção do Material Base da Chapa (MDF vs Compensado) */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '10.5px', color: '#e2e8f0', marginBottom: '6px', fontWeight: 700 }}>
+                        Material da Chapa de Forro:
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (ceilingCfg.sheetMaterial === 'plywood') {
+                              setCeiling({ sheetMaterial: lastMdfType || 'white_mdf' });
+                            }
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            padding: '8px 10px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            background: (ceilingCfg.sheetMaterial !== 'plywood')
+                              ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.35), rgba(37, 99, 235, 0.45))'
+                              : 'rgba(15, 23, 42, 0.7)',
+                            border: (ceilingCfg.sheetMaterial !== 'plywood')
+                              ? '1.5px solid #38bdf8'
+                              : '1px solid rgba(148, 163, 184, 0.3)',
+                            color: (ceilingCfg.sheetMaterial !== 'plywood') ? '#ffffff' : '#94a3b8',
+                            boxShadow: (ceilingCfg.sheetMaterial !== 'plywood') ? '0 0 10px rgba(56, 189, 248, 0.25)' : 'none',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <span>⬜</span>
+                          <span>Chapa de MDF</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCeiling({ sheetMaterial: 'plywood' });
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            padding: '8px 10px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            background: (ceilingCfg.sheetMaterial === 'plywood')
+                              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(217, 119, 6, 0.45))'
+                              : 'rgba(15, 23, 42, 0.7)',
+                            border: (ceilingCfg.sheetMaterial === 'plywood')
+                              ? '1.5px solid #fbbf24'
+                              : '1px solid rgba(148, 163, 184, 0.3)',
+                            color: (ceilingCfg.sheetMaterial === 'plywood') ? '#ffffff' : '#94a3b8',
+                            boxShadow: (ceilingCfg.sheetMaterial === 'plywood') ? '0 0 10px rgba(245, 158, 11, 0.25)' : 'none',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <span>🪵</span>
+                          <span>Compensado Naval</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 2. Quando MDF é selecionado: abre opções específicas para os tipos de MDF */}
+                    {(ceilingCfg.sheetMaterial !== 'plywood') ? (
+                      <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.35)', animation: 'fadeIn 0.2s ease-out' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <label style={{ fontSize: '10.5px', color: '#38bdf8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>🎨</span>
+                            <span>Opções de Tipos / Padrões de MDF:</span>
+                          </label>
+                          <span style={{ fontSize: '9px', color: '#94a3b8' }}>
+                            Acabamento melamínico UV
+                          </span>
+                        </div>
+
+                        <select
+                          value={ceilingCfg.sheetMaterial || lastMdfType}
+                          onChange={(e) => {
+                            const val = e.target.value as CeilingSheetMaterial;
+                            setLastMdfType(val);
+                            setCeiling({ sheetMaterial: val });
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '7px 10px',
+                            borderRadius: '6px',
+                            background: '#0f172a',
+                            color: '#ffffff',
+                            border: '1px solid rgba(56, 189, 248, 0.4)',
+                            fontSize: '11px',
+                            fontWeight: 600
+                          }}
+                        >
+                          <option value="white_mdf">⚪ MDF Branco Ultra (Máxima Claridade & Reflexão de Luz)</option>
+                          <option value="gray_mdf">🔘 MDF Cinza Grafite / Titânio (Visual Stealth Moderno)</option>
+                          <option value="wood_mdf">🪵 MDF Carvalho / Freijó Amadeirado (Aconchego Clássico)</option>
+                          <option value="black_mdf">⚫ MDF Preto Fosco / Black Matte (Estilo Industrial Premium)</option>
+                          <option value="sand_mdf">📜 MDF Bege / Areia / Off-White (Ambiente Neutro Acolhedor)</option>
+                        </select>
+
+                        {/* Pílulas de seleção rápida com swatch de cor */}
+                        <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+                          {[
+                            { id: 'white_mdf', label: 'Branco Ultra', bg: '#f8fafc', text: '#0f172a' },
+                            { id: 'gray_mdf', label: 'Cinza Grafite', bg: '#475569', text: '#ffffff' },
+                            { id: 'wood_mdf', label: 'Freijó Madeira', bg: '#c89355', text: '#ffffff' },
+                            { id: 'black_mdf', label: 'Preto Fosco', bg: '#1e293b', text: '#ffffff' },
+                            { id: 'sand_mdf', label: 'Bege Areia', bg: '#dcd0c0', text: '#0f172a' }
+                          ].map(swatch => {
+                            const isCurrent = (ceilingCfg.sheetMaterial === swatch.id || (!ceilingCfg.sheetMaterial && swatch.id === 'white_mdf'));
+                            return (
+                              <button
+                                key={swatch.id}
+                                type="button"
+                                onClick={() => {
+                                  const val = swatch.id as CeilingSheetMaterial;
+                                  setLastMdfType(val);
+                                  setCeiling({ sheetMaterial: val });
+                                }}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '3px 8px',
+                                  borderRadius: '4px',
+                                  fontSize: '9.5px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  background: isCurrent ? 'rgba(56, 189, 248, 0.25)' : 'rgba(30, 41, 59, 0.6)',
+                                  border: isCurrent ? '1.5px solid #38bdf8' : '1px solid rgba(148, 163, 184, 0.25)',
+                                  color: isCurrent ? '#ffffff' : '#cbd5e1'
+                                }}
+                              >
+                                <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: swatch.bg, border: '1px solid rgba(0,0,0,0.3)', display: 'inline-block' }} />
+                                {swatch.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ background: 'rgba(15, 23, 42, 0.65)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.35)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '20px' }}>🪵</span>
+                        <div>
+                          <div style={{ fontSize: '11px', fontWeight: 700, color: '#fbbf24' }}>
+                            Compensado Naval Impermeabilizado (100% Náutico)
+                          </div>
+                          <div style={{ fontSize: '9.5px', color: '#94a3b8' }}>
+                            Lâminas de madeira nobre prensadas com cola fenólica naval WBP, resistente a vapor, condensação e umidade automotiva.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Espessura da Chapa & Divisão das Placas */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '10.5px', color: '#e2e8f0', marginBottom: '4px', fontWeight: 700 }}>
+                          Espessura da Chapa:
+                        </label>
+                        <select
+                          value={ceilingCfg.thicknessMm || 9}
+                          onChange={(e) => setCeiling({ thicknessMm: Number(e.target.value) })}
+                          style={{
+                            width: '100%',
+                            padding: '5px 8px',
+                            borderRadius: '6px',
+                            background: '#0f172a',
+                            color: '#34d399',
+                            border: '1px solid rgba(52, 211, 153, 0.4)',
+                            fontSize: '11px',
+                            fontWeight: 700
+                          }}
+                        >
+                          <option value={6}>6 mm (Super Leve p/ Teto)</option>
+                          <option value={9}>9 mm (Padrão Recomendado Doblò)</option>
+                          <option value={12}>12 mm (Rigidez Reforçada)</option>
+                          <option value={15}>15 mm (Chapa Espessa)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '10.5px', color: '#e2e8f0', marginBottom: '4px', fontWeight: 700 }}>
+                          Divisão das Placas:
+                        </label>
+                        <select
+                          value={ceilingCfg.sheetPanels || 'single'}
+                          onChange={(e) => setCeiling({ sheetPanels: e.target.value as any })}
+                          style={{
+                            width: '100%',
+                            padding: '5px 8px',
+                            borderRadius: '6px',
+                            background: '#0f172a',
+                            color: '#ffffff',
+                            border: '1px solid rgba(148, 163, 184, 0.3)',
+                            fontSize: '11px'
+                          }}
+                        >
+                          <option value="single">Chapa Única Inteira ({ceilingW} × {ceilingL} mm)</option>
+                          <option value="split_longitudinal">Bipartida Longitudinal (2 Chapas {Math.round(ceilingW / 2)} × {ceilingL} mm)</option>
+                          <option value="split_transverse">Tripartida Transversal (3 Painéis {ceilingW} × {Math.round(ceilingL / 3)} mm)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. OPACIDADE NO 3D & AJUSTES DIMENSIONAIS */}
+                <div style={{ background: 'rgba(2, 6, 23, 0.5)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(148, 163, 184, 0.2)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                  {/* Curvatura Transversal do Teto */}
+                  <div style={{ gridColumn: '1 / -1', background: 'rgba(15, 23, 42, 0.6)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10.5px', color: '#e2e8f0' }}>
+                      <span style={{ fontWeight: 700, color: '#fbbf24' }}>
+                        🏹 Curvatura do Teto (Arco Transversal da Doblò):
+                      </span>
+                      <strong style={{ color: (ceilingCfg.curvatureMm ?? 25) > 0 ? '#34d399' : '#94a3b8', fontSize: '11px' }}>
+                        {(ceilingCfg.curvatureMm ?? 25) > 0 ? `${ceilingCfg.curvatureMm ?? 25} mm de Flecha (Abaulado)` : '0 mm (Totalmente Plano)'}
+                      </strong>
+                    </div>
+
+                    <input
+                      type="range"
+                      min={0}
+                      max={30}
+                      step={5}
+                      value={Math.min(30, ceilingCfg.curvatureMm ?? 25)}
+                      onChange={(e) => setCeiling({ curvatureMm: Math.min(30, Number(e.target.value)) })}
+                      style={{ width: '100%', marginTop: '6px' }}
+                    />
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap', gap: '6px' }}>
+                      <span style={{ fontSize: '9px', color: '#94a3b8' }}>
+                        Base de referência nas laterais mais baixas; o arco compensa subindo ao centro (+pé-direito)
+                      </span>
+
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {[
+                          { val: 0, label: '0mm (Plano)' },
+                          { val: 10, label: '10mm (Leve)' },
+                          { val: 20, label: '20mm (Médio)' },
+                          { val: 25, label: '25mm (Doblò)' },
+                          { val: 30, label: '30mm (Máx)' }
+                        ].map((btn) => (
+                          <button
+                            key={btn.val}
+                            onClick={() => setCeiling({ curvatureMm: btn.val })}
+                            style={{
+                              fontSize: '9px',
+                              fontWeight: 700,
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              border: (ceilingCfg.curvatureMm ?? 25) === btn.val ? '1px solid #fbbf24' : '1px solid rgba(148, 163, 184, 0.3)',
+                              background: (ceilingCfg.curvatureMm ?? 25) === btn.val ? 'rgba(245, 158, 11, 0.3)' : 'rgba(30, 41, 59, 0.5)',
+                              color: (ceilingCfg.curvatureMm ?? 25) === btn.val ? '#ffffff' : '#94a3b8'
+                            }}
+                          >
+                            {btn.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Opacidade 3D */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#e2e8f0' }}>
+                      <span>Opacidade 3D:</span>
+                      <strong style={{ color: '#38bdf8' }}>{Math.round(ceilingOpacity * 100)}%</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={10}
+                      max={100}
+                      step={5}
+                      value={Math.round(ceilingOpacity * 100)}
+                      onChange={(e) => setCeiling({ opacity: Number(e.target.value) / 100 })}
+                      style={{ width: '100%', marginTop: '4px' }}
+                    />
+                    <div style={{ fontSize: '9px', color: '#94a3b8', marginTop: '2px' }}>
+                      Reduza para ver através do teto no 3D
+                    </div>
+                  </div>
+
+                  {/* Comprimento do Teto */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#e2e8f0' }}>
+                      <span>Comprimento:</span>
+                      <strong style={{ color: '#38bdf8' }}>{ceilingL} mm</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={1200}
+                      max={2200}
+                      step={50}
+                      value={ceilingL}
+                      onChange={(e) => setCeiling({ lengthMm: Number(e.target.value) })}
+                      style={{ width: '100%', marginTop: '4px' }}
+                    />
+                  </div>
+
+                  {/* Largura do Teto */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#e2e8f0' }}>
+                      <span>Largura:</span>
+                      <strong style={{ color: '#38bdf8' }}>{ceilingW} mm</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={1000}
+                      max={1350}
+                      step={25}
+                      value={ceilingW}
+                      onChange={(e) => setCeiling({ widthMm: Number(e.target.value) })}
+                      style={{ width: '100%', marginTop: '4px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* 5. CARD: ILUMINAÇÃO LED INTEGRADA NO TETO */}
+                <div
+                  style={{
+                    background: isLedEnabled
+                      ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.85) 100%)'
+                      : 'rgba(30, 41, 59, 0.4)',
+                    border: isLedEnabled ? '1.5px solid #f59e0b' : '1px solid rgba(148, 163, 184, 0.25)',
+                    borderRadius: '10px',
+                    padding: '14px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '18px' }}>💡</span>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 800, color: isLedEnabled ? '#fbbf24' : '#e2e8f0' }}>
+                          ILUMINAÇÃO LED NO TETO
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#94a3b8' }}>
+                          Perfis de fita LED COB com difusor leitoso ou spots circulares com iluminação real no 3D
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setCeiling({
+                          led: {
+                            ...ledCfg,
+                            enabled: !isLedEnabled
+                          }
+                        });
+                      }}
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        border: 'none',
+                        background: isLedEnabled
+                          ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                          : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                        color: '#ffffff',
+                        boxShadow: isLedEnabled
+                          ? '0 2px 8px rgba(239, 68, 68, 0.4)'
+                          : '0 2px 8px rgba(245, 158, 11, 0.4)'
+                      }}
+                    >
+                      {isLedEnabled ? '🗑️ Desativar LED' : '➕ Ativar LED no Teto'}
+                    </button>
+                  </div>
+
+                  {isLedEnabled && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+                      {/* Tipo de Iluminação */}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '10.5px', color: '#e2e8f0', marginBottom: '6px', fontWeight: 700 }}>
+                          Estilo da Luminária do Teto:
+                        </label>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px' }}>
+                          {[
+                            { id: 'strip_double', label: '2 Fitas Laterais', desc: 'Duplo perfil longitudinal' },
+                            { id: 'strip_center', label: '1 Fita Central', desc: 'Perfil longitudinal único' },
+                            { id: 'strip_triple', label: '3 Fitas Triplas', desc: 'Centro + 2 laterais' },
+                            { id: 'spots', label: 'Spots Embutidos', desc: 'Plafons circulares embutir' }
+                          ].map((item) => (
+                            <button
+                              key={item.id}
+                              onClick={() => setCeiling({ led: { ...ledCfg, type: item.id as CeilingLedType } })}
+                              style={{
+                                padding: '6px 8px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                border: ledCfg.type === item.id ? '1.5px solid #fbbf24' : '1px solid rgba(148, 163, 184, 0.3)',
+                                background: ledCfg.type === item.id ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.6)',
+                                color: ledCfg.type === item.id ? '#ffffff' : '#cbd5e1'
+                              }}
+                            >
+                              <div style={{ fontSize: '10.5px', fontWeight: 700 }}>{item.label}</div>
+                              <div style={{ fontSize: '8.5px', color: '#94a3b8' }}>{item.desc}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Se Spots: Quantidade de Spots */}
+                      {ledCfg.type === 'spots' && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '10.5px', color: '#e2e8f0', marginBottom: '4px', fontWeight: 700 }}>
+                            Quantidade de Spots de LED:
+                          </label>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            {[2, 4, 6, 8].map((qty) => (
+                              <button
+                                key={qty}
+                                onClick={() => setCeiling({ led: { ...ledCfg, spotsCount: qty } })}
+                                style={{
+                                  flex: 1,
+                                  padding: '5px',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  border: (ledCfg.spotsCount || 4) === qty ? '1.5px solid #38bdf8' : '1px solid rgba(148, 163, 184, 0.3)',
+                                  background: (ledCfg.spotsCount || 4) === qty ? 'rgba(56, 189, 248, 0.25)' : 'rgba(15, 23, 42, 0.6)',
+                                  color: (ledCfg.spotsCount || 4) === qty ? '#ffffff' : '#94a3b8'
+                                }}
+                              >
+                                {qty} Spots
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Cor da Luz / Presets Rápidos */}
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '10.5px', color: '#e2e8f0', fontWeight: 700 }}>
+                            Tonalidade da Luz:
+                          </span>
+                          <span style={{ fontSize: '10px', color: '#fbbf24', fontWeight: 700 }}>
+                            {ledCfg.color === '#fef3c7'
+                              ? '3000K Branco Quente'
+                              : ledCfg.color === '#ffffff'
+                                ? '4000K Branco Neutro'
+                                : ledCfg.color === '#e0f2fe'
+                                  ? '6000K Branco Frio'
+                                  : ledCfg.color === '#f59e0b'
+                                    ? 'Âmbar Noturno'
+                                    : ledCfg.color === '#38bdf8'
+                                      ? 'Azul Céu'
+                                      : ledCfg.color}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {[
+                            { color: '#fef3c7', label: '3000K Quente', bg: '#fef3c7' },
+                            { color: '#ffffff', label: '4000K Neutro', bg: '#ffffff' },
+                            { color: '#e0f2fe', label: '6000K Frio', bg: '#bae6fd' },
+                            { color: '#f59e0b', label: 'Âmbar', bg: '#f59e0b' },
+                            { color: '#38bdf8', label: 'Azul', bg: '#38bdf8' }
+                          ].map((c) => {
+                            const isSelected = (ledCfg.color || '#fef3c7').toLowerCase() === c.color.toLowerCase();
+                            return (
+                              <button
+                                key={c.color}
+                                onClick={() => setCeiling({ led: { ...ledCfg, color: c.color } })}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '4px 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  border: isSelected ? '1.5px solid #fbbf24' : '1px solid rgba(148, 163, 184, 0.3)',
+                                  background: isSelected ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.6)',
+                                  color: isSelected ? '#ffffff' : '#cbd5e1'
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    width: '10px',
+                                    height: '10px',
+                                    borderRadius: '50%',
+                                    background: c.bg,
+                                    border: '1px solid rgba(0,0,0,0.3)',
+                                    boxShadow: isSelected ? `0 0 6px ${c.bg}` : 'none'
+                                  }}
+                                />
+                                {c.label}
+                              </button>
+                            );
+                          })}
+
+                          {/* Seletor Customizado */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
+                            <span style={{ fontSize: '9px', color: '#94a3b8' }}>Custom:</span>
+                            <input
+                              type="color"
+                              value={ledCfg.color || '#fef3c7'}
+                              onChange={(e) => setCeiling({ led: { ...ledCfg, color: e.target.value } })}
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                                padding: 0,
+                                border: '1px solid rgba(148, 163, 184, 0.4)',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                background: 'transparent'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Brilho / Intensidade */}
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#e2e8f0' }}>
+                          <span>Brilho / Intensidade Luminosa:</span>
+                          <strong style={{ color: '#fbbf24' }}>{ledCfg.brightness ?? 85}%</strong>
+                        </div>
+                        <input
+                          type="range"
+                          min={10}
+                          max={100}
+                          step={5}
+                          value={ledCfg.brightness ?? 85}
+                          onChange={(e) => setCeiling({ led: { ...ledCfg, brightness: Number(e.target.value) } })}
+                          style={{ width: '100%', marginTop: '4px' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };

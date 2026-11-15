@@ -458,6 +458,7 @@ export const TextureGenerator = {
    * Gera textura com o emblema oficial "MOTOBUL OFF ROAD" idêntico ao baú da foto
    */
   createMotobulEmblemTexture: function(): THREE.CanvasTexture {
+    if (typeof document === 'undefined') return new THREE.CanvasTexture({} as any);
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 256;

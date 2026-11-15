@@ -1,6 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { useSolar } from '../../context/SolarContext';
-import { PartsGroupFilter, getFoldingBracketForHeight } from '../../types';
+import { getFoldingBracketForHeight, getUpperCabinetClosure } from '../../types';
+import { CuttingPlanPanel } from '../cutting/CuttingPlanPanel';
+import { extractPvcCutStats } from '../../utils/pvcUtils';
+import {
+  calculateWeldedJoints,
+  groupProfilesByThickness,
+  ProfileThicknessGroup,
+  CutGroupThicknessSection
+} from '../../utils/weldedJointsUtils';
 
 interface BarCutGroup {
   key: string;
@@ -32,8 +40,25 @@ interface WoodCutGroup {
   qty: number;
   totalAreaM2: number;
   material: string;
+  woodMaterial?: string;
+  moduleName?: string;
+  partType?: string;
   isPerforated?: boolean;
+  holeDiameterMm?: number;
+  spacingMm?: number;
+  exclusionZones?: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
+  hasCabinetExclusion?: boolean;
   isRearShelf?: boolean;
+}
+
+interface WoodGroupByCategory {
+  key: string;
+  woodMaterial: string;
+  thicknessMm: number;
+  totalPieces: number;
+  totalAreaM2: number;
+  estimatedSheets: number;
+  pieces: WoodCutGroup[];
 }
 
 export const BomModal: React.FC = () => {
@@ -42,7 +67,9 @@ export const BomModal: React.FC = () => {
     closeModal,
     structureMaterial,
     steelProfileUnit,
-    usinaCharger,
+    metalonWallThickness,
+    metalonThickness40,
+    metalonThickness30,
     sceneManager,
     stackLevels,
     level1,
@@ -50,21 +77,23 @@ export const BomModal: React.FC = () => {
     cargoBox,
     activePanelPreset,
     setViewMode,
-    waterTank,
-    awning,
     internalBoxes,
     internalGrid,
-    partsFilter,
-    setPartsFilter
+    setPartsFilter,
+    waterTank
   } = useSolar();
 
-  const [activeTab, setActiveTab] = useState<PartsGroupFilter>(partsFilter || 'all');
+  const [mainViewMode, setMainViewMode] = useState<'wood_cutting' | 'metal' | 'pvc'>('wood_cutting');
+  const [pvcBarStandard, setPvcBarStandard] = useState<'6m' | '3m'>('6m');
+  const [selectedPieceKey, setSelectedPieceKey] = useState<string | null>(null);
+  const [activeGroupKey, setActiveGroupKey] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
-  const pipeRadiusMm = Math.round(waterTank.diameterMm / 2);
-  const pipeRadiusDm = pipeRadiusMm / 100;
-  const singlePipeLiters = +(Math.PI * pipeRadiusDm * pipeRadiusDm * (waterTank.lengthMm / 100)).toFixed(1);
-  const totalWaterLiters = +(singlePipeLiters * 2).toFixed(1);
+  const pvcStats = useMemo(() => {
+    return extractPvcCutStats(waterTank);
+  }, [waterTank]);
 
+  // Totalizador de Ferragens e Perfis Metálicos (Alumínio T-Slot / Metalon Soldado)
   const barStats = useMemo(() => {
     const groupsMap = new Map<string, BarCutGroup>();
     const profileMap = new Map<string, ProfileSummary>();
@@ -137,26 +166,34 @@ export const BomModal: React.FC = () => {
     const profileSummaries = Array.from(profileMap.values())
       .map((p) => ({
         ...p,
-        // Considera 5% de perda de serra/corte para estimativa de barras comerciais de 6m e 3m
         bars6m: Math.max(1, Math.ceil((p.totalMeters * 1.05) / 6.0)),
         bars3m: Math.max(1, Math.ceil((p.totalMeters * 1.05) / 3.0))
       }))
       .sort((a, b) => b.totalMeters - a.totalMeters);
 
     const totalBars6m = profileSummaries
-      .filter((p) => p.profileSpec.includes('T-Slot') || p.profileSpec.includes('Metalon'))
+      .filter((p) => p.profileSpec.includes('T-Slot') || p.profileSpec.includes('Metalon') || p.profileSpec.includes('Tubo'))
       .reduce((acc, p) => acc + p.bars6m, 0);
+
+    const { thicknessGroups, cutThicknessGroups } = groupProfilesByThickness(profileSummaries, cutGroups);
 
     return {
       totalPieces,
       totalMeters,
       totalBars6m,
       cutGroups,
-      profileSummaries
+      profileSummaries,
+      thicknessGroups,
+      cutThicknessGroups
     };
-  }, [sceneManager, activeModal, structureMaterial, steelProfileUnit, stackLevels, level1, level2, cargoBox, activePanelPreset]);
+  }, [sceneManager, activeModal, structureMaterial, steelProfileUnit, metalonWallThickness, metalonThickness40, metalonThickness30, stackLevels, level1, level2, cargoBox, activePanelPreset]);
 
-  // Totalizador e Plano de Corte do Grupo Madeira (Marcenaria / Compensado Naval)
+  // Relatório de Juntas/Nós Estruturais (A métrica das "Quinas")
+  const weldedJointsReport = useMemo(() => {
+    return calculateWeldedJoints(sceneManager);
+  }, [sceneManager, activeModal, cargoBox, stackLevels, level1, level2]);
+
+  // Totalizador e Plano de Corte do Grupo Madeira (Marcenaria / Compensado Naval / MDF / Madeira Maciça)
   const woodStats = useMemo(() => {
     const groupsMap = new Map<string, WoodCutGroup>();
     let totalPieces = 0;
@@ -176,24 +213,40 @@ export const BomModal: React.FC = () => {
 
         const lengthM = dims[0];
         const widthM = Math.max(0.015, dims[1]);
-        const thicknessM = Math.max(0.005, dims[2]);
+        const thicknessM = Math.max(0.003, dims[2]);
         const areaM2 = lengthM * widthM;
 
         const lengthMm = Math.round(lengthM * 1000);
         const widthMm = Math.round(widthM * 1000);
-        const thicknessMm = Math.round(thicknessM * 1000);
+        const thicknessMm = Number(obj.userData.thicknessMm) || Math.round(thicknessM * 1000);
         const isPerforated = Boolean(obj.userData.isPerforated);
+        const hasCabinetExclusion = Boolean(obj.userData.hasCabinetExclusion);
         const isRearShelf = Boolean(obj.userData.isRearShelf);
 
-        const rawLabel = String(obj.userData.partLabel || obj.userData.name || 'Chapa Compensado 15mm')
+        const woodMaterial = String(
+          obj.userData.woodMaterial ||
+          (obj.userData.material?.includes('MDF')
+            ? 'MDF Branco Ultra'
+            : obj.userData.material?.includes('Maciça')
+              ? 'Madeira Nobre Maciça'
+              : 'Compensado Naval')
+        );
+
+        const moduleName = String(obj.userData.moduleName || '');
+        const partType = String(obj.userData.partType || '');
+        const holeDiameterMm = obj.userData.holeDiameterMm ? Number(obj.userData.holeDiameterMm) : 40;
+        const spacingMm = obj.userData.spacingMm ? Number(obj.userData.spacingMm) : 85;
+        const exclusionZones = obj.userData.exclusionZones || undefined;
+
+        const rawLabel = String(obj.userData.partLabel || obj.userData.name || `Chapa ${woodMaterial} ${thicknessMm}mm`)
           .replace(/\s*\(#\d+\)/g, '')
           .trim();
-        const material = String(obj.userData.material || (isPerforated ? 'Compensado Naval 15mm Vazado (Alívio Peso)' : 'Compensado Naval 15mm Impermeabilizado'));
+        const material = String(obj.userData.material || `${woodMaterial} ${thicknessMm}mm Impermeabilizado`);
 
         totalPieces += 1;
         totalAreaM2 += areaM2;
 
-        const key = `${rawLabel}__${widthMm}x${lengthMm}x${thicknessMm}${isPerforated ? '__perf' : ''}${isRearShelf ? '__shelf' : ''}`;
+        const key = `${woodMaterial}__${thicknessMm}__${rawLabel}__${widthMm}x${lengthMm}${isPerforated ? '__perf' : ''}${hasCabinetExclusion ? '__cabex' : ''}${isRearShelf ? '__shelf' : ''}`;
         const existing = groupsMap.get(key);
         if (existing) {
           existing.qty += 1;
@@ -211,7 +264,14 @@ export const BomModal: React.FC = () => {
             qty: 1,
             totalAreaM2: areaM2,
             material,
+            woodMaterial,
+            moduleName,
+            partType,
             isPerforated,
+            holeDiameterMm,
+            spacingMm,
+            exclusionZones,
+            hasCabinetExclusion,
             isRearShelf
           });
         }
@@ -224,8 +284,6 @@ export const BomModal: React.FC = () => {
       return a.label.localeCompare(b.label);
     });
 
-    // Chapa padrão de compensado naval: 2440 × 1220 mm = ~2.977 m²
-    // Estimativa de chapas comerciais de 15mm considerando 10% de perda em cortes
     const standardSheets = Math.max(1, Math.ceil((totalAreaM2 * 1.10) / 2.977));
 
     return {
@@ -236,35 +294,174 @@ export const BomModal: React.FC = () => {
     };
   }, [sceneManager, internalBoxes, internalGrid, activeModal]);
 
+  // Agrupamento das peças de madeira por [Tipo de Madeira] + [Espessura] estilo Corte Cloud
+  const woodGroupsByCategory = useMemo<WoodGroupByCategory[]>(() => {
+    const map = new Map<string, WoodGroupByCategory>();
+
+    woodStats.cutGroups.forEach((group) => {
+      const woodMat = group.woodMaterial || 'Compensado Naval';
+      const thick = group.thicknessMm || 15;
+      const key = `${woodMat}__${thick}`;
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          woodMaterial: woodMat,
+          thicknessMm: thick,
+          totalPieces: 0,
+          totalAreaM2: 0,
+          estimatedSheets: 0,
+          pieces: []
+        });
+      }
+
+      const cat = map.get(key)!;
+      cat.pieces.push(group);
+      cat.totalPieces += group.qty;
+      cat.totalAreaM2 += group.totalAreaM2;
+    });
+
+    const result = Array.from(map.values());
+    result.forEach((cat) => {
+      const sheetArea = cat.woodMaterial.includes('MDF') ? (2.75 * 1.83) : (2.44 * 1.22);
+      cat.estimatedSheets = Math.max(1, Math.ceil((cat.totalAreaM2 * 1.10) / sheetArea));
+    });
+
+    return result.sort((a, b) => {
+      if (a.woodMaterial !== b.woodMaterial) return a.woodMaterial.localeCompare(b.woodMaterial);
+      return b.thicknessMm - a.thicknessMm;
+    });
+  }, [woodStats.cutGroups]);
+
   if (activeModal !== 'bom') return null;
 
   return (
     <div className="modal-overlay open" onClick={closeModal}>
       <div
         className="modal-window glass-panel"
-        style={{ maxWidth: '920px', maxHeight: '90vh', overflowY: 'auto' }}
+        style={{
+          maxWidth: '96vw',
+          width: '1600px',
+          maxHeight: '92vh',
+          height: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-header">
-          <div className="modal-title">📦 Lista de Peças, Ferragens, Marcenaria e Plano de Corte</div>
+        {/* Cabeçalho da Tela de Peças & Plano de Corte */}
+        <div className="modal-header" style={{ paddingBottom: '10px', borderBottom: '1px solid rgba(148, 163, 184, 0.2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <div className="modal-title" style={{ fontSize: '15px', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>🪵</span>
+              <span>Marcenaria & Plano de Corte 2D — Estilo Corte Cloud</span>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  color: '#f59e0b',
+                  background: 'rgba(245, 158, 11, 0.18)',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  padding: '2px 8px',
+                  borderRadius: '5px'
+                }}
+              >
+                {woodStats.totalPieces} Peças de Madeira
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  color: '#34d399',
+                  background: 'rgba(52, 211, 153, 0.15)',
+                  border: '1px solid rgba(52, 211, 153, 0.4)',
+                  padding: '2px 8px',
+                  borderRadius: '5px'
+                }}
+              >
+                {woodStats.totalAreaM2.toFixed(2)} m² Úteis
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  color: '#38bdf8',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                  padding: '2px 8px',
+                  borderRadius: '5px'
+                }}
+              >
+                ~{woodStats.standardSheets} Chapas (2.44×1.22m)
+              </span>
+            </div>
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button
+                className={`btn-compact ${mainViewMode === 'wood_cutting' ? 'active' : ''}`}
+                onClick={() => setMainViewMode('wood_cutting')}
+                style={{
+                  padding: '5px 8px',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  background: mainViewMode === 'wood_cutting' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.7)',
+                  borderColor: mainViewMode === 'wood_cutting' ? '#f59e0b' : 'rgba(148, 163, 184, 0.3)',
+                  color: mainViewMode === 'wood_cutting' ? '#fbbf24' : '#94a3b8'
+                }}
+              >
+                🪵 Marcenaria ({woodStats.totalPieces})
+              </button>
+              <button
+                className={`btn-compact ${mainViewMode === 'metal' ? 'active' : ''}`}
+                onClick={() => setMainViewMode('metal')}
+                style={{
+                  padding: '5px 8px',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  background: mainViewMode === 'metal' ? 'rgba(56, 189, 248, 0.25)' : 'rgba(15, 23, 42, 0.7)',
+                  borderColor: mainViewMode === 'metal' ? '#38bdf8' : 'rgba(148, 163, 184, 0.3)',
+                  color: mainViewMode === 'metal' ? '#38bdf8' : '#94a3b8'
+                }}
+              >
+                🔩 Perfis ({barStats.totalPieces})
+              </button>
+              <button
+                className={`btn-compact ${mainViewMode === 'pvc' ? 'active' : ''}`}
+                onClick={() => setMainViewMode('pvc')}
+                style={{
+                  padding: '5px 8px',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  background: mainViewMode === 'pvc' ? 'rgba(14, 165, 233, 0.25)' : 'rgba(15, 23, 42, 0.7)',
+                  borderColor: mainViewMode === 'pvc' ? '#0ea5e9' : 'rgba(148, 163, 184, 0.3)',
+                  color: mainViewMode === 'pvc' ? '#38bdf8' : '#94a3b8'
+                }}
+              >
+                💧 Canos PVC ({waterTank.enabled ? pvcStats.totalPieces : 0})
+              </button>
+            </div>
             <button
               className="btn-compact primary"
               onClick={() => {
                 closeModal();
-                setPartsFilter(activeTab);
+                setPartsFilter(mainViewMode === 'wood_cutting' ? 'wood' : mainViewMode === 'metal' ? 'metal' : 'pvc');
                 setViewMode('bars_lineup');
               }}
               style={{
-                padding: '6px 12px',
-                fontSize: '11.5px',
+                padding: '5px 10px',
+                fontSize: '11px',
                 fontWeight: 800,
                 background: 'rgba(16, 185, 129, 0.2)',
                 borderColor: '#10b981',
                 color: '#34d399'
               }}
             >
-              📏 Ver Peças Lado a Lado no 3D
+              📏 Ver no 3D
             </button>
             <button className="modal-close-btn" onClick={closeModal}>
               &times;
@@ -272,100 +469,350 @@ export const BomModal: React.FC = () => {
           </div>
         </div>
 
-        {/* ─── SELETOR DE GRUPOS DE PEÇAS: FERRAGENS vs MADEIRA ─── */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '8px',
-            marginBottom: '16px',
-            padding: '6px',
-            background: 'rgba(15, 23, 42, 0.75)',
-            borderRadius: '10px',
-            border: '1px solid rgba(148, 163, 184, 0.25)'
-          }}
-        >
-          <button
-            onClick={() => {
-              setActiveTab('all');
-              setPartsFilter('all');
-            }}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '8px',
-              border: activeTab === 'all' ? '1px solid #10b981' : '1px solid transparent',
-              background: activeTab === 'all' ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.35))' : 'transparent',
-              color: activeTab === 'all' ? '#ffffff' : '#94a3b8',
-              fontWeight: 800,
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <span>📦</span>
-            <span>Todas as Peças ({barStats.totalPieces + woodStats.totalPieces})</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('metal');
-              setPartsFilter('metal');
-            }}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '8px',
-              border: activeTab === 'metal' ? '1px solid #38bdf8' : '1px solid transparent',
-              background: activeTab === 'metal' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(37, 99, 235, 0.35))' : 'transparent',
-              color: activeTab === 'metal' ? '#ffffff' : '#94a3b8',
-              fontWeight: 800,
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <span>🔩</span>
-            <span>1. Ferragens & Perfis ({barStats.totalPieces})</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('wood');
-              setPartsFilter('wood');
-            }}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '8px',
-              border: activeTab === 'wood' ? '1px solid #f59e0b' : '1px solid transparent',
-              background: activeTab === 'wood' ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.35))' : 'transparent',
-              color: activeTab === 'wood' ? '#ffffff' : '#94a3b8',
-              fontWeight: 800,
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <span>🪵</span>
-            <span>2. Madeira & Marcenaria ({woodStats.totalPieces})</span>
-          </button>
-        </div>
-
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* ─── GRUPO 1: FERRAGENS & ESTRUTURA METÁLICA ─── */}
+        {/* ─── CORTE CLOUD: GRID DE PEÇAS NA ESQUERDA + PLANO DE CORTE NA DIREITA ─── */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        {(activeTab === 'all' || activeTab === 'metal') && (
-          <div style={{ marginBottom: activeTab === 'all' ? '28px' : '0' }}>
+        {mainViewMode === 'wood_cutting' ? (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(500px, 1fr) minmax(520px, 1.2fr)',
+              gap: '14px',
+              flex: 1,
+              minHeight: 0,
+              overflow: 'hidden',
+              marginTop: '10px'
+            }}
+          >
+            {/* ─── COLUNA DA ESQUERDA: GRID POR LINHA AGRUPADO POR TIPO & ESPESSURA ─── */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                minHeight: 0,
+                background: 'rgba(15, 23, 42, 0.65)',
+                borderRadius: '8px',
+                border: '1px solid rgba(148, 163, 184, 0.2)',
+                padding: '10px',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Barra de Filtro / Busca */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 Filtrar por nome da peça, módulo ou dimensão..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px',
+                      background: 'rgba(2, 6, 23, 0.8)',
+                      border: '1px solid rgba(148, 163, 184, 0.3)',
+                      borderRadius: '6px',
+                      color: '#f8fafc',
+                      fontSize: '11px',
+                      outline: 'none'
+                    }}
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
+                <div style={{ fontSize: '10.5px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                  <strong>{woodGroupsByCategory.length}</strong> {woodGroupsByCategory.length === 1 ? 'grupo' : 'grupos'}
+                </div>
+              </div>
+
+              {/* Lista com Rolagem dos Grupos de Madeira e Espessura */}
+              <div
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: 'auto',
+                  paddingRight: '4px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}
+              >
+                {woodGroupsByCategory.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                    Nenhuma peça de marcenaria encontrada nos módulos.
+                  </div>
+                ) : (
+                  woodGroupsByCategory.map((category) => {
+                    const filteredPieces = category.pieces.filter((p) => {
+                      if (!searchTerm) return true;
+                      const term = searchTerm.toLowerCase();
+                      return (
+                        p.label.toLowerCase().includes(term) ||
+                        (p.moduleName && p.moduleName.toLowerCase().includes(term)) ||
+                        `${p.lengthMm}`.includes(term) ||
+                        `${p.widthMm}`.includes(term)
+                      );
+                    });
+
+                    if (searchTerm && filteredPieces.length === 0) return null;
+
+                    const isCurrentActiveGroup = activeGroupKey === category.key;
+
+                    return (
+                      <div
+                        key={category.key}
+                        style={{
+                          background: 'rgba(2, 6, 23, 0.65)',
+                          borderRadius: '8px',
+                          border: isCurrentActiveGroup
+                            ? '1px solid #10b981'
+                            : '1px solid rgba(148, 163, 184, 0.25)',
+                          overflow: 'hidden',
+                          transition: 'border-color 0.15s ease'
+                        }}
+                      >
+                        {/* Cabeçalho do Grupo de Material e Espessura */}
+                        <div
+                          style={{
+                            padding: '8px 12px',
+                            background: isCurrentActiveGroup
+                              ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.12))'
+                              : 'rgba(15, 23, 42, 0.85)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '6px',
+                            borderBottom: '1px solid rgba(148, 163, 184, 0.15)'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '14px' }}>🪵</span>
+                            <div>
+                              <strong style={{ fontSize: '12px', color: '#f8fafc' }}>
+                                {category.woodMaterial} — {category.thicknessMm} mm
+                              </strong>
+                              <span style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '6px' }}>
+                                ({category.totalPieces} {category.totalPieces === 1 ? 'peça' : 'peças'} · {category.totalAreaM2.toFixed(2)} m²)
+                              </span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span
+                              style={{
+                                fontSize: '9.5px',
+                                fontWeight: 700,
+                                color: '#fbbf24',
+                                background: 'rgba(245, 158, 11, 0.15)',
+                                padding: '2px 6px',
+                                borderRadius: '4px'
+                              }}
+                            >
+                              ~{category.estimatedSheets} {category.estimatedSheets === 1 ? 'chapa' : 'chapas'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveGroupKey(category.key);
+                                if (category.pieces.length > 0) {
+                                  setSelectedPieceKey(category.pieces[0].key);
+                                }
+                              }}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '5px',
+                                border: isCurrentActiveGroup ? '1px solid #10b981' : '1px solid rgba(148, 163, 184, 0.3)',
+                                background: isCurrentActiveGroup ? '#10b981' : 'rgba(15, 23, 42, 0.7)',
+                                color: isCurrentActiveGroup ? '#022c22' : '#cbd5e1',
+                                fontSize: '10px',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              {isCurrentActiveGroup ? '✓ Folha Ativa' : '📐 Ver Plano de Corte'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Tabela do Grid de Peças deste Grupo */}
+                        <div style={{ overflowX: 'auto' }}>
+                          <table className="bom-table" style={{ margin: 0, width: '100%', fontSize: '11px' }}>
+                            <thead>
+                              <tr>
+                                <th style={{ width: '32px', textAlign: 'center' }}>#</th>
+                                <th>Peça / Componente</th>
+                                <th>Módulo</th>
+                                <th>Medidas (C × L × E)</th>
+                                <th style={{ textAlign: 'center' }}>Qtd</th>
+                                <th>Área</th>
+                                <th>Usinagem / Furação CNC</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredPieces.map((piece, idx) => {
+                                const isSelected = selectedPieceKey === piece.key;
+
+                                return (
+                                  <tr
+                                    key={piece.key}
+                                    onClick={() => {
+                                      setSelectedPieceKey(piece.key);
+                                      setActiveGroupKey(category.key);
+                                    }}
+                                    style={{
+                                      cursor: 'pointer',
+                                      background: isSelected
+                                        ? 'rgba(56, 189, 248, 0.22)'
+                                        : undefined,
+                                      borderLeft: isSelected ? '3px solid #38bdf8' : '3px solid transparent',
+                                      transition: 'background 0.12s ease'
+                                    }}
+                                  >
+                                    <td style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
+                                      {idx + 1}
+                                    </td>
+                                    <td>
+                                      <strong style={{ color: isSelected ? '#38bdf8' : '#f8fafc' }}>
+                                        {piece.label}
+                                      </strong>
+                                    </td>
+                                    <td>
+                                      {piece.moduleName ? (
+                                        <span
+                                          style={{
+                                            fontSize: '9px',
+                                            fontWeight: 700,
+                                            padding: '2px 5px',
+                                            borderRadius: '4px',
+                                            background: 'rgba(148, 163, 184, 0.15)',
+                                            color: '#cbd5e1'
+                                          }}
+                                        >
+                                          {piece.moduleName}
+                                        </span>
+                                      ) : (
+                                        <span style={{ color: '#64748b', fontSize: '9px' }}>—</span>
+                                      )}
+                                    </td>
+                                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f59e0b', whiteSpace: 'nowrap' }}>
+                                      {piece.lengthMm} × {piece.widthMm} × {piece.thicknessMm} mm
+                                    </td>
+                                    <td style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>
+                                      {piece.qty} un
+                                    </td>
+                                    <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399', fontSize: '10.5px' }}>
+                                      {piece.totalAreaM2 >= 0.1 ? `${piece.totalAreaM2.toFixed(3)} m²` : `${Math.round(piece.totalAreaM2 * 10000)} cm²`}
+                                    </td>
+                                    <td>
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                        {piece.isPerforated && (
+                                          <span
+                                            style={{
+                                              fontSize: '8.5px',
+                                              fontWeight: 700,
+                                              color: '#34d399',
+                                              background: 'rgba(52, 211, 153, 0.15)',
+                                              border: '1px solid rgba(52, 211, 153, 0.4)',
+                                              padding: '1px 5px',
+                                              borderRadius: '3px',
+                                              whiteSpace: 'nowrap'
+                                            }}
+                                          >
+                                            🕳️ CNC Ø{piece.holeDiameterMm || 40}mm
+                                          </span>
+                                        )}
+                                        {piece.hasCabinetExclusion && (
+                                          <span
+                                            style={{
+                                              fontSize: '8.5px',
+                                              fontWeight: 700,
+                                              color: '#38bdf8',
+                                              background: 'rgba(56, 189, 248, 0.18)',
+                                              border: '1px solid rgba(56, 189, 248, 0.4)',
+                                              padding: '1px 5px',
+                                              borderRadius: '3px',
+                                              whiteSpace: 'nowrap'
+                                            }}
+                                          >
+                                            🍃 Base Aéreo
+                                          </span>
+                                        )}
+                                        {piece.isRearShelf && (
+                                          <span
+                                            style={{
+                                              fontSize: '8.5px',
+                                              fontWeight: 700,
+                                              color: '#fbbf24',
+                                              background: 'rgba(245, 158, 11, 0.18)',
+                                              border: '1px solid rgba(245, 158, 11, 0.4)',
+                                              padding: '1px 5px',
+                                              borderRadius: '3px',
+                                              whiteSpace: 'nowrap'
+                                            }}
+                                          >
+                                            🪵 Mesa Rebatível
+                                          </span>
+                                        )}
+                                        {!piece.isPerforated && !piece.hasCabinetExclusion && !piece.isRearShelf && (
+                                          <span style={{ fontSize: '9px', color: '#64748b' }}>Corte Reto</span>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* ─── COLUNA DA DIREITA: PAINEL DE PLANO DE CORTE CNC 2D (ESTILO CORTE CLOUD) ─── */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                minHeight: 0,
+                overflow: 'hidden'
+              }}
+            >
+              <CuttingPlanPanel
+                woodCutGroups={woodStats.cutGroups}
+                selectedPieceKey={selectedPieceKey}
+                onSelectPiece={setSelectedPieceKey}
+                activeGroupKey={activeGroupKey}
+                onSelectGroupKey={setActiveGroupKey}
+              />
+            </div>
+          </div>
+        ) : mainViewMode === 'metal' ? (
+          /* ═══════════════════════════════════════════════════════════════════ */
+          /* ─── MODO OPCIONAL: FERRAGENS & ESTRUTURA METÁLICA (PERFIS & ACESSÓRIOS) ─── */
+          /* ═══════════════════════════════════════════════════════════════════ */
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px', marginTop: '10px' }}>
             <div
               style={{
                 marginBottom: '8px',
@@ -382,915 +829,612 @@ export const BomModal: React.FC = () => {
                 alignItems: 'center'
               }}
             >
-              <span>🔩 GRUPO 1: FERRAGENS & ESTRUTURA METÁLICA (PERFIS, TRILHOS & ACESSÓRIOS)</span>
+              <span>🔩 FERRAGENS & ESTRUTURA METÁLICA (PERFIS, TRILHOS & ACESSÓRIOS)</span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: '#cbd5e1' }}>
-                Material: {structureMaterial === 'aluminum' ? 'Alumínio Estrutural T-Slot' : 'Aço Metalon Soldado'}
+                Material: {structureMaterial === 'aluminum' ? 'Alumínio Estrutural T-Slot' : structureMaterial === 'aluminum_tube' ? 'Alumínio Tubular (Metalon Alumínio)' : 'Aço Metalon Soldado'}
               </span>
             </div>
 
-        {/* Cards de Totais */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '10px',
-            marginBottom: '14px'
-          }}
-        >
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.65)',
-              border: '1px solid rgba(56, 189, 248, 0.35)',
-              borderRadius: '8px',
-              padding: '10px 12px'
-            }}
-          >
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
-              Total de Barras (Peças)
-            </div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#38bdf8', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-              {barStats.totalPieces} <span style={{ fontSize: '12px', fontWeight: 600 }}>un</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#64748b' }}>Todas as barras e trilhos</div>
-          </div>
-
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.65)',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
-              borderRadius: '8px',
-              padding: '10px 12px'
-            }}
-          >
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
-              Metragem Linear Total
-            </div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#34d399', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-              {barStats.totalMeters.toFixed(2)} <span style={{ fontSize: '12px', fontWeight: 600 }}>m</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#64748b' }}>
-              {Math.round(barStats.totalMeters * 1000).toLocaleString('pt-BR')} mm acumulados
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.65)',
-              border: '1px solid rgba(245, 158, 11, 0.35)',
-              borderRadius: '8px',
-              padding: '10px 12px'
-            }}
-          >
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
-              Barras Comerciais (6m)
-            </div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#fbbf24', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-              {barStats.totalBars6m} <span style={{ fontSize: '12px', fontWeight: 600 }}>barras 6m</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#64748b' }}>Perfis 40×40 + 30×30 (+5% corte)</div>
-          </div>
-
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.65)',
-              border: '1px solid rgba(168, 85, 247, 0.35)',
-              borderRadius: '8px',
-              padding: '10px 12px'
-            }}
-          >
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
-              Medidas Diferentes
-            </div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#c084fc', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-              {barStats.cutGroups.length} <span style={{ fontSize: '12px', fontWeight: 600 }}>cortes</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#64748b' }}>Agrupados por função/medida</div>
-          </div>
-        </div>
-
-        {/* Tabela Totalizadora por Tipo de Perfil */}
-        <table className="bom-table" style={{ marginBottom: '16px' }}>
-          <thead>
-            <tr>
-              <th>Especificação do Perfil / Material</th>
-              <th>Qtd. Peças</th>
-              <th>Total Linear (mm)</th>
-              <th>Total Linear (m)</th>
-              <th>Equiv. Barras 6m</th>
-              <th>Equiv. Barras 3m</th>
-            </tr>
-          </thead>
-          <tbody>
-            {barStats.profileSummaries.map((p) => (
-              <tr key={p.profileSpec}>
-                <td>
-                  <strong style={{ color: '#f8fafc' }}>{p.profileSpec}</strong>
-                </td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>{p.pieces} un</td>
-                <td style={{ fontFamily: 'var(--font-mono)' }}>{Math.round(p.totalMeters * 1000).toLocaleString('pt-BR')} mm</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#34d399' }}>{p.totalMeters.toFixed(2)} m</td>
-                <td style={{ fontFamily: 'var(--font-mono)', color: '#fbbf24' }}>
-                  {p.profileSpec.includes('T-Slot') || p.profileSpec.includes('Metalon') ? `${p.bars6m} barra(s)` : '—'}
-                </td>
-                <td style={{ fontFamily: 'var(--font-mono)', color: '#94a3b8' }}>
-                  {p.profileSpec.includes('T-Slot') || p.profileSpec.includes('Metalon') ? `${p.bars3m} barra(s)` : '—'}
-                </td>
-              </tr>
-            ))}
-            <tr style={{ background: 'rgba(16, 185, 129, 0.12)', fontWeight: 800 }}>
-              <td style={{ color: '#34d399' }}>TOTAL GERAL DE BARRAS</td>
-              <td style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>{barStats.totalPieces} un</td>
-              <td style={{ fontFamily: 'var(--font-mono)', color: '#f8fafc' }}>
-                {Math.round(barStats.totalMeters * 1000).toLocaleString('pt-BR')} mm
-              </td>
-              <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399' }}>{barStats.totalMeters.toFixed(2)} m</td>
-              <td style={{ fontFamily: 'var(--font-mono)', color: '#fbbf24' }}>{barStats.totalBars6m} barra(s) 6m</td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* Tabela Completa de Cortes Ordenada da Maior para a Menor Barra */}
-        <div
-          style={{
-            marginBottom: '6px',
-            padding: '7px 10px',
-            background: 'rgba(56, 189, 248, 0.12)',
-            borderLeft: '3px solid var(--primary)',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.5px',
-            color: 'var(--primary)'
-          }}
-        >
-          📏 PLANO DE CORTE DETALHADO — ORDENADO DA MAIOR PARA A MENOR BARRA ({barStats.totalPieces} PEÇAS)
-        </div>
-        <table className="bom-table" style={{ marginBottom: '18px' }}>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Peça / Função na Estrutura</th>
-              <th>Perfil</th>
-              <th>Medida Unit.</th>
-              <th>Qtd</th>
-              <th>Subtotal Linear</th>
-            </tr>
-          </thead>
-          <tbody>
-            {barStats.cutGroups.map((g, idx) => (
-              <tr key={g.key}>
-                <td style={{ fontFamily: 'var(--font-mono)', color: '#64748b' }}>{idx + 1}</td>
-                <td>
-                  <strong>{g.label}</strong>
-                </td>
-                <td style={{ fontSize: '11px', color: '#94a3b8' }}>{g.profileSpec}</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>
-                  {structureMaterial === 'steel' && steelProfileUnit === 'inch' ? (
-                    <>
-                      {(g.lengthM * 39.3701).toFixed(1)}" <span style={{ color: '#64748b', fontWeight: 400 }}>({g.lengthMm.toLocaleString('pt-BR')} mm)</span>
-                    </>
-                  ) : (
-                    <>
-                      {g.lengthMm.toLocaleString('pt-BR')} mm <span style={{ color: '#64748b', fontWeight: 400 }}>({(g.lengthM * 100).toFixed(1)} cm)</span>
-                    </>
-                  )}
-                </td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{g.qty} un</td>
-                <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399', fontWeight: 700 }}>
-                  {g.totalLengthM.toFixed(2)} m
-                </td>
-              </tr>
-            ))}
-            <tr style={{ background: 'rgba(56, 189, 248, 0.12)', fontWeight: 800 }}>
-              <td colSpan={4} style={{ textAlign: 'right', color: '#38bdf8' }}>
-                SOMA TOTAL DE TODAS AS BARRAS:
-              </td>
-              <td style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>{barStats.totalPieces} un</td>
-              <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399' }}>{barStats.totalMeters.toFixed(2)} m</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* SEÇÃO 1: Painéis e Componentes */}
-        <div
-          style={{
-            marginBottom: '6px',
-            padding: '7px 10px',
-            background: 'rgba(14,165,233,0.12)',
-            borderLeft: '3px solid var(--primary)',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.5px',
-            color: 'var(--primary)'
-          }}
-        >
-          ☀️ PAINÉIS E COMPONENTES ELÉTRICOS
-        </div>
-        <table className="bom-table" style={{ marginBottom: '16px' }}>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Descrição / Medida</th>
-              <th>Qtd</th>
-              <th>Finalidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Painel Solar Flexível 100W</strong></td>
-              <td>60 cm × 1.00 m · 3 mm esp. · 1,6 kg · Voc 22,28 V</td>
-              <td>2–8 un</td>
-              <td>Geração fotovoltaica monocristalina no stack</td>
-            </tr>
-            <tr>
-              <td><strong>Bateria LiFePO4 Kingbo 560Ah</strong></td>
-              <td>KINGBO MB12560 · 12,8 V · 560 Ah · 7,168 kWh · JK BMS 4.3"</td>
-              <td>1 un</td>
-              <td>Armazenamento de energia de altíssima autonomia</td>
-            </tr>
-            <tr>
-              <td><strong>Controlador MPPT Kingbo 60A</strong></td>
-              <td>230Vdc entrada FV · 12–96V bat · RS485+WiFi · 202×215×100 mm · 1,95 kg</td>
-              <td>1 un</td>
-              <td>Regulação e rastreamento MPPT dos painéis para a bateria LiFePO4</td>
-            </tr>
-            <tr>
-              <td><strong>Carregador DC-DC B2B1230</strong></td>
-              <td>12V 30A (390W) · Alternador Doblò → LiFePO4 · Bluetooth 5.0 integrado · Pino D+</td>
-              <td>1 un</td>
-              <td>Carga rápida da bateria pelo alternador do carro em viagens e dias nublados</td>
-            </tr>
-            <tr>
-              <td><strong>Cabos de Força B2B 16mm²</strong></td>
-              <td>Cabo automotivo flexível 16 mm² (vermelho/preto) + Fusíveis 50A</td>
-              <td>8 m</td>
-              <td>Ligação do alternador/bateria de partida ao B2B1230 e bateria LiFePO4</td>
-            </tr>
-            <tr>
-              <td><strong>Fonte Carregador Usina {usinaCharger.modelRating}A</strong></td>
-              <td>Smart Connect Bivolt 100–250V · Saída 12,5V–14,4V · {usinaCharger.modelRating}A ({Math.round(usinaCharger.modelRating * 14.4)}W) · Linha 70A/120A/150A/200A</td>
-              <td>1 un</td>
-              <td>Recarga rápida da bateria Kingbo LiFePO4 em camping/rede externa ({usinaCharger.modelRating}A nominais)</td>
-            </tr>
-            <tr>
-              <td><strong>Cabos de Força Usina ({usinaCharger.modelRating >= 200 ? '50mm²' : usinaCharger.modelRating >= 150 ? '35mm²' : usinaCharger.modelRating >= 120 ? '25mm²' : '16mm²'})</strong></td>
-              <td>Cabo flexível cobre alta condução + Terminal olhal estanhado reforçado</td>
-              <td>3 m</td>
-              <td>Conexão dos bornes da Usina {usinaCharger.modelRating}A à barra de distribuição da bateria LiFePO4</td>
-            </tr>
-            <tr>
-              <td><strong>Entrada Shore Power Externa</strong></td>
-              <td>Tomada industrial externa 20A 250V + Plugue fêmea com tampa naval</td>
-              <td>1 un</td>
-              <td>Ponto de conexão externa na lataria da Doblò para conexão em tomadas de camping</td>
-            </tr>
-            <tr>
-              <td><strong>Cabo Solar Fotovoltaico</strong></td>
-              <td>6 mm² flexível · dupla capa UV · MC4</td>
-              <td>15 m</td>
-              <td>Conexão placas → controlador MPPT</td>
-            </tr>
-            <tr>
-              <td><strong>Fixadores de Ilhoses (Olhais)</strong></td>
-              <td>Presilhas AL + Parafusos Allen M6 inox + arruelas</td>
-              <td>6 un/painel</td>
-              <td>Fixação nos olhais metálicos do laminado flexível</td>
-            </tr>
-            {waterTank.enabled && (
-              <>
-                <tr style={{ background: 'rgba(14, 165, 233, 0.1)' }}>
-                  <td><strong style={{ color: '#38bdf8' }}>💧 Tubos PVC R={pipeRadiusMm}mm / Ø{waterTank.diameterMm}mm (Caixa d'Água Lateral)</strong></td>
-                  <td>
-                    Cano PVC Série R / Esgoto Reforçado Raio <strong>{pipeRadiusMm}mm</strong> (Ø{waterTank.diameterMm}mm) × <strong>{waterTank.lengthMm} mm</strong> ({(waterTank.lengthMm / 1000).toFixed(2)} m cada) ·{' '}
-                    <strong>{singlePipeLiters.toFixed(1)} L/cano ({totalWaterLiters.toFixed(1)} L total)</strong>
-                  </td>
-                  <td>2 un</td>
-                  <td>Reservatório de água lateral (1 do lado motorista + 1 do lado passageiro, máx. base 2200 mm)</td>
-                </tr>
-                <tr style={{ background: 'rgba(14, 165, 233, 0.06)' }}>
-                  <td><strong>Tampões (Caps) PVC Ø{waterTank.diameterMm}mm + Anel Vedação</strong></td>
-                  <td>Cap PVC Ø{waterTank.diameterMm}mm (Raio {pipeRadiusMm}mm) com anel de borracha + adesivo PVC + bocal sup. 50mm + registro esfera 1/2"</td>
-                  <td>4 caps + 2 kits</td>
-                  <td>Vedação das 4 pontas dos canos de Ø{waterTank.diameterMm}mm, abastecimento superior e torneira traseira</td>
-                </tr>
-                <tr style={{ background: 'rgba(14, 165, 233, 0.06)' }}>
-                  <td><strong>Abraçadeiras Tipo U / Cinta Inox Ø{waterTank.diameterMm}mm</strong></td>
-                  <td>Cinta de aço inox 304 com borracha EPDM + parafusos M8 para perfil estrutural 40×40</td>
-                  <td>{waterTank.lengthMm >= 1600 ? '6 un' : '4 un'}</td>
-                  <td>Fixação lateral dos 2 tubos cheios (~{totalWaterLiters.toFixed(0)} kg de água) nas longarinas da base</td>
-                </tr>
-              </>
-            )}
-          </tbody>
-        </table>
-
-        {/* SEÇÃO 2: Lista de Barras de Alumínio / Metalon */}
-        <div
-          style={{
-            marginBottom: '6px',
-            padding: '7px 10px',
-            background: 'rgba(14,165,233,0.12)',
-            borderLeft: '3px solid var(--primary)',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.5px',
-            color: 'var(--primary)'
-          }}
-        >
-          🔩 LISTA DE BARRAS — PERFIL {structureMaterial === 'aluminum' ? 'ALUMÍNIO T-SLOT 40×40' : 'METALON 40×40'} (RACK BASE)
-        </div>
-        <table className="bom-table" style={{ marginBottom: '16px' }}>
-          <thead>
-            <tr>
-              <th>Peça</th>
-              <th>Comprimento</th>
-              <th>Qtd</th>
-              <th>Finalidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Longarina Lateral do Rack</strong></td>
-              <td>2.200 mm</td>
-              <td>2 un</td>
-              <td>Longarinas principais ao longo do teto (220 cm)</td>
-            </tr>
-            <tr>
-              <td><strong>Travessa Transversal Base</strong></td>
-              <td>1.320 mm</td>
-              <td>4 un</td>
-              <td>Travessas frontal, traseira e meio do rack base</td>
-            </tr>
-            <tr>
-              <td><strong>Longarina Central de Apoio</strong></td>
-              <td>~460 mm</td>
-              <td>6 un</td>
-              <td>Leito interno das gavetas (3 vãos × 2 lados)</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div
-          style={{
-            marginBottom: '6px',
-            padding: '7px 10px',
-            background: 'rgba(14,165,233,0.12)',
-            borderLeft: '3px solid var(--primary)',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.5px',
-            color: 'var(--primary)'
-          }}
-        >
-          🔩 LISTA DE BARRAS — PERFIL {structureMaterial === 'aluminum' ? 'T-SLOT 30×30' : 'METALON 30×30'} (BANDEJAS E PILARES)
-        </div>
-        <table className="bom-table" style={{ marginBottom: '16px' }}>
-          <thead>
-            <tr>
-              <th>Peça</th>
-              <th>Comprimento</th>
-              <th>Qtd</th>
-              <th>Finalidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Longarina Lateral da Bandeja N1</strong></td>
-              <td>~1.100 mm</td>
-              <td>2 un</td>
-              <td>Longarinas do quadro do Nível 1 (inferior)</td>
-            </tr>
-            <tr>
-              <td><strong>Travessa Front./Tras. Bandeja N1</strong></td>
-              <td>~1.250 mm</td>
-              <td>2 un</td>
-              <td>Travessas do quadro do Nível 1</td>
-            </tr>
-            <tr>
-              <td><strong>Longarina Lateral da Bandeja N2</strong></td>
-              <td>~1.100 mm</td>
-              <td>2 un</td>
-              <td>Longarinas do quadro do Nível 2 (superior fixo)</td>
-            </tr>
-            <tr>
-              <td><strong>Travessa Front./Tras. Bandeja N2</strong></td>
-              <td>~1.250 mm</td>
-              <td>2 un</td>
-              <td>Travessas do quadro do Nível 2</td>
-            </tr>
-            <tr>
-              <td><strong>Pilar de Sustentação Vertical</strong></td>
-              <td>~130 mm</td>
-              <td>4 un</td>
-              <td>Pilares que elevam o Nível 2 sobre o Nível 1</td>
-            </tr>
-            <tr>
-              <td><strong>Braço de Topo (Desvio do Pilar)</strong></td>
-              <td>~20 a 50 mm</td>
-              <td>4 un</td>
-              <td>Braços horizontais de união entre pilares e longarinas de topo</td>
-            </tr>
-            <tr>
-              <td><strong>Longarina Superior Contínua</strong></td>
-              <td>~1.270 mm</td>
-              <td>2 un</td>
-              <td>Longarinas topo que unem os pilares (E/D)</td>
-            </tr>
-            <tr>
-              <td><strong>Travessa Transversal Superior</strong></td>
-              <td>~1.280 mm</td>
-              <td>2 un</td>
-              <td>Travessas de topo (dianteira e traseira)</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* SEÇÃO 3: Acessórios Mecânicos */}
-        <div
-          style={{
-            marginBottom: '6px',
-            padding: '7px 10px',
-            background: 'rgba(14,165,233,0.12)',
-            borderLeft: '3px solid var(--primary)',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.5px',
-            color: 'var(--primary)'
-          }}
-        >
-          ⚙️ ACESSÓRIOS MECÂNICOS
-        </div>
-        <table className="bom-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Descrição / Medida</th>
-              <th>Qtd</th>
-              <th>Finalidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Trilho Telescópico Heavy Duty</strong></td>
-              <td>Corrediça aço zincado/inox · curso 900 mm · 80–120 kg</td>
-              <td>2–4 pares</td>
-              <td>Guias para expansão suave das gavetas</td>
-            </tr>
-            <tr>
-              <td><strong>Esteira Porta-Cabos (Lagarta)</strong></td>
-              <td>Nylon articulado 15×30 mm · R38 · ~1 m cada</td>
-              <td>2 un</td>
-              <td>Proteção dos fios contra fricção e vento</td>
-            </tr>
-            <tr>
-              <td><strong>Defletor Aerodinâmico</strong></td>
-              <td>Acrílico fumê 4 mm ou chapa AL · 1.360 × 160 mm</td>
-              <td>1 un</td>
-              <td>Corta-vento frontal — reduz ruído de arrasto</td>
-            </tr>
-            <tr>
-              <td><strong>Travas Mecânicas</strong></td>
-              <td>Pinos de engate rápido / fecho de pressão inox</td>
-              <td>2–4 un</td>
-              <td>Segurança obrigatória para circulação em rodovia</td>
-            </tr>
-            <tr>
-              <td><strong>Cantoneiras T-Slot (Brackets)</strong></td>
-              <td>AL fundido 2020/3030 · parafuso M5 Allen inox</td>
-              <td>~24 un</td>
-              <td>Conexão de perfis em ângulo 90°</td>
-            </tr>
-            <tr>
-              <td><strong>Porcas de Encaixe T (T-nuts)</strong></td>
-              <td>M5 / M6 para ranhura T-slot 40 e 30</td>
-              <td>~60 un</td>
-              <td>Fixação de componentes nas ranhuras dos perfis</td>
-            </tr>
-            {internalBoxes.filter((b) => b.rearFoldShelf).map((b) => {
-              const bracketSpec = getFoldingBracketForHeight(b.heightMm, b.rearShelfBracketInches);
-              return (
-                <tr key={`shelf-bracket-${b.id}`}>
-                  <td><strong>Suporte Articulado Dobrável c/ Trava {bracketSpec.inches}" ({bracketSpec.lengthMm} mm) (Par)</strong></td>
-                  <td>Aço carbono reforçado pintura epóxi preta · trava mecânica automática 90° c/ gatilho de liberação rápida · carga até {bracketSpec.maxLoadKg} kg · compatível c/ altura de {b.heightMm} mm ({b.name})</td>
-                  <td>1 par</td>
-                  <td>Sustentação mecânica de alta resistência da mesa/prateleira rebatível traseira (substitui pistão a gás)</td>
-                </tr>
-              );
-            })}
-            {awning && awning.enabled && (
-              <tr>
-                <td><strong>{awning.type === 'rear' ? '⛺ Toldo Retrátil Traseiro (1.4m × 2.0m)' : '⛺ Toldo Asa de Morcego 270° Overland'}</strong></td>
-                <td>Case alumínio preto 1.4m–2.0m · lona Oxford Ripstop 600D impermeável UV50+ · braços articulados e hastes telescópicas solo</td>
-                <td>1 kit</td>
-                <td>Proteção contra sol e chuva cobrindo a traseira e lateral de acampamento</td>
-              </tr>
-            )}
-            {internalBoxes.some((b) => b.type === 'slide_tray' || b.drawerMode === 'slide_tray') && (
-              <tr>
-                <td><strong>Corrediças Telescópicas Reforçadas 45kg c/ Trava (Par)</strong></td>
-                <td>Aço zincado pesado · trava de fechamento e abertura · extensão total 700mm</td>
-                <td>{internalBoxes.filter((b) => b.type === 'slide_tray' || b.drawerMode === 'slide_tray').length} par(es)</td>
-                <td>Deslizamento e trava segura da bandeja corrediça rasa para geladeira 12V ou fogão</td>
-              </tr>
-            )}
-            {internalBoxes.some((b) => b.upperCabinet && b.upperCabinetDoors !== false) && (
-              <tr>
-                <td><strong>Botão Trava Push-Lock Náutico Cromado</strong></td>
-                <td>Liga de zinco e ABS · trava push-button anti-abertura em curvas e frenagens</td>
-                <td>{internalBoxes.filter((b) => b.upperCabinet && b.upperCabinetDoors !== false).length} un</td>
-                <td>Fechamento e trava de segurança marítima das portas dos armários aéreos</td>
-              </tr>
-            )}
-            {internalBoxes.some((b) => b.type === 'slat_bed') && (
-              <>
-                <tr>
-                  <td><strong>Colchão Espuma D33 Casal Bipartido sob Medida</strong></td>
-                  <td>Espuma de alta densidade D33 (80mm) · capa náutica removível c/ zíper e costura reforçada</td>
-                  <td>{internalBoxes.filter((b) => b.type === 'slat_bed').length} conjunto(s)</td>
-                  <td>Estofamento dobrável que desdobra ao abrir toda a cama retrátil, cobrindo todo o estrado casal</td>
-                </tr>
-                <tr>
-                  <td><strong>Trilhos e Pés de Apoio Articulados do Estrado</strong></td>
-                  <td>Guias metálicas de deslizamento entre ripas + sapatas emborrachadas de apoio no assoalho</td>
-                  <td>{internalBoxes.filter((b) => b.type === 'slat_bed').length * 2} un</td>
-                  <td>Suporte de carga do estrado móvel quando a cama estiver 100% estendida</td>
-                </tr>
-              </>
-            )}
-            {(internalGrid.ledBaseboard?.enabled ?? true) && (
-              <tr>
-                <td><strong>Perfil de Alumínio Slim c/ Fita LED COB 12V e Difusor</strong></td>
-                <td>Perfil alumínio anodizado 16×16mm · Fita LED COB 12V 3000K (alta densidade contínua sem pontos) · difusor leitoso</td>
-                <td>{((internalGrid.lengthMm * 2 + internalGrid.widthMm) / 1000).toFixed(1)} m</td>
-                <td>Iluminação embutida no rodapé perimetral do assoalho para luz indireta noturna campervan</td>
-              </tr>
-            )}
-            {internalBoxes.some((b) => b.hasCentralTable || b.centralTable?.enabled) && (
-              <tr>
-                <td><strong>Pedestal Tubular Central Náutico c/ Braçadeiras Duplas (Mesa Dinette)</strong></td>
-                <td>Coluna tubular de aço preto acetinado Ø45mm · 2 braçadeiras de fixação rápida c/ manípulo lever · flange superior náutica de encaixe</td>
-                <td>{internalBoxes.filter((b) => b.hasCentralTable || b.centralTable?.enabled).length} kit</td>
-                <td>Coluna central de apoio da mesa dinette regulável em altura, rotação 360°, deslocável em X/Z e 100% removível</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    )}
-
-    {/* ═══════════════════════════════════════════════════════════════════ */}
-    {/* ─── GRUPO 2: MARCENARIA & PEÇAS DE MADEIRA ─── */}
-    {/* ═══════════════════════════════════════════════════════════════════ */}
-    {(activeTab === 'all' || activeTab === 'wood') && (
-      <div>
-        <div
-          style={{
-            marginBottom: '8px',
-            padding: '8px 12px',
-            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(217, 119, 6, 0.15))',
-            borderLeft: '4px solid #f59e0b',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 800,
-            letterSpacing: '0.5px',
-            color: '#f59e0b',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}
-        >
-          <span>🪵 GRUPO 2: MARCENARIA & PEÇAS DE MADEIRA (COMPENSADO NAVAL 15MM)</span>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: '#cbd5e1' }}>
-            Espessura Padrão: 15 mm Impermeabilizado
-          </span>
-        </div>
-
-        {/* Cards de Totais de Madeira */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '10px',
-            marginBottom: '14px'
-          }}
-        >
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.65)',
-              border: '1px solid rgba(245, 158, 11, 0.35)',
-              borderRadius: '8px',
-              padding: '10px 12px'
-            }}
-          >
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
-              Total de Peças de Madeira
-            </div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#f59e0b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-              {woodStats.totalPieces} <span style={{ fontSize: '12px', fontWeight: 600 }}>peças</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#64748b' }}>Ripas, chapas, laterais e fundos</div>
-          </div>
-
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.65)',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
-              borderRadius: '8px',
-              padding: '10px 12px'
-            }}
-          >
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
-              Área Total de Compensado
-            </div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#34d399', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-              {woodStats.totalAreaM2.toFixed(2)} <span style={{ fontSize: '12px', fontWeight: 600 }}>m²</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#64748b' }}>
-              {Math.round(woodStats.totalAreaM2 * 10000).toLocaleString('pt-BR')} cm² de área útil
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.65)',
-              border: '1px solid rgba(245, 158, 11, 0.35)',
-              borderRadius: '8px',
-              padding: '10px 12px'
-            }}
-          >
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
-              Chapas Padrão (2.44×1.22m)
-            </div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#fbbf24', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-              {woodStats.standardSheets} <span style={{ fontSize: '12px', fontWeight: 600 }}>chapa(s)</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#64748b' }}>Compensado 15mm (+10% perda corte)</div>
-          </div>
-
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.65)',
-              border: '1px solid rgba(168, 85, 247, 0.35)',
-              borderRadius: '8px',
-              padding: '10px 12px'
-            }}
-          >
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
-              Medidas Diferentes de Corte
-            </div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#c084fc', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-              {woodStats.cutGroups.length} <span style={{ fontSize: '12px', fontWeight: 600 }}>cortes</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#64748b' }}>Agrupadas por tamanho exato</div>
-          </div>
-        </div>
-
-        {/* Tabela Detalhada do Plano de Corte de Madeira (Marcenaria) */}
-        <div
-          style={{
-            marginBottom: '6px',
-            padding: '7px 10px',
-            background: 'rgba(245, 158, 11, 0.12)',
-            borderLeft: '3px solid #f59e0b',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.5px',
-            color: '#f59e0b'
-          }}
-        >
-          🪵 PLANO DE CORTE DE MARCENARIA — TODAS AS PEÇAS DE MADEIRA ({woodStats.totalPieces} PEÇAS)
-        </div>
-        <table className="bom-table" style={{ marginBottom: '18px' }}>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Peça / Componente de Madeira</th>
-              <th>Dimensão Unit. (mm)</th>
-              <th>Dimensão (cm)</th>
-              <th>Qtd</th>
-              <th>Área Unit.</th>
-              <th>Subtotal Área</th>
-              <th>Material</th>
-            </tr>
-          </thead>
-          <tbody>
-            {woodStats.cutGroups.map((g, idx) => (
-              <tr key={g.key}>
-                <td style={{ fontFamily: 'var(--font-mono)', color: '#64748b' }}>{idx + 1}</td>
-                <td>
-                  <strong style={{ color: '#f8fafc' }}>{g.label}</strong>
-                  {g.isPerforated && (
-                    <span
-                      style={{
-                        marginLeft: '6px',
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        color: '#34d399',
-                        background: 'rgba(52, 211, 153, 0.15)',
-                        border: '1px solid rgba(52, 211, 153, 0.4)',
-                        padding: '1px 5px',
-                        borderRadius: '4px'
-                      }}
-                    >
-                      🍃 Vazado CNC (-35% peso / Aeração)
+            {/* ─── PAINEL DE PRECIFICAÇÃO POR JUNTA / NÓ (A MÉTRICA DAS QUINAS) ─── */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.85))',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                borderRadius: '8px',
+                padding: '14px',
+                marginBottom: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '20px' }}>📐</span>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.3px' }}>
+                      1. Quantitativo de Juntas/Nós (A métrica das "Quinas")
+                    </h4>
+                    <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>
+                      Mapeamento estrutural de nós de solda e etapas de serralheria automotiva
                     </span>
-                  )}
-                  {g.isRearShelf && (
-                    <span
-                      style={{
-                        marginLeft: '6px',
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        color: '#fbbf24',
-                        background: 'rgba(245, 158, 11, 0.18)',
-                        border: '1px solid rgba(245, 158, 11, 0.45)',
-                        padding: '1px 5px',
-                        borderRadius: '4px'
-                      }}
-                    >
-                      🪵 Mesa Rebatível Externa (Abre p/ Cima)
-                    </span>
-                  )}
-                </td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f59e0b' }}>
-                  {g.widthMm} × {g.lengthMm} × {g.thicknessMm} mm
-                </td>
-                <td style={{ fontFamily: 'var(--font-mono)', color: '#94a3b8' }}>
-                  {(g.widthMm / 10).toFixed(1)} × {(g.lengthMm / 10).toFixed(1)} cm
-                </td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>
-                  {g.qty} un
-                </td>
-                <td style={{ fontFamily: 'var(--font-mono)' }}>
-                  {g.areaM2 >= 0.1 ? `${g.areaM2.toFixed(3)} m²` : `${Math.round(g.areaM2 * 10000)} cm²`}
-                </td>
-                <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399', fontWeight: 700 }}>
-                  {g.totalAreaM2 >= 0.1 ? `${g.totalAreaM2.toFixed(3)} m²` : `${Math.round(g.totalAreaM2 * 10000)} cm²`}
-                </td>
-                <td style={{ fontSize: '10.5px', color: '#94a3b8' }}>{g.material}</td>
-              </tr>
-            ))}
-            <tr style={{ background: 'rgba(245, 158, 11, 0.15)', fontWeight: 800 }}>
-              <td colSpan={4} style={{ textAlign: 'right', color: '#f59e0b' }}>
-                SOMA TOTAL DE TODAS AS PEÇAS DE MADEIRA:
-              </td>
-              <td style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>{woodStats.totalPieces} un</td>
-              <td></td>
-              <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399' }}>{woodStats.totalAreaM2.toFixed(3)} m²</td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
+                  </div>
+                </div>
 
-        {/* Módulos de Armazenamento e Cama Retrátil Montados */}
-        {internalBoxes.length > 0 && (
-          <>
+                <div
+                  style={{
+                    background: 'rgba(56, 189, 248, 0.15)',
+                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>Total de Nós:</span>
+                  <strong style={{ fontSize: '13px', color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                    {weldedJointsReport.totalJoints} Quinas Estruturais
+                  </strong>
+                </div>
+              </div>
+
+              {/* Texto explicativo fiel à solicitação do usuário */}
+              <p style={{ margin: 0, fontSize: '11px', lineHeight: 1.55, color: '#cbd5e1', background: 'rgba(15, 23, 42, 0.6)', padding: '10px 12px', borderRadius: '6px', borderLeft: '3px solid #38bdf8' }}>
+                Esta é a abordagem mais precisa se o seu projeto tem muitos recortes e cantos. Cada <strong>"quina"</strong> (o encontro entre dois ou mais tubos) exige um ciclo completo de trabalho: <strong>corte em esquadria (45º ou boca de lobo)</strong>, <strong>esquadrejamento no esquadro magnético</strong>, <strong>ponteamento nas 4 faces</strong>, <strong>solda definitiva</strong> e, o mais demorado, o <strong>lixamento com disco flap</strong>.
+              </p>
+
+              {/* As 5 Etapas do Ciclo Completo da Quina */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px' }}>
+                <div style={{ background: 'rgba(30, 41, 59, 0.7)', padding: '6px 8px', borderRadius: '5px', border: '1px solid rgba(148, 163, 184, 0.2)' }}>
+                  <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: 700 }}>ETAPA 1</div>
+                  <div style={{ fontSize: '10.5px', color: '#f8fafc', fontWeight: 600 }}>✂️ Corte em Esquadria</div>
+                  <div style={{ fontSize: '9px', color: '#64748b' }}>45° ou boca de lobo</div>
+                </div>
+                <div style={{ background: 'rgba(30, 41, 59, 0.7)', padding: '6px 8px', borderRadius: '5px', border: '1px solid rgba(148, 163, 184, 0.2)' }}>
+                  <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: 700 }}>ETAPA 2</div>
+                  <div style={{ fontSize: '10.5px', color: '#f8fafc', fontWeight: 600 }}>🧲 Esquadrejamento</div>
+                  <div style={{ fontSize: '9px', color: '#64748b' }}>Esquadro magnético 90°</div>
+                </div>
+                <div style={{ background: 'rgba(30, 41, 59, 0.7)', padding: '6px 8px', borderRadius: '5px', border: '1px solid rgba(148, 163, 184, 0.2)' }}>
+                  <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: 700 }}>ETAPA 3</div>
+                  <div style={{ fontSize: '10.5px', color: '#f8fafc', fontWeight: 600 }}>⚡ Ponteamento 4 Faces</div>
+                  <div style={{ fontSize: '9px', color: '#64748b' }}>Trava anti-deformação</div>
+                </div>
+                <div style={{ background: 'rgba(30, 41, 59, 0.7)', padding: '6px 8px', borderRadius: '5px', border: '1px solid rgba(148, 163, 184, 0.2)' }}>
+                  <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: 700 }}>ETAPA 4</div>
+                  <div style={{ fontSize: '10.5px', color: '#f8fafc', fontWeight: 600 }}>👨‍🏭 Solda Definitiva</div>
+                  <div style={{ fontSize: '9px', color: '#64748b' }}>MIG/MAG penetração total</div>
+                </div>
+                <div style={{ background: 'rgba(56, 189, 248, 0.12)', padding: '6px 8px', borderRadius: '5px', border: '1px solid rgba(56, 189, 248, 0.35)' }}>
+                  <div style={{ fontSize: '9.5px', color: '#38bdf8', fontWeight: 700 }}>ETAPA 5 (DEMORADA)</div>
+                  <div style={{ fontSize: '10.5px', color: '#38bdf8', fontWeight: 700 }}>🪚 Disco Flap</div>
+                  <div style={{ fontSize: '9px', color: '#7dd3fc' }}>Faceamento e plano liso</div>
+                </div>
+              </div>
+
+              {/* Indicadores Numéricos de Juntas & Quantitativo Total */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', paddingTop: '4px' }}>
+                <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Total de Quinas / Nós:</span>
+                  <strong style={{ fontSize: '16px', color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                    {weldedJointsReport.totalJoints} quinas
+                  </strong>
+                  <div style={{ fontSize: '9.5px', color: '#cbd5e1', marginTop: '2px' }}>
+                    {weldedJointsReport.miterCorners45} quinas 45° · {weldedJointsReport.teeJoints} em T · {weldedJointsReport.mountBracketsJoints} sapatas
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Distribuição por Estrutura:</span>
+                  <div style={{ fontSize: '11px', color: '#f8fafc', fontWeight: 600, marginTop: '2px' }}>
+                    Rack: <strong style={{ color: '#38bdf8' }}>{weldedJointsReport.breakdown.rackBase.total}</strong> · Bandejas: <strong style={{ color: '#38bdf8' }}>{weldedJointsReport.breakdown.solarTrays.total}</strong> · Baú: <strong style={{ color: '#38bdf8' }}>{weldedJointsReport.breakdown.cargoSubchassis.total}</strong>
+                  </div>
+                  <div style={{ fontSize: '9.5px', color: '#cbd5e1', marginTop: '2px' }}>
+                    {weldedJointsReport.breakdown.solarTrays.traysCount} bandejas móveis ({weldedJointsReport.breakdown.solarTrays.miter45} quinas 45° + {weldedJointsReport.breakdown.solarTrays.tee} em T)
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>Consumíveis Estimados (Quantidade):</span>
+                  <div style={{ fontSize: '11px', color: '#f8fafc', fontWeight: 600, marginTop: '2px' }}>
+                    📦 ~{weldedJointsReport.consumables.cuttingDiscs4Half} cortes 4 ½" · ~{weldedJointsReport.consumables.flapDiscsGrinding + weldedJointsReport.consumables.flapDiscsFinishing} flaps
+                  </div>
+                  <div style={{ fontSize: '9.5px', color: '#cbd5e1', marginTop: '2px' }}>
+                    ⚡ ~{weldedJointsReport.consumables.migWireKg} kg arame MIG · 4 esquadros magnéticos
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabela Totalizadora Agrupada por Espessura dos Tubos */}
             <div
               style={{
                 marginBottom: '6px',
                 padding: '7px 10px',
-                background: 'rgba(245, 158, 11, 0.15)',
-                borderLeft: '3px solid #f59e0b',
+                background: 'rgba(56, 189, 248, 0.12)',
+                borderLeft: '3px solid var(--primary)',
                 borderRadius: '4px',
                 fontSize: '11px',
                 fontWeight: 700,
                 letterSpacing: '0.5px',
-                color: '#f59e0b'
+                color: 'var(--primary)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
               }}
             >
-              📦 MÓDULOS DE ARMAZENAMENTO & CAMA MONTADOS ({internalBoxes.length} MÓDULOS NO GRID)
+              <span>📊 RESUMO TOTALIZADOR AGRUPADO POR ESPESSURA DOS TUBOS</span>
+              <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                Separado por bitola comercial para compras e regulagem de solda
+              </span>
             </div>
             <table className="bom-table" style={{ marginBottom: '16px' }}>
               <thead>
                 <tr>
-                  <th>Módulo</th>
-                  <th>Tipo / Mecanismo de Abertura</th>
-                  <th>Dimensões Montadas (L × C × A)</th>
-                  <th>Volume</th>
-                  <th>Acabamento</th>
+                  <th>Especificação do Perfil / Material</th>
+                  <th>Qtd. Peças</th>
+                  <th>Total Linear (mm)</th>
+                  <th>Total Linear (m)</th>
+                  <th>Equiv. Barras 6m</th>
+                  <th>Equiv. Barras 3m</th>
                 </tr>
               </thead>
               <tbody>
-                <tr style={{ background: 'rgba(245, 158, 11, 0.08)' }}>
-                  <td><strong>🪵 Chapa Base de Compensado Naval 15mm</strong></td>
-                  <td style={{ color: '#f59e0b' }}>Base Niveladora Inteiriça do Assoalho Doblò</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{internalGrid.widthMm} × {internalGrid.lengthMm} × 15 mm</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8', fontWeight: 700 }}>
-                    {((internalGrid.widthMm * internalGrid.lengthMm) / 1_000_000).toFixed(2)} m²
-                  </td>
-                  <td style={{ color: '#f59e0b' }}>Compensado Naval Fenólico 15mm Anti-umidade</td>
-                </tr>
-                {internalBoxes.map((box) => {
-                  const cols = Math.max(1, internalGrid.colsX);
-                  const rows = Math.max(1, internalGrid.rowsZ);
-                  const wMm = Math.round(box.colSpan * (internalGrid.widthMm / cols));
-                  const lMm = Math.round(box.rowSpan * (internalGrid.lengthMm / rows));
-                  const hMm = box.heightMm || internalGrid.heightMm;
-                  const volL = Math.round((wMm * lMm * hMm) / 1_000_000);
-                  const matLabel =
-                    box.material === 'plywood'
-                      ? 'Compensado Naval 15mm'
-                      : box.material === 'dark_wood'
-                        ? 'Madeira Nobre Maciça'
-                        : box.material === 'white_mdf'
-                          ? 'MDF Branco 15mm Ultra'
-                          : 'Gabinete Alumínio Modular';
-
-                  return (
-                    <tr key={box.id}>
-                      <td>
-                        <strong>{box.name}</strong>
-                        {box.topPerforated && (
-                          <span
-                            style={{
-                              marginLeft: '6px',
-                              fontSize: '8.5px',
-                              color: '#34d399',
-                              background: 'rgba(52, 211, 153, 0.15)',
-                              border: '1px solid rgba(52, 211, 153, 0.35)',
-                              padding: '1px 5px',
-                              borderRadius: '4px',
-                              fontWeight: 700
-                            }}
-                          >
-                            🕳️ Tampo Vazado
-                          </span>
-                        )}
-                        {box.rearFoldShelf && (
-                          <span
-                            style={{
-                              marginLeft: '6px',
-                              fontSize: '8.5px',
-                              color: '#fbbf24',
-                              background: 'rgba(245, 158, 11, 0.18)',
-                              border: '1px solid rgba(245, 158, 11, 0.4)',
-                              padding: '1px 5px',
-                              borderRadius: '4px',
-                              fontWeight: 700
-                            }}
-                          >
-                            🪵 Mesa Traseira Rebatível
-                          </span>
-                        )}
-                        {box.upperCabinet && (
-                          <span
-                            style={{
-                              marginLeft: '6px',
-                              fontSize: '8.5px',
-                              color: '#38bdf8',
-                              background: 'rgba(56, 189, 248, 0.18)',
-                              border: '1px solid rgba(56, 189, 248, 0.4)',
-                              padding: '1px 5px',
-                              borderRadius: '4px',
-                              fontWeight: 700
-                            }}
-                          >
-                            🗄️ Aéreo até o Teto ({box.upperCabinetDepthMm || 250}mm)
-                          </span>
-                        )}
-                        <div style={{ fontSize: '9.5px', color: '#94a3b8', marginTop: '2px' }}>
-                          Tamponamento:{' '}
-                          {[
-                            (box.panels?.front ?? true) && 'Frente',
-                            (box.panels?.rear ?? (box.type !== 'drawer' && box.type !== 'slide_tray')) && 'Fundo Traseiro',
-                            (box.panels?.left ?? true) && 'Lateral Esq',
-                            (box.panels?.right ?? true) && 'Lateral Dir',
-                            (box.panels?.top ?? (box.type !== 'open')) && (box.type === 'slat_bed' ? 'Estrado Ripas' : 'Tampo'),
-                            box.panels?.bottom && 'Base Própria'
-                          ].filter(Boolean).join(' • ')}
+                {barStats.thicknessGroups.map((grp) => (
+                  <React.Fragment key={grp.groupTitle}>
+                    {/* Cabeçalho do Grupo de Espessura */}
+                    <tr style={{ background: 'rgba(30, 41, 59, 0.95)', borderTop: '2px solid rgba(56, 189, 248, 0.4)' }}>
+                      <td colSpan={6} style={{ padding: '8px 10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+                          <div>
+                            <strong style={{ color: '#38bdf8', fontSize: '11.5px' }}>{grp.groupTitle}</strong>
+                            <div style={{ fontSize: '9.5px', color: '#94a3b8' }}>{grp.groupSubtitle}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '10.5px', fontFamily: 'var(--font-mono)' }}>
+                            <span style={{ color: '#cbd5e1' }}><strong>{grp.totalPieces}</strong> cortes</span>
+                            <span style={{ color: '#34d399' }}><strong>{grp.totalMeters.toFixed(2)}</strong> m</span>
+                            <span style={{ color: '#fbbf24' }}><strong>{grp.totalBars6m}</strong> barra(s) 6m</span>
+                          </div>
                         </div>
                       </td>
-                      <td style={{ color: '#38bdf8' }}>
-                        {box.type === 'slide_tray' || box.drawerMode === 'slide_tray'
-                          ? '🛝 Bandeja Corrediça Rasa (Geladeira/Fogão)'
-                          : box.type === 'drawer'
-                          ? '📦 Gavetão c/ Corrediça Pesada'
-                          : box.type === 'open'
-                          ? '🚪 Nicho Aberto'
-                          : box.type === 'slat_bed'
-                          ? `🛏️ Cama Retrátil c/ Ripas (${box.slatBedDirection === 'left' ? 'Abre Esq.' : box.slatBedDirection === 'right' ? 'Abre Dir.' : box.slatBedDirection === 'rear' ? 'Abre Trás' : 'Abre Frente'})`
-                          : '🧰 Baú c/ Dobradiça Superior'}
+                    </tr>
+
+                    {/* Linhas de Perfis deste Grupo */}
+                    {grp.profiles.map((p) => (
+                      <tr key={p.profileSpec}>
+                        <td style={{ paddingLeft: '18px' }}>
+                          <strong style={{ color: '#f8fafc' }}>{p.profileSpec}</strong>
+                        </td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>{p.pieces} un</td>
+                        <td style={{ fontFamily: 'var(--font-mono)' }}>{Math.round(p.totalMeters * 1000).toLocaleString('pt-BR')} mm</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#34d399' }}>{p.totalMeters.toFixed(2)} m</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', color: '#fbbf24' }}>
+                          {p.profileSpec.includes('T-Slot') || p.profileSpec.includes('Metalon') || p.profileSpec.includes('Tubo') ? `${p.bars6m} barra(s)` : '—'}
+                        </td>
+                        <td style={{ fontFamily: 'var(--font-mono)', color: '#94a3b8' }}>
+                          {p.profileSpec.includes('T-Slot') || p.profileSpec.includes('Metalon') || p.profileSpec.includes('Tubo') ? `${p.bars3m} barra(s)` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+
+                    {/* Linha de Subtotal da Espessura */}
+                    <tr style={{ background: 'rgba(15, 23, 42, 0.55)', borderBottom: '1px solid rgba(148, 163, 184, 0.2)', fontSize: '10.5px' }}>
+                      <td style={{ paddingLeft: '18px', color: '#94a3b8', fontStyle: 'italic' }}>
+                        Subtotal Espessura {grp.thicknessLabel} ({grp.gaugeLabel})
                       </td>
-                      <td style={{ fontFamily: 'var(--font-mono)' }}>{wMm} × {lMm} × {hMm} mm</td>
-                      <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399', fontWeight: 700 }}>{volL} L</td>
-                      <td style={{ color: '#94a3b8' }}>{matLabel}</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>{grp.totalPieces} un</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', color: '#cbd5e1' }}>{Math.round(grp.totalMeters * 1000).toLocaleString('pt-BR')} mm</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#34d399' }}>{grp.totalMeters.toFixed(2)} m</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', color: '#fbbf24' }}>{grp.totalBars6m} barra(s)</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', color: '#94a3b8' }}>{grp.totalBars3m} barra(s)</td>
+                    </tr>
+                  </React.Fragment>
+                ))}
+
+                {/* TOTAL GERAL */}
+                <tr style={{ background: 'rgba(16, 185, 129, 0.15)', fontWeight: 800, borderTop: '2px solid #10b981' }}>
+                  <td style={{ color: '#34d399' }}>TOTAL GERAL DE TODAS AS ESPESSURAS</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>{barStats.totalPieces} un</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: '#f8fafc' }}>
+                    {Math.round(barStats.totalMeters * 1000).toLocaleString('pt-BR')} mm
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399' }}>{barStats.totalMeters.toFixed(2)} m</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: '#fbbf24' }}>{barStats.totalBars6m} barra(s) 6m</td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Tabela Completa de Cortes de Barras Agrupada por Espessura */}
+            <div
+              style={{
+                marginBottom: '6px',
+                padding: '7px 10px',
+                background: 'rgba(56, 189, 248, 0.12)',
+                borderLeft: '3px solid var(--primary)',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '0.5px',
+                color: 'var(--primary)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <span>📏 LISTA DE CORTES DE BARRAS ({barStats.totalPieces} PEÇAS AGRUPADAS POR ESPESSURA)</span>
+              <span style={{ fontSize: '10px', color: '#94a3b8' }}>Separado por tubo e bitola</span>
+            </div>
+            <table className="bom-table" style={{ marginBottom: '18px' }}>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Peça / Função na Estrutura</th>
+                  <th>Perfil</th>
+                  <th>Medida Unit.</th>
+                  <th>Qtd</th>
+                  <th>Subtotal Linear</th>
+                </tr>
+              </thead>
+              <tbody>
+                {barStats.cutThicknessGroups.map((section) => (
+                  <React.Fragment key={section.groupTitle}>
+                    <tr style={{ background: 'rgba(30, 41, 59, 0.90)', borderTop: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                      <td colSpan={6} style={{ padding: '6px 10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <strong style={{ color: '#38bdf8', fontSize: '11px' }}>{section.groupTitle}</strong>
+                          <span style={{ fontSize: '10px', color: '#cbd5e1', fontFamily: 'var(--font-mono)' }}>
+                            {section.totalPieces} peças · {section.totalMeters.toFixed(2)} m
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {section.items.map((g, idx) => (
+                      <tr key={g.key}>
+                        <td style={{ fontFamily: 'var(--font-mono)', color: '#64748b' }}>{idx + 1}</td>
+                        <td>
+                          <strong>{g.label}</strong>
+                        </td>
+                        <td style={{ fontSize: '11px', color: '#94a3b8' }}>{g.profileSpec}</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>
+                          {structureMaterial === 'steel' && steelProfileUnit === 'inch' ? (
+                            <>
+                              {(g.lengthM * 39.3701).toFixed(1)}" <span style={{ color: '#64748b', fontWeight: 400 }}>({g.lengthMm.toLocaleString('pt-BR')} mm)</span>
+                            </>
+                          ) : (
+                            <>
+                              {g.lengthMm.toLocaleString('pt-BR')} mm <span style={{ color: '#64748b', fontWeight: 400 }}>({(g.lengthM * 100).toFixed(1)} cm)</span>
+                            </>
+                          )}
+                        </td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{g.qty} un</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399', fontWeight: 700 }}>
+                          {g.totalLengthM.toFixed(2)} m
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Acessórios Mecânicos e Ferragens de Montagem */}
+            <div
+              style={{
+                marginBottom: '6px',
+                padding: '7px 10px',
+                background: 'rgba(14,165,233,0.12)',
+                borderLeft: '3px solid var(--primary)',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '0.5px',
+                color: 'var(--primary)'
+              }}
+            >
+              ⚙️ FERRAGENS & ACESSÓRIOS MECÂNICOS
+            </div>
+            <table className="bom-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Descrição / Medida</th>
+                  <th>Qtd</th>
+                  <th>Finalidade</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Trilho Telescópico Heavy Duty</strong></td>
+                  <td>Corrediça aço zincado/inox · curso 900 mm · 80–120 kg</td>
+                  <td>2–4 pares</td>
+                  <td>Guias para expansão suave das gavetas</td>
+                </tr>
+                <tr>
+                  <td><strong>Cantoneiras T-Slot / Esquadros Metalon</strong></td>
+                  <td>AL fundido 2020/3030 ou cantoneira aço estampada</td>
+                  <td>~24 un</td>
+                  <td>Conexão de perfis estruturais em ângulo 90°</td>
+                </tr>
+                {internalBoxes.filter((b) => b.rearFoldShelf).map((b) => {
+                  const bracketSpec = getFoldingBracketForHeight(b.heightMm, b.rearShelfBracketInches);
+                  return (
+                    <tr key={`shelf-bracket-${b.id}`}>
+                      <td><strong>Suporte Articulado Dobrável Inox c/ Trava {bracketSpec.inches}" ({bracketSpec.lengthMm} mm) (Par 2PCS)</strong></td>
+                      <td>Aço inoxidável escovado reforçado · canaletas estampadas em U · trava mecânica automática 90° c/ haste diagonal e gatilho de liberação rápida · carga até {bracketSpec.maxLoadKg} kg · compatível c/ altura de {b.heightMm} mm ({b.name})</td>
+                      <td>1 par</td>
+                      <td>Sustentação mecânica de alta resistência da mesa/prateleira rebatível traseira (substitui pistão a gás)</td>
                     </tr>
                   );
                 })}
+                {internalBoxes.some((b) => b.type === 'slide_tray' || b.drawerMode === 'slide_tray' || (b.upperCabinet && getUpperCabinetClosure(b) === 'drawer')) && (
+                  <tr>
+                    <td><strong>Corrediças Telescópicas Reforçadas 45kg c/ Trava (Par)</strong></td>
+                    <td>Aço zincado pesado · trava de fechamento e abertura · extensão total</td>
+                    <td>{internalBoxes.filter((b) => b.type === 'slide_tray' || b.drawerMode === 'slide_tray' || (b.upperCabinet && getUpperCabinetClosure(b) === 'drawer')).length} par(es)</td>
+                    <td>Deslizamento e trava segura da gaveta/bandeja corrediça (inferior ou armário aéreo)</td>
+                  </tr>
+                )}
+                {internalBoxes.some((b) => b.upperCabinet && getUpperCabinetClosure(b) !== 'open') && (
+                  <tr>
+                    <td><strong>Botão Trava Push-Lock Náutico Cromado</strong></td>
+                    <td>Liga de zinco e ABS · trava push-button anti-abertura em curvas e frenagens</td>
+                    <td>{internalBoxes.filter((b) => b.upperCabinet && getUpperCabinetClosure(b) !== 'open').length} un</td>
+                    <td>Fechamento e trava de segurança marítima das portas/gavetas dos armários aéreos</td>
+                  </tr>
+                )}
+                {(internalGrid.centralTable?.enabled || internalBoxes.some((b) => b.hasCentralTable || b.centralTable?.enabled)) && (
+                  <tr>
+                    <td><strong>Pedestal Tubular Central Náutico c/ Flange de Piso e Braçadeiras (Mesa Dinette)</strong></td>
+                    <td>Flange circular de piso Ø160mm fixada diretamente no assoalho · coluna tubular de aço preto acetinado Ø45mm · 2 braçadeiras de fixação rápida c/ manípulo lever · flange superior náutica de encaixe</td>
+                    <td>1 kit</td>
+                    <td>Coluna central de apoio da mesa dinette regulável em altura (35-85cm), rotação 360°, deslocável em X/Z e 100% removível do assoalho</td>
+                  </tr>
+                )}
               </tbody>
             </table>
-          </>
+          </div>
+        ) : (
+          /* ═══════════════════════════════════════════════════════════════════ */
+          /* ─── MODO: TUBOS DE PVC DA CAIXA D'ÁGUA EM U & HIDRÁULICA ─── */
+          /* ═══════════════════════════════════════════════════════════════════ */
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px', marginTop: '10px' }}>
+            <div
+              style={{
+                marginBottom: '10px',
+                padding: '10px 14px',
+                background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(2, 132, 199, 0.24))',
+                borderLeft: '4px solid #0ea5e9',
+                borderRadius: '6px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.5px' }}>
+                  💧 RESERVATÓRIO DE ÁGUA EM FORMATO U • Ø{pvcStats.diameterMm} mm ({pvcStats.totalCapacityL} LITROS)
+                </div>
+                <div style={{ fontSize: '11px', color: '#cbd5e1', marginTop: '2px' }}>
+                  Tubulação contínua integrada internamente no quadro de ferro ao redor do baú • 2× Laterais ({pvcStats.singleLateralL}L cada) + Circuito Frontal ({pvcStats.frontCircuitL}L)
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  className={`btn-compact ${pvcBarStandard === '6m' ? 'active' : ''}`}
+                  onClick={() => setPvcBarStandard('6m')}
+                  style={{
+                    fontSize: '10px',
+                    padding: '4px 10px',
+                    fontWeight: 800,
+                    background: pvcBarStandard === '6m' ? 'rgba(14, 165, 233, 0.3)' : undefined,
+                    borderColor: pvcBarStandard === '6m' ? '#0ea5e9' : undefined,
+                    color: pvcBarStandard === '6m' ? '#38bdf8' : undefined
+                  }}
+                >
+                  📦 Barra 6 Metros (Padrão)
+                </button>
+                <button
+                  className={`btn-compact ${pvcBarStandard === '3m' ? 'active' : ''}`}
+                  onClick={() => setPvcBarStandard('3m')}
+                  style={{
+                    fontSize: '10px',
+                    padding: '4px 10px',
+                    fontWeight: 800,
+                    background: pvcBarStandard === '3m' ? 'rgba(14, 165, 233, 0.3)' : undefined,
+                    borderColor: pvcBarStandard === '3m' ? '#0ea5e9' : undefined,
+                    color: pvcBarStandard === '3m' ? '#38bdf8' : undefined
+                  }}
+                >
+                  📦 Barras 3 Metros (Varejo)
+                </button>
+              </div>
+            </div>
+
+            {/* Diagrama Visual de Corte Linear */}
+            <div
+              style={{
+                background: 'rgba(15, 23, 42, 0.75)',
+                border: '1px solid rgba(148, 163, 184, 0.25)',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}
+            >
+              <strong style={{ fontSize: '12px', color: '#f8fafc' }}>
+                📐 Plano de Corte das Barras Comerciais de PVC ({pvcBarStandard === '6m' ? 'Barras de 6m' : 'Barras de 3m'}):
+              </strong>
+
+              {(pvcBarStandard === '6m' ? pvcStats.plan6m : pvcStats.plan3m).map((bar) => (
+                <div
+                  key={bar.barIndex}
+                  style={{
+                    background: 'rgba(2, 6, 23, 0.75)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    borderRadius: '6px',
+                    padding: '8px 10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
+                    <span style={{ fontWeight: 800, color: '#38bdf8' }}>
+                      Barra #{bar.barIndex} ({bar.barLengthMm / 1000} m)
+                    </span>
+                    <span style={{ color: '#cbd5e1' }}>
+                      Cortes: <strong>{bar.usedMm} mm</strong> • Sobra: <strong style={{ color: '#94a3b8' }}>{bar.wasteMm} mm</strong> • Aproveitamento:{' '}
+                      <strong style={{ color: bar.efficiencyPct >= 80 ? '#4ade80' : '#fbbf24' }}>{bar.efficiencyPct}%</strong>
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      height: '36px',
+                      width: '100%',
+                      background: '#0b1120',
+                      borderRadius: '6px',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      border: '1px solid rgba(148, 163, 184, 0.3)'
+                    }}
+                  >
+                    {bar.segments.map((seg, sIdx) => {
+                      const isWaste = seg.label === 'Sobra Aproveitável';
+                      return (
+                        <div
+                          key={sIdx}
+                          style={{
+                            width: `${seg.pct}%`,
+                            minWidth: seg.pct < 3 ? '14px' : undefined,
+                            background: isWaste
+                              ? 'repeating-linear-gradient(45deg, rgba(71, 85, 105, 0.35), rgba(71, 85, 105, 0.35) 6px, rgba(51, 65, 85, 0.5) 6px, rgba(51, 65, 85, 0.5) 12px)'
+                              : seg.color,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0 4px',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            borderRight: sIdx < bar.segments.length - 1 ? '2px solid #0f172a' : undefined
+                          }}
+                          title={`${seg.label}: ${seg.lengthMm} mm (${seg.pct}%)`}
+                        >
+                          <span
+                            style={{
+                              fontSize: '9.5px',
+                              fontWeight: 800,
+                              color: isWaste ? '#94a3b8' : '#ffffff',
+                              textShadow: isWaste ? undefined : '0 1px 2px rgba(0,0,0,0.8)'
+                            }}
+                          >
+                            {seg.pct >= 10 ? `${seg.label} (${seg.lengthMm}mm)` : `${seg.lengthMm}mm`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tabela Completa de Cortes de Tubos de PVC */}
+            <div
+              style={{
+                marginBottom: '6px',
+                padding: '7px 10px',
+                background: 'rgba(14, 165, 233, 0.12)',
+                borderLeft: '3px solid #0ea5e9',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#38bdf8'
+              }}
+            >
+              📏 LISTA DE CORTES DE TUBOS PVC ({pvcStats.totalPieces} PEÇAS • {pvcStats.totalLinearMeters} METROS)
+            </div>
+            <table className="bom-table" style={{ marginBottom: '18px' }}>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Identificação da Tubulação</th>
+                  <th>Especificação do Tubo</th>
+                  <th>Medida de Corte (mm)</th>
+                  <th>Qtd</th>
+                  <th>Total Linear</th>
+                  <th>Fixação e Montagem</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pvcStats.cutItems.map((c, idx) => (
+                  <tr key={c.key}>
+                    <td style={{ fontFamily: 'var(--font-mono)', color: '#64748b' }}>{idx + 1}</td>
+                    <td><strong style={{ color: '#f8fafc' }}>{c.label}</strong></td>
+                    <td style={{ color: '#38bdf8' }}>{c.spec}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>{c.lengthMm} mm</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f59e0b' }}>{c.qty} un</td>
+                    <td style={{ fontFamily: 'var(--font-mono)' }}>{c.totalLengthM.toFixed(2)} m</td>
+                    <td style={{ color: '#94a3b8', fontSize: '10.5px' }}>{c.notes}</td>
+                  </tr>
+                ))}
+                <tr style={{ background: 'rgba(14, 165, 233, 0.12)', fontWeight: 800 }}>
+                  <td colSpan={4} style={{ color: '#38bdf8' }}>TOTAL GERAL TUBOS PVC</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: '#f59e0b' }}>{pvcStats.totalPieces} un</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: '#34d399' }}>{pvcStats.totalLinearMeters.toFixed(2)} m</td>
+                  <td style={{ color: '#cbd5e1', fontSize: '10.5px' }}>Volume total: {pvcStats.totalCapacityL} Litros</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Tabela de Conexões e Ferragens Hidráulicas */}
+            <div
+              style={{
+                marginBottom: '6px',
+                padding: '7px 10px',
+                background: 'rgba(56, 189, 248, 0.12)',
+                borderLeft: '3px solid #38bdf8',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#38bdf8'
+              }}
+            >
+              🔧 CONEXÕES & ACESSÓRIOS HIDRÁULICOS NECESSÁRIOS ({pvcStats.fittings.length} ITENS)
+            </div>
+            <table className="bom-table">
+              <thead>
+                <tr>
+                  <th>Componente Hidráulico</th>
+                  <th>Especificação Técnica</th>
+                  <th>Qtd</th>
+                  <th>Função & Aplicação no Veículo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pvcStats.fittings.map((f) => (
+                  <tr key={f.key}>
+                    <td><strong style={{ color: '#f8fafc' }}>{f.label}</strong></td>
+                    <td style={{ color: '#38bdf8' }}>{f.spec}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#4ade80' }}>
+                      {f.qty} {f.unit}
+                    </td>
+                    <td style={{ color: '#cbd5e1', fontSize: '10.5px' }}>{f.notes}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
-    )}
       </div>
     </div>
   );
 };
-

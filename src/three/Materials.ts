@@ -143,6 +143,22 @@ export const MaterialLibrary = {
       envMapIntensity: 1.3
     });
 
+    this.materials.aluminumTubeSilver = new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0,
+      metalness: 0.90,
+      roughness: 0.28,
+      envMapIntensity: 1.4,
+      side: THREE.DoubleSide
+    });
+
+    this.materials.aluminumTubeBlack = new THREE.MeshStandardMaterial({
+      color: 0x222a36,
+      metalness: 0.85,
+      roughness: 0.35,
+      envMapIntensity: 1.2,
+      side: THREE.DoubleSide
+    });
+
     this.materials.aluminumCutFace = new THREE.MeshStandardMaterial({
       color: 0xe8edf2,
       metalness: 0.95,
@@ -178,7 +194,8 @@ export const MaterialLibrary = {
       map: metalonTex,
       bumpMap: metalonTex,
       bumpScale: 0.0015,
-      envMapIntensity: 1.2
+      envMapIntensity: 1.2,
+      side: THREE.DoubleSide
     });
 
     this.materials.telescopicRail = new THREE.MeshStandardMaterial({

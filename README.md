@@ -35,7 +35,7 @@ npm run build
 - **Organização Modular**:
   - `src/types/`: Tipagens TypeScript completas para configurações, simulação solar e medições.
   - `src/three/`: Modelos e subsistemas 3D (SceneManager, SolarSystem, DobloModel, AluminumExtrusion, SolarSimulation, Materials, Textures, Audio).
-  - `src/context/`: `SolarContext` para estado compartilhado reativo e persistência no LocalStorage.
+  - `src/context/`: `SolarContext` para estado compartilhado reativo e persistência no Banco de Dados do Navegador (IndexedDB).
   - `src/components/`: Componentes React decompostos (Header, Sidebar, RightPanel, CanvasViewport, BarTooltip, Toast e Modais).
   - `src/components/modals/`: LoadsModal (Editor de Cargas & Balanço), BatteryModal (Kingbo 560Ah), MpptModal (MPPT 60A) e BomModal (Lista de Materiais e Cortes).
 

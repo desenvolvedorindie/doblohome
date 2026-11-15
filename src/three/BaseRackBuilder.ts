@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { MaterialLibrary } from './Materials';
 import { AluminumExtrusionFactory } from './AluminumExtrusion';
+import { MetalonTubeFactory } from './MetalonTube';
 import { StructureMaterial, AluminumColor, SteelProfileUnit, getSteelProfileSpec } from '../types';
 
 /**
@@ -21,7 +22,8 @@ export class BaseRackBuilder {
     aluminumColor: AluminumColor,
     cargoBoxEnabled: boolean,
     vanBaseY: number = 2.06,
-    steelProfileUnit: SteelProfileUnit = 'mm'
+    steelProfileUnit: SteelProfileUnit = 'mm',
+    metalonThickness: number = 2.0
   ) {
     const mats = MaterialLibrary.materials;
     const rack = new THREE.Group();
@@ -29,33 +31,43 @@ export class BaseRackBuilder {
     const length = 2.20;
     const width = 1.40;
     const profileSize = 0.04;
-    const isAluminum = (structureMaterial === 'aluminum');
-    const steelSpec40 = getSteelProfileSpec(40, steelProfileUnit);
+    const thicknessM = Math.max(0.0005, (metalonThickness || 2.0) / 1000);
+    const isTSlot = (structureMaterial === 'aluminum');
+    const isAluTube = (structureMaterial === 'aluminum_tube');
+    const isAluminum = isTSlot || isAluTube;
+    const steelSpec40 = getSteelProfileSpec(40, steelProfileUnit, metalonThickness);
 
-    const frameMat = isAluminum
+    const frameMat = isTSlot
       ? (aluminumColor === 'black' ? mats.aluminumProfileBlack : mats.aluminumProfileSilver)
-      : mats.weldedSteelMetalon;
+      : isAluTube
+        ? (aluminumColor === 'black' ? mats.aluminumTubeBlack : mats.aluminumTubeSilver)
+        : mats.weldedSteelMetalon;
+
+    const profileSpec40 = isTSlot
+      ? 'Perfil T-Slot 40x40'
+      : isAluTube
+        ? `Tubo Retangular Alumínio 40x40x${metalonThickness.toFixed(1)}mm`
+        : steelSpec40;
 
     // 1. Longarinas Principais (2.20m ao longo do teto)
     let barLeft, barRight;
-    if (isAluminum) {
+    if (isTSlot) {
       barLeft = AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true });
       barRight = AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true });
     } else {
-      const longBarGeo = new THREE.BoxGeometry(profileSize, profileSize, length);
-      barLeft = new THREE.Mesh(longBarGeo, frameMat);
-      barRight = new THREE.Mesh(longBarGeo, frameMat);
+      barLeft = MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: profileSize, thickness: thicknessM });
+      barRight = MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: profileSize, thickness: thicknessM });
     }
 
     barLeft.position.set(-width / 2 + profileSize / 2, curBaseY, zCenter);
     barLeft.castShadow = true;
-    barLeft.userData = { isBar: true, barLength: length, barLabel: 'Longarina Lateral do Rack Base', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : steelSpec40 };
+    barLeft.userData = { isBar: true, barLength: length, barLabel: 'Longarina Lateral do Rack Base', profileSpec: profileSpec40 };
     rack.add(barLeft);
     rackMeshes.push(barLeft);
 
     barRight.position.set(width / 2 - profileSize / 2, curBaseY, zCenter);
     barRight.castShadow = true;
-    barRight.userData = { isBar: true, barLength: length, barLabel: 'Longarina Lateral do Rack Base', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : steelSpec40 };
+    barRight.userData = { isBar: true, barLength: length, barLabel: 'Longarina Lateral do Rack Base', profileSpec: profileSpec40 };
     rack.add(barRight);
     rackMeshes.push(barRight);
 
@@ -73,15 +85,14 @@ export class BaseRackBuilder {
 
     crossZPositions.forEach(zPos => {
       let crossBar;
-      if (isAluminum) {
+      if (isTSlot) {
         crossBar = AluminumExtrusionFactory.createProfileMesh(crossBarLength, frameMat, { axis: 'x' });
       } else {
-        const crossGeo = new THREE.BoxGeometry(crossBarLength, profileSize, profileSize);
-        crossBar = new THREE.Mesh(crossGeo, frameMat);
+        crossBar = MetalonTubeFactory.createTubeMesh(crossBarLength, frameMat, { axis: 'x', size: profileSize, thickness: thicknessM });
       }
       crossBar.position.set(0, curBaseY, zPos);
       crossBar.castShadow = true;
-      crossBar.userData = { isBar: true, barLength: crossBarLength, barLabel: 'Travessa Transversal do Rack Base', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : steelSpec40 };
+      crossBar.userData = { isBar: true, barLength: crossBarLength, barLabel: 'Travessa Transversal do Rack Base', profileSpec: profileSpec40 };
       rack.add(crossBar);
       rackMeshes.push(crossBar);
     });
@@ -107,22 +118,21 @@ export class BaseRackBuilder {
       longitudinalSpans.forEach(span => {
         if (span.len <= 0.02) return;
         let midBar;
-        if (isAluminum) {
+        if (isTSlot) {
           midBar = AluminumExtrusionFactory.createProfileMesh(span.len, frameMat, { axis: 'z' });
         } else {
-          const midGeo = new THREE.BoxGeometry(profileSize, profileSize, span.len);
-          midBar = new THREE.Mesh(midGeo, frameMat);
+          midBar = MetalonTubeFactory.createTubeMesh(span.len, frameMat, { axis: 'z', size: profileSize, thickness: thicknessM });
         }
         midBar.position.set(mx, curBaseY, span.z);
         midBar.castShadow = true;
-        midBar.userData = { isBar: true, barLength: span.len, barLabel: 'Longarina Central de Apoio do Leito', profileSpec: isAluminum ? 'Perfil T-Slot 40x40' : steelSpec40 };
+        midBar.userData = { isBar: true, barLength: span.len, barLabel: 'Longarina Central de Apoio do Leito', profileSpec: profileSpec40 };
         rack.add(midBar);
         rackMeshes.push(midBar);
       });
     });
 
     // 3. Cantoneiras com parafusos Allen
-    if (isAluminum) {
+    if (isTSlot) {
       AluminumExtrusionFactory.addRackBrackets(aluminumBracketsGroup, width, length, zCenter, curBaseY, profileSize, [zMidFront, zMidRear]);
       aluminumBracketsGroup.visible = true;
       weldGussetsGroup.visible = false;

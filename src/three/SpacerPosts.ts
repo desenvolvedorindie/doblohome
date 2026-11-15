@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { MaterialLibrary } from './Materials';
 import { AluminumExtrusionFactory } from './AluminumExtrusion';
+import { MetalonTubeFactory } from './MetalonTube';
 import { StructureMaterial, AluminumColor, SteelProfileUnit, getSteelProfileSpec } from '../types';
 
 /**
@@ -19,14 +20,26 @@ export class SpacerPostsBuilder {
     zCenter: number,
     structureMaterial: StructureMaterial = 'aluminum',
     aluminumColor: AluminumColor = 'silver',
-    steelProfileUnit: SteelProfileUnit = 'mm'
+    steelProfileUnit: SteelProfileUnit = 'mm',
+    metalonThickness: number = 1.5
   ) {
     const mats = MaterialLibrary.materials;
-    const isAluminum = (structureMaterial === 'aluminum');
-    const steelSpec30 = getSteelProfileSpec(30, steelProfileUnit);
-    const postMat = isAluminum
+    const isTSlot = (structureMaterial === 'aluminum');
+    const isAluTube = (structureMaterial === 'aluminum_tube');
+    const isAluminum = isTSlot || isAluTube;
+    const thicknessM = Math.max(0.0005, (metalonThickness || 1.5) / 1000);
+    const steelSpec30 = getSteelProfileSpec(30, steelProfileUnit, metalonThickness);
+    const postMat = isTSlot
       ? (aluminumColor === 'black' ? mats.aluminumProfileBlack : mats.aluminumProfileSilver)
-      : mats.weldedSteelMetalon;
+      : isAluTube
+        ? (aluminumColor === 'black' ? mats.aluminumTubeBlack : mats.aluminumTubeSilver)
+        : mats.weldedSteelMetalon;
+
+    const profileSpec30 = isTSlot
+      ? 'Perfil T-Slot 30x30'
+      : isAluTube
+        ? `Tubo Retangular Alumínio 30x30x${metalonThickness.toFixed(1)}mm`
+        : steelSpec30;
     const postSize = 0.030; // 30 mm T-Slot
 
     // Longarinas externas do rack base (largura 1.40m, centros em ±0.68m)
@@ -63,11 +76,10 @@ export class SpacerPostsBuilder {
       const xP = cfg.xSign * pillarX;
 
       let post;
-      if (isAluminum) {
+      if (isTSlot) {
         post = AluminumExtrusionFactory.createProfileMesh(postH, postMat, { axis: 'y', size: postSize, showCutFace: true });
       } else {
-        const postGeo = new THREE.BoxGeometry(postSize, postH, postSize);
-        post = new THREE.Mesh(postGeo, postMat);
+        post = MetalonTubeFactory.createTubeMesh(postH, postMat, { axis: 'y', size: postSize, thickness: thicknessM });
       }
       post.position.set(xP, yCenterPillar, cfg.z);
       post.castShadow = true;
@@ -75,7 +87,7 @@ export class SpacerPostsBuilder {
         isBar: true,
         barLength: postH,
         barLabel: `Pilar de Sustentação (${cfg.label})`,
-        profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30
+        profileSpec: profileSpec30
       };
       targetGroup.add(post);
 
@@ -109,11 +121,10 @@ export class SpacerPostsBuilder {
 
     transPositions.forEach(tp => {
       let transMesh;
-      if (isAluminum) {
+      if (isTSlot) {
         transMesh = AluminumExtrusionFactory.createProfileMesh(transLen, postMat, { axis: 'x', size: postSize, showCutFace: true });
       } else {
-        const transGeo = new THREE.BoxGeometry(transLen, postSize, postSize);
-        transMesh = new THREE.Mesh(transGeo, postMat);
+        transMesh = MetalonTubeFactory.createTubeMesh(transLen, postMat, { axis: 'x', size: postSize, thickness: thicknessM });
       }
       transMesh.position.set(transCenterX, yTopRail, tp.z);
       transMesh.castShadow = true;
@@ -121,7 +132,7 @@ export class SpacerPostsBuilder {
         isBar: true,
         barLength: transLen,
         barLabel: `Travessa Superior (${tp.label})`,
-        profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30
+        profileSpec: profileSpec30
       };
       targetGroup.add(transMesh);
     });
@@ -141,11 +152,10 @@ export class SpacerPostsBuilder {
     longSides.forEach(side => {
       const xPos = side.xSign * topRailX;
       let longMesh;
-      if (isAluminum) {
+      if (isTSlot) {
         longMesh = AluminumExtrusionFactory.createProfileMesh(longLen, postMat, { axis: 'z', size: postSize, showCutFace: true });
       } else {
-        const longGeo = new THREE.BoxGeometry(postSize, postSize, longLen);
-        longMesh = new THREE.Mesh(longGeo, postMat);
+        longMesh = MetalonTubeFactory.createTubeMesh(longLen, postMat, { axis: 'z', size: postSize, thickness: thicknessM });
       }
       longMesh.position.set(xPos, yTopRail, longCenterZ);
       longMesh.castShadow = true;
@@ -153,7 +163,7 @@ export class SpacerPostsBuilder {
         isBar: true,
         barLength: longLen,
         barLabel: `Longarina Superior (${side.label})`,
-        profileSpec: isAluminum ? 'Perfil T-Slot 30x30' : steelSpec30
+        profileSpec: profileSpec30
       };
       targetGroup.add(longMesh);
 

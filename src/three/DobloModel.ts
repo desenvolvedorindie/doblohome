@@ -12,12 +12,12 @@ export class DobloVehicle {
   constructor() {
     this.group = new THREE.Group();
     this.group.name = "FiatDoblo";
-    // Hitbox invisível do teto da Doblò para detecção de colisão com a base
-    const roofColliderGeo = new THREE.BoxGeometry(1.32, 0.20, 2.25);
+    // Hitbox invisível do teto da Doblò para detecção de colisão com a base (centrada no teto invertido Z = -0.68m)
+    const roofColliderGeo = new THREE.BoxGeometry(1.32, 0.20, 2.40);
     const roofColliderMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
     const roofCollider = new THREE.Mesh(roofColliderGeo, roofColliderMat);
     roofCollider.name = '__roof_collider';
-    roofCollider.position.set(0, 1.82, -0.45);
+    roofCollider.position.set(0, 1.82, -0.68);
     roofCollider.userData = {
       isRoofCollider: true,
       barLabel: 'Teto do Veículo (Fiat Doblò)',
@@ -53,9 +53,29 @@ export class DobloVehicle {
                   i,
                   (x_sk - offsetX) * scale,
                   (z_sk - offsetZ) * scale,
-                  (y_sk - offsetY) * scale
+                  -(y_sk - offsetY) * scale
                 );
               }
+
+              // Inverte a ordem dos vértices/triângulos (winding) para que as normais continuem perfeitamente apontadas para fora
+              if (child.geometry.index) {
+                const idx = child.geometry.index;
+                for (let j = 0; j < idx.count; j += 3) {
+                  const b = idx.getX(j + 1);
+                  const c = idx.getX(j + 2);
+                  idx.setX(j + 1, c);
+                  idx.setX(j + 2, b);
+                }
+                idx.needsUpdate = true;
+              } else {
+                for (let j = 0; j < pos.count; j += 3) {
+                  const x1 = pos.getX(j + 1), y1 = pos.getY(j + 1), z1 = pos.getZ(j + 1);
+                  const x2 = pos.getX(j + 2), y2 = pos.getY(j + 2), z2 = pos.getZ(j + 2);
+                  pos.setXYZ(j + 1, x2, y2, z2);
+                  pos.setXYZ(j + 2, x1, y1, z1);
+                }
+              }
+
               pos.needsUpdate = true;
               child.geometry.computeVertexNormals();
               child.geometry.computeBoundingBox();
@@ -95,6 +115,7 @@ export class DobloVehicle {
           this.group.remove(c);
           if ((c as any).geometry) (c as any).geometry.dispose();
         }
+        // O modelo 3D da Doblò está nativamente alinhado: dianteira/capô para +Z, traseira/porta-malas para -Z, motorista para +X e passageiro para -X
         this.group.add(obj);
         console.log('✅ Fiat Doblò real carregada com sucesso a partir de /assets/doblo.obj!');
       },

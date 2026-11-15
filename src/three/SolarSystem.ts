@@ -7,6 +7,7 @@ import { SpacerPostsBuilder } from './SpacerPosts';
 import { PowerStorageBuilder } from './PowerStorage';
 import { DimensionOverlayBuilder } from './DimensionOverlay';
 import { AwningSystem } from './AwningSystem';
+import { MaterialLibrary } from './Materials';
 
 /**
  * Sistema Mecânico do Rack Solar Retrátil para Fiat Doblò
@@ -54,6 +55,10 @@ export class SolarSystem {
   structureMaterial: StructureMaterial;
   steelProfileUnit: SteelProfileUnit;
   aluminumColor: AluminumColor;
+  metalonColor: string;
+  metalonWallThickness: number;
+  metalonThickness40: number;
+  metalonThickness30: number;
   showDimensions: boolean;
   showCableChain: boolean;
   upperTransparent: boolean;
@@ -88,6 +93,7 @@ export class SolarSystem {
   mpptGroup: THREE.Group;
   b2bGroup: THREE.Group;
   usinaGroup: THREE.Group;
+  assignedElectronics: Set<string> = new Set();
   slidingLayers: THREE.Group[];
   rackMeshes: THREE.Mesh[];
   currentTrayDims?: TrayDimensions;
@@ -132,9 +138,13 @@ export class SolarSystem {
     };
 
     const curBaseY = this.currentBaseY;
-    this.Y_LEVEL1_LOWER = curBaseY + 0.045;
-    this.Y_LEVEL1_UPPER = curBaseY + 0.105;
-    this.Y_LEVEL2 = curBaseY + 0.175;
+    // Otimização de altura mínima: o nível inferior agora opera em um ÚNICO nível coplanar (mesma cota Y)
+    // Bandeja de 30mm assentada com 5mm de folga livre acima do leito do rack base (curBaseY + 20mm)
+    const yLevel1 = curBaseY + 0.040;
+    this.Y_LEVEL1_LOWER = yLevel1;
+    this.Y_LEVEL1_UPPER = yLevel1;
+    // Nível 2 (superior) rebaixado logo acima do Nível 1 com folga livre de segurança para as placas solares (+70mm)
+    this.Y_LEVEL2 = yLevel1 + 0.070;
 
     // Especificações do Painel Solar Flexível Padrão (Inohouse 100W JTN-100W)
     this.PANEL_SPECS = {
@@ -172,6 +182,10 @@ export class SolarSystem {
     this.structureMaterial = 'aluminum';
     this.steelProfileUnit = 'mm';
     this.aluminumColor = 'silver';
+    this.metalonColor = '#333b47';
+    this.metalonWallThickness = 1.5;
+    this.metalonThickness40 = 2.0;
+    this.metalonThickness30 = 1.5;
     this.showDimensions = true;
     this.showCableChain = false;
     this.upperTransparent = false;
@@ -229,7 +243,11 @@ export class SolarSystem {
       this.RACK_OFFSET_Z,
       this.structureMaterial,
       this.aluminumColor,
-      this.steelProfileUnit
+      this.steelProfileUnit,
+      this.waterTankConfig.enabled,
+      this.waterTankConfig.diameterMm,
+      this.metalonThickness40,
+      this.metalonThickness30
     );
     this.group.add(this.cargoBoxSystem.group);
 
@@ -368,11 +386,32 @@ export class SolarSystem {
   setAluminumColor(color: any) {
     if (this.aluminumColor === color) return;
     this.aluminumColor = color;
-    if (this.structureMaterial === 'aluminum') {
+    if (this.structureMaterial === 'aluminum' || this.structureMaterial === 'aluminum_tube') {
       this.buildSystem();
       this.updateExpansion(this.expansionProgress);
       this.updateExploded(this.explodedProgress);
     }
+  }
+
+  setMetalonColor(color: string) {
+    this.metalonColor = color;
+    if (MaterialLibrary.materials.weldedSteelMetalon) {
+      MaterialLibrary.materials.weldedSteelMetalon.color.set(color);
+      MaterialLibrary.materials.weldedSteelMetalon.needsUpdate = true;
+    }
+  }
+
+  setMetalonThickness(thickness40: number, thickness30?: number) {
+    this.metalonThickness40 = thickness40;
+    this.metalonThickness30 = (thickness30 !== undefined) ? thickness30 : thickness40;
+    this.metalonWallThickness = thickness40;
+    if (this.cargoBoxSystem) {
+      this.cargoBoxSystem.metalonThickness40 = this.metalonThickness40;
+      this.cargoBoxSystem.metalonThickness30 = this.metalonThickness30;
+    }
+    this.buildSystem();
+    this.updateExpansion(this.expansionProgress);
+    this.updateExploded(this.explodedProgress);
   }
 
   setPanelSpecs(specs: Partial<typeof this.PANEL_SPECS>) {
@@ -424,10 +463,14 @@ export class SolarSystem {
 
   get currentBaseY(): number {
     if (this.cargoBoxConfig && this.cargoBoxConfig.enabled) {
+      const isTelescopic = (this.cargoBoxConfig.isTelescopic !== false);
       const boxH = (this.cargoBoxConfig.height || 330) / 1000;
-      const maxLiftM = Math.max(0.06, boxH - 0.10);
-      const liftM = Math.min(maxLiftM, Math.max(0, (this.cargoBoxConfig.verticalLiftMm || 0) / 1000));
-      return this.BASE_Y + this.BASE_PROFILE_H + boxH + 0.03 + liftM;
+      const maxLiftM = isTelescopic ? Math.max(0.06, boxH - 0.10) : 0;
+      const liftM = isTelescopic ? Math.min(maxLiftM, Math.max(0, (this.cargoBoxConfig.verticalLiftMm || 0) / 1000)) : 0;
+      // Topo do baú (incluindo nervuras de reforço na tampa):
+      const topOfBoxY = this.BASE_Y + this.BASE_PROFILE_H / 2 + boxH + 0.015;
+      const gapAboveBoxM = 0.008; // 8mm de folga mínima rente
+      return topOfBoxY + gapAboveBoxM + this.BASE_PROFILE_H / 2 + liftM;
     }
     return this.BASE_Y;
   }
@@ -436,17 +479,36 @@ export class SolarSystem {
 
   setCargoBox(config: Partial<CargoBoxConfig>) {
     this.cargoBoxConfig = { ...this.cargoBoxConfig, ...config };
-    const maxLiftMm = Math.max(60, Math.floor(((this.cargoBoxConfig.height || 330) - 100) / 10) * 10);
-    if ((this.cargoBoxConfig.verticalLiftMm || 0) > maxLiftMm) {
-      this.cargoBoxConfig.verticalLiftMm = maxLiftMm;
+    const isTelescopic = (this.cargoBoxConfig.isTelescopic !== false);
+    if (!isTelescopic) {
+      this.cargoBoxConfig.verticalLiftMm = 0;
+    } else {
+      const maxLiftMm = Math.max(60, Math.floor(((this.cargoBoxConfig.height || 330) - 100) / 10) * 10);
+      if ((this.cargoBoxConfig.verticalLiftMm || 0) > maxLiftMm) {
+        this.cargoBoxConfig.verticalLiftMm = maxLiftMm;
+      }
+    }
+    this.buildSystem();
+    this.updateExpansion(this.expansionProgress);
+  }
+
+  setCargoBoxTelescopic(isTelescopic: boolean) {
+    this.cargoBoxConfig.isTelescopic = isTelescopic;
+    if (!isTelescopic) {
+      this.cargoBoxConfig.verticalLiftMm = 0;
     }
     this.buildSystem();
     this.updateExpansion(this.expansionProgress);
   }
 
   setCargoBoxVerticalLift(liftMm: number) {
-    const maxLiftMm = Math.max(60, Math.floor(((this.cargoBoxConfig.height || 330) - 100) / 10) * 10);
-    this.cargoBoxConfig.verticalLiftMm = Math.max(0, Math.min(maxLiftMm, liftMm));
+    const isTelescopic = (this.cargoBoxConfig.isTelescopic !== false);
+    if (!isTelescopic) {
+      this.cargoBoxConfig.verticalLiftMm = 0;
+    } else {
+      const maxLiftMm = Math.max(60, Math.floor(((this.cargoBoxConfig.height || 330) - 100) / 10) * 10);
+      this.cargoBoxConfig.verticalLiftMm = Math.max(0, Math.min(maxLiftMm, liftMm));
+    }
     this.buildSystem();
     this.updateExpansion(this.expansionProgress);
   }
@@ -513,6 +575,24 @@ export class SolarSystem {
     }
   }
 
+  setAssignedElectronics(assigned: Set<string>) {
+    let changed = false;
+    if (this.assignedElectronics.size !== assigned.size) {
+      changed = true;
+    } else {
+      for (const id of assigned) {
+        if (!this.assignedElectronics.has(id)) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (changed) {
+      this.assignedElectronics = new Set(assigned);
+      this.buildSystem();
+    }
+  }
+
   // --- RECONSTRUÇÃO DO SISTEMA COMPLETO ---
 
   buildSystem() {
@@ -553,7 +633,15 @@ export class SolarSystem {
         this.cargoBoxSystem.structureMaterial = this.structureMaterial;
         this.cargoBoxSystem.steelProfileUnit = this.steelProfileUnit;
         this.cargoBoxSystem.aluminumColor = this.aluminumColor;
-        this.cargoBoxSystem.updateConfig(this.cargoBoxConfig, this.BASE_Y, this.RACK_OFFSET_Z);
+        this.cargoBoxSystem.metalonThickness40 = this.metalonThickness40;
+        this.cargoBoxSystem.metalonThickness30 = this.metalonThickness30;
+        this.cargoBoxSystem.updateConfig(
+          this.cargoBoxConfig,
+          this.BASE_Y,
+          this.RACK_OFFSET_Z,
+          this.waterTankConfig.enabled,
+          this.waterTankConfig.diameterMm
+        );
         this.cargoBoxSystem.group.visible = true;
         if (this.solarSuperstructureGroup.parent !== this.cargoBoxSystem.tiltingMountGroup) {
           this.cargoBoxSystem.tiltingMountGroup.add(this.solarSuperstructureGroup);
@@ -569,9 +657,13 @@ export class SolarSystem {
     }
 
     const curBaseY = this.currentBaseY;
-    this.Y_LEVEL1_LOWER = curBaseY + 0.045;
-    this.Y_LEVEL1_UPPER = curBaseY + 0.105;
-    this.Y_LEVEL2 = curBaseY + 0.175;
+    // Otimização de altura mínima: o nível inferior agora opera em um ÚNICO nível coplanar (mesma cota Y)
+    // Bandeja de 30mm assentada com 5mm de folga livre acima do leito do rack base (curBaseY + 20mm)
+    const yLevel1 = curBaseY + 0.040;
+    this.Y_LEVEL1_LOWER = yLevel1;
+    this.Y_LEVEL1_UPPER = yLevel1;
+    // Nível 2 (superior) rebaixado logo acima do Nível 1 com folga livre de segurança para as placas solares (+70mm)
+    this.Y_LEVEL2 = yLevel1 + 0.070;
 
     // 1. Dimensões geométricas das bandejas
     const trayDimsL1 = SolarTrayBuilder.calculateTrayDimensions(this.level1.panels, this.level1.orientation, this.PANEL_SPECS);
@@ -593,17 +685,27 @@ export class SolarSystem {
       this.aluminumColor,
       this.cargoBoxConfig.enabled,
       this.BASE_Y,
-      this.steelProfileUnit
+      this.steelProfileUnit,
+      this.metalonThickness40
     );
 
     // 3. Constrói os Níveis e Gavetas Telescópicas
     this.buildStackStructure(trayDimsL2);
 
     // 4. Bateria LiFePO4 Kingbo 560Ah, MPPT 60A, Carregador DC-DC B2B1230 30A, Usina Smart Connect e Caixa d'Água (2× 200mm)
-    PowerStorageBuilder.buildKingboBattery(this.batteryGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
-    PowerStorageBuilder.buildKingboMPPT(this.mpptGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
-    PowerStorageBuilder.buildB2BCharger(this.b2bGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
-    PowerStorageBuilder.buildUsinaCharger(this.usinaGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
+    // Se o componente elétrico já estiver instalado dentro de uma caixa do camper, omite a versão solta flutuante
+    if (!this.assignedElectronics.has('battery')) {
+      PowerStorageBuilder.buildKingboBattery(this.batteryGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
+    }
+    if (!this.assignedElectronics.has('mppt')) {
+      PowerStorageBuilder.buildKingboMPPT(this.mpptGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
+    }
+    if (!this.assignedElectronics.has('b2b')) {
+      PowerStorageBuilder.buildB2BCharger(this.b2bGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
+    }
+    if (!this.assignedElectronics.has('usina')) {
+      PowerStorageBuilder.buildUsinaCharger(this.usinaGroup, this.RACK_OFFSET_Z, this.dimensionsGroup);
+    }
     PowerStorageBuilder.buildWaterTankPipes(
       this.waterTankGroup,
       this.waterTankConfig.enabled,
@@ -662,7 +764,8 @@ export class SolarSystem {
       this.structureMaterial,
       this.aluminumColor,
       this.PANEL_SPECS,
-      this.steelProfileUnit
+      this.steelProfileUnit,
+      this.metalonThickness30
     );
 
     // Nível 2 (Superior)
@@ -683,7 +786,8 @@ export class SolarSystem {
         this.structureMaterial,
         this.aluminumColor,
         this.PANEL_SPECS,
-        this.steelProfileUnit
+        this.steelProfileUnit,
+        this.metalonThickness30
       );
 
       // Pilares de elevação com braço de desvio para o Nível 2
@@ -696,7 +800,8 @@ export class SolarSystem {
         zCenter,
         this.structureMaterial,
         this.aluminumColor,
-        this.steelProfileUnit
+        this.steelProfileUnit,
+        this.metalonThickness30
       );
     } else {
       this.level2Motion = { dir: 'fixed', travelA: 0, travelB: 0 };
@@ -815,8 +920,10 @@ export class SolarSystem {
     const iscTotal = (isSeriesPair ? this.PANEL_SPECS.isc * Math.max(1, Math.round(totalPanels / 2)) : this.PANEL_SPECS.isc * totalPanels).toFixed(1);
 
     const weightPanels = (totalPanels * this.PANEL_SPECS.weightKg).toFixed(1);
-    const baseRackWeight = (this.structureMaterial === 'steel') ? 26.0 : 11.5;
-    const trayWeightPerLevel = (this.structureMaterial === 'steel') ? 5.2 : 2.3;
+    const isSteel = (this.structureMaterial === 'steel');
+    const isAluTube = (this.structureMaterial === 'aluminum_tube');
+    const baseRackWeight = isSteel ? 26.0 : (isAluTube ? 8.5 : 11.5);
+    const trayWeightPerLevel = isSteel ? 5.2 : (isAluTube ? 1.2 : 2.3);
     const slidesWeight = ((this.stackLevels - 1) * 3.4);
     const weightStructure = (baseRackWeight + (trayWeightPerLevel * this.stackLevels)).toFixed(1);
     const weightTotal = (parseFloat(weightPanels) + parseFloat(weightStructure) + slidesWeight).toFixed(1);

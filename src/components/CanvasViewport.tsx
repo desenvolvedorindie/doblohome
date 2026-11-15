@@ -4,7 +4,12 @@ import { SceneManager } from '../three/SceneManager';
 
 export const CanvasViewport: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { setSceneManager, isolatedBoxId, setIsolatedBoxId, internalBoxes } = useSolar();
+  const {
+    setSceneManager,
+    isolatedBoxId,
+    setIsolatedBoxId,
+    internalBoxes
+  } = useSolar();
 
   useEffect(() => {
     if (!containerRef.current) return;

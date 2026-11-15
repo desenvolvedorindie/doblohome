@@ -3,11 +3,74 @@
  * Gerencia a cena 3D, câmeras, renderizador, animações e interface com o usuário
  */
 
+function idbSet(key, value) {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try { window.localStorage.removeItem(key); } catch (_) { }
+  }
+  if (typeof window === 'undefined' || !window.indexedDB) return;
+  try {
+    const req = window.indexedDB.open('DobloSolarExpanderDB', 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('keyval')) db.createObjectStore('keyval');
+    };
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction('keyval', 'readwrite');
+      tx.objectStore('keyval').put(value, key);
+    };
+  } catch (_) { }
+}
+
+function idbGet(key, cb) {
+  if (typeof window === 'undefined' || !window.indexedDB) {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const val = window.localStorage.getItem(key);
+        cb(val ? JSON.parse(val) : null);
+      } catch (_) { cb(null); }
+    } else {
+      cb(null);
+    }
+    return;
+  }
+  try {
+    const req = window.indexedDB.open('DobloSolarExpanderDB', 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('keyval')) db.createObjectStore('keyval');
+    };
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction('keyval', 'readonly');
+      const getReq = tx.objectStore('keyval').get(key);
+      getReq.onsuccess = () => {
+        let res = getReq.result;
+        if (res === undefined && window.localStorage) {
+          try {
+            const raw = window.localStorage.getItem(key);
+            if (raw) {
+              res = JSON.parse(raw);
+              window.localStorage.removeItem(key);
+              idbSet(key, res);
+            }
+          } catch (_) { }
+        }
+        cb(res !== undefined ? res : null);
+      };
+      getReq.onerror = () => cb(null);
+    };
+    req.onerror = () => cb(null);
+  } catch (_) {
+    cb(null);
+  }
+}
+
 class App {
   constructor() {
     this.container = document.getElementById('canvas-container');
     this.clock = new THREE.Clock();
-    
+
     // Controle de animações concorrentes e rebobinamento
     this.activeExpansionAnim = null;
     this.rewindTimeout = null;
@@ -417,44 +480,55 @@ class App {
     });
 
     // 9. Sliders de Posição do Rack (move TODA a estrutura — sem rebuild)
-    const rackSlider    = document.getElementById('rack-offset-slider');
-    const rackValLabel  = document.getElementById('rack-offset-val');
-    const heightSlider  = document.getElementById('rack-height-slider');
-    const heightLabel   = document.getElementById('rack-height-val');
+    const rackSlider = document.getElementById('rack-offset-slider');
+    const rackValLabel = document.getElementById('rack-offset-val');
+    const heightSlider = document.getElementById('rack-height-slider');
+    const heightLabel = document.getElementById('rack-height-val');
 
     const KEY_Z = 'doblo_rack_offset_z';
     const KEY_Y = 'doblo_rack_offset_y';
     const DEF_Z = 0.40;
     const DEF_Y = 0.00;
 
-    // Lê valores salvos (ou padrão)
-    const initZ = parseFloat(localStorage.getItem(KEY_Z)) || DEF_Z;
-    const initY = parseFloat(localStorage.getItem(KEY_Y)) || DEF_Y;
-
     // Aplica offset Z (frente/trás)
     function applyZ(z) {
       self.solarSystem.setGroupOffsetZ(z);
       if (rackValLabel) rackValLabel.textContent = `${z >= 0 ? '+' : ''}${z.toFixed(2)} m`;
-      if (rackSlider)   rackSlider.value = z;
+      if (rackSlider) rackSlider.value = z;
     }
 
     // Aplica offset Y (cima/baixo)
     function applyY(y) {
       self.solarSystem.setGroupOffsetY(y);
-      if (heightLabel)  heightLabel.textContent = `${y >= 0 ? '+' : ''}${y.toFixed(2)} m`;
+      if (heightLabel) heightLabel.textContent = `${y >= 0 ? '+' : ''}${y.toFixed(2)} m`;
       if (heightSlider) heightSlider.value = y;
     }
 
-    // Aplica valores iniciais
-    applyZ(initZ);
-    applyY(initY);
+    // Aplica valores iniciais padrões
+    applyZ(DEF_Z);
+    applyY(DEF_Y);
 
-    // Eventos dos sliders — salva automaticamente todas as configurações
+    // Lê valores salvos do banco de dados IndexedDB
+    idbGet(KEY_Z, (val) => {
+      if (val !== null && val !== undefined) {
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed)) applyZ(parsed);
+      }
+    });
+
+    idbGet(KEY_Y, (val) => {
+      if (val !== null && val !== undefined) {
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed)) applyY(parsed);
+      }
+    });
+
+    // Eventos dos sliders — salva automaticamente todas as configurações no IndexedDB
     if (rackSlider) {
       rackSlider.addEventListener('input', (e) => {
         const z = parseFloat(e.target.value);
         applyZ(z);
-        localStorage.setItem(KEY_Z, z.toFixed(3));
+        idbSet(KEY_Z, z.toFixed(3));
         self.saveAllSettings();
       });
     }
@@ -463,15 +537,15 @@ class App {
       heightSlider.addEventListener('input', (e) => {
         const y = parseFloat(e.target.value);
         applyY(y);
-        localStorage.setItem(KEY_Y, y.toFixed(3));
+        idbSet(KEY_Y, y.toFixed(3));
         self.saveAllSettings();
       });
     }
 
     // 10. Modais
     this.setupModal('btn-open-battery', 'modal-battery', 'btn-close-battery');
-    this.setupModal('btn-open-mppt',    'modal-mppt',    'btn-close-mppt');
-    this.setupModal('btn-open-bom',     'modal-bom',     'btn-close-bom');
+    this.setupModal('btn-open-mppt', 'modal-mppt', 'btn-close-mppt');
+    this.setupModal('btn-open-bom', 'modal-bom', 'btn-close-bom');
 
     // 11. Screenshot
     document.getElementById('btn-screenshot').addEventListener('click', () => {
@@ -810,7 +884,7 @@ class App {
    */
   setExpansion(val) {
     this.solarSystem.updateExpansion(val);
-    
+
     const slider = document.getElementById('expansion-slider');
     if (slider) slider.value = Math.round(val * 100);
 
@@ -891,9 +965,9 @@ class App {
         newPos.set(0, 2.1, 4.5);
         break;
       case 'profile_detail':
-        const curZ = (this.solarSystem && this.solarSystem.groupOffsetZ !== undefined) 
+        const curZ = (this.solarSystem && this.solarSystem.groupOffsetZ !== undefined)
           ? this.solarSystem.groupOffsetZ : 0.40;
-        const curY = (this.solarSystem && this.solarSystem.groupOffsetY !== undefined) 
+        const curY = (this.solarSystem && this.solarSystem.groupOffsetY !== undefined)
           ? this.solarSystem.groupOffsetY : 0.00;
         target.set(-0.68, 2.06 + curY, curZ + 1.10);
         newPos.set(-0.92, 2.18 + curY, curZ + 1.35);
@@ -999,18 +1073,18 @@ class App {
     // --- Medidor de Capacidade do MPPT Kingbo 60A ---
     // O MPPT deve ser dimensionado para o pico máximo do array (todos os painéis expandidos),
     // independente do slider de expansão. Por isso usamos stats.powerOpen (pior caso real).
-    const MPPT_MAX_W   = 720;                    // 60A × 12V = limite do controlador
-    const MPPT_WARN_W  = MPPT_MAX_W * 0.85;      // 85% → zona de atenção (612 W)
-    const peakW        = stats.powerOpen;         // pico com TODOS os painéis abertos
-    const currentW     = stats.watts;             // geração instantânea (baseada no slider)
-    const mpptPct      = Math.round((peakW / MPPT_MAX_W) * 100);
-    const mpptMargin   = Math.max(0, MPPT_MAX_W - peakW);
-    const fillPct      = Math.min(mpptPct, 100);  // barra não ultrapassa a trilha visualmente
+    const MPPT_MAX_W = 720;                    // 60A × 12V = limite do controlador
+    const MPPT_WARN_W = MPPT_MAX_W * 0.85;      // 85% → zona de atenção (612 W)
+    const peakW = stats.powerOpen;         // pico com TODOS os painéis abertos
+    const currentW = stats.watts;             // geração instantânea (baseada no slider)
+    const mpptPct = Math.round((peakW / MPPT_MAX_W) * 100);
+    const mpptMargin = Math.max(0, MPPT_MAX_W - peakW);
+    const fillPct = Math.min(mpptPct, 100);  // barra não ultrapassa a trilha visualmente
 
     // Estado: 'ok' | 'warn' | 'over'  — avaliado sobre o PICO (peakW)
-    const mpptState = peakW > MPPT_MAX_W  ? 'over'
-                    : peakW >= MPPT_WARN_W ? 'warn'
-                    : 'ok';
+    const mpptState = peakW > MPPT_MAX_W ? 'over'
+      : peakW >= MPPT_WARN_W ? 'warn'
+        : 'ok';
 
     // Barra de preenchimento
     const fill = document.getElementById('mppt-gauge-fill');
@@ -1035,8 +1109,8 @@ class App {
     if (elMpptPct) {
       elMpptPct.textContent = `${mpptPct}%`;
       elMpptPct.style.color = mpptState === 'over' ? '#ef4444'
-                             : mpptState === 'warn' ? '#f59e0b'
-                             : '#10b981';
+        : mpptState === 'warn' ? '#f59e0b'
+          : '#10b981';
     }
 
     // Chip: margem disponível
@@ -1046,8 +1120,8 @@ class App {
         ? `−${peakW - MPPT_MAX_W} W excesso`
         : `+${mpptMargin} W livres`;
       elMpptMargin.style.color = mpptState === 'over' ? '#ef4444'
-                                : mpptState === 'warn' ? '#f59e0b'
-                                : '#94a3b8';
+        : mpptState === 'warn' ? '#f59e0b'
+          : '#94a3b8';
     }
 
     // Badge de status
@@ -1101,7 +1175,7 @@ class App {
   }
 
   /**
-   * Salva TODAS as configurações do sistema solar no localStorage:
+   * Salva TODAS as configurações do sistema solar no banco de dados IndexedDB:
    * Níveis (stack), Nível 1 e Nível 2 (placas, direção, orientação),
    * material, acabamento/cor, posição e nível de extensão.
    */
@@ -1117,9 +1191,9 @@ class App {
         offsetZ: this.solarSystem.groupOffsetZ !== undefined ? this.solarSystem.groupOffsetZ : 0.40,
         offsetY: this.solarSystem.groupOffsetY !== undefined ? this.solarSystem.groupOffsetY : 0.00
       };
-      localStorage.setItem('doblo_solar_full_config', JSON.stringify(config));
+      idbSet('doblo_solar_full_config', config);
     } catch (e) {
-      console.warn('Erro ao salvar configurações no localStorage:', e);
+      console.warn('Erro ao salvar configurações no banco de dados:', e);
     }
   }
 
@@ -1127,58 +1201,60 @@ class App {
    * Restaura todas as configurações salvas na inicialização
    */
   restoreAllSettings() {
-    try {
-      const raw = localStorage.getItem('doblo_solar_full_config');
-      if (!raw) return;
-      const cfg = JSON.parse(raw);
+    idbGet('doblo_solar_full_config', (cfg) => {
+      try {
+        if (!cfg) return;
 
-      if (cfg.stackLevels !== undefined && [1, 2].includes(cfg.stackLevels)) {
-        this.solarSystem.stackLevels = cfg.stackLevels;
-      }
-      if (cfg.level1) {
-        if (cfg.level1.panels && [1, 2, 3, 4].includes(parseInt(cfg.level1.panels))) {
-          this.solarSystem.level1.panels = parseInt(cfg.level1.panels);
+        if (cfg.stackLevels !== undefined && [1, 2].includes(cfg.stackLevels)) {
+          this.solarSystem.stackLevels = cfg.stackLevels;
         }
-        if (cfg.level1.slideDirection && ['longitudinal', 'lateral', 'fixed', 'rear_only', 'front_only'].includes(cfg.level1.slideDirection)) {
-          this.solarSystem.level1.slideDirection = cfg.level1.slideDirection;
+        if (cfg.level1) {
+          if (cfg.level1.panels && [1, 2, 3, 4].includes(parseInt(cfg.level1.panels))) {
+            this.solarSystem.level1.panels = parseInt(cfg.level1.panels);
+          }
+          if (cfg.level1.slideDirection && ['longitudinal', 'lateral', 'fixed', 'rear_only', 'front_only'].includes(cfg.level1.slideDirection)) {
+            this.solarSystem.level1.slideDirection = cfg.level1.slideDirection;
+          }
+          if (cfg.level1.orientation && ['longitudinal', 'transverse'].includes(cfg.level1.orientation)) {
+            this.solarSystem.level1.orientation = cfg.level1.orientation;
+          }
         }
-        if (cfg.level1.orientation && ['longitudinal', 'transverse'].includes(cfg.level1.orientation)) {
-          this.solarSystem.level1.orientation = cfg.level1.orientation;
+        if (cfg.level2) {
+          if (cfg.level2.panels && [1, 2, 3, 4].includes(parseInt(cfg.level2.panels))) {
+            this.solarSystem.level2.panels = parseInt(cfg.level2.panels);
+          }
+          if (cfg.level2.slideDirection && ['longitudinal', 'lateral', 'fixed', 'rear_only', 'front_only'].includes(cfg.level2.slideDirection)) {
+            this.solarSystem.level2.slideDirection = cfg.level2.slideDirection;
+          }
+          if (cfg.level2.orientation && ['longitudinal', 'transverse'].includes(cfg.level2.orientation)) {
+            this.solarSystem.level2.orientation = cfg.level2.orientation;
+          }
         }
-      }
-      if (cfg.level2) {
-        if (cfg.level2.panels && [1, 2, 3, 4].includes(parseInt(cfg.level2.panels))) {
-          this.solarSystem.level2.panels = parseInt(cfg.level2.panels);
+        if (cfg.structureMaterial && ['aluminum', 'steel'].includes(cfg.structureMaterial)) {
+          this.solarSystem.structureMaterial = cfg.structureMaterial;
         }
-        if (cfg.level2.slideDirection && ['longitudinal', 'lateral', 'fixed', 'rear_only', 'front_only'].includes(cfg.level2.slideDirection)) {
-          this.solarSystem.level2.slideDirection = cfg.level2.slideDirection;
+        if (cfg.aluminumColor && ['silver', 'black'].includes(cfg.aluminumColor)) {
+          this.solarSystem.aluminumColor = cfg.aluminumColor;
         }
-        if (cfg.level2.orientation && ['longitudinal', 'transverse'].includes(cfg.level2.orientation)) {
-          this.solarSystem.level2.orientation = cfg.level2.orientation;
+        if (cfg.offsetZ !== undefined) {
+          this.solarSystem.setGroupOffsetZ(parseFloat(cfg.offsetZ));
         }
-      }
-      if (cfg.structureMaterial && ['aluminum', 'steel'].includes(cfg.structureMaterial)) {
-        this.solarSystem.structureMaterial = cfg.structureMaterial;
-      }
-      if (cfg.aluminumColor && ['silver', 'black'].includes(cfg.aluminumColor)) {
-        this.solarSystem.aluminumColor = cfg.aluminumColor;
-      }
-      if (cfg.offsetZ !== undefined) {
-        this.solarSystem.setGroupOffsetZ(parseFloat(cfg.offsetZ));
-      }
-      if (cfg.offsetY !== undefined) {
-        this.solarSystem.setGroupOffsetY(parseFloat(cfg.offsetY));
-      }
+        if (cfg.offsetY !== undefined) {
+          this.solarSystem.setGroupOffsetY(parseFloat(cfg.offsetY));
+        }
 
-      // Reconstrói todo o sistema com as propriedades restauradas
-      this.solarSystem.buildSystem();
+        // Reconstrói todo o sistema com as propriedades restauradas
+        this.solarSystem.buildSystem();
 
-      if (cfg.expansionProgress !== undefined) {
-        this.solarSystem.updateExpansion(parseFloat(cfg.expansionProgress));
+        if (cfg.expansionProgress !== undefined) {
+          this.solarSystem.updateExpansion(parseFloat(cfg.expansionProgress));
+        }
+
+        this.syncUIWithState();
+      } catch (e) {
+        console.warn('Erro ao restaurar configurações salvas:', e);
       }
-    } catch (e) {
-      console.warn('Erro ao restaurar configurações salvas:', e);
-    }
+    });
   }
 
   /**

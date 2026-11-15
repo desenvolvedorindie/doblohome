@@ -9,9 +9,9 @@ import { TextureGenerator } from './Textures';
  */
 export class PowerStorageBuilder {
   /**
-   * Constrói a Bateria Kingbo LiFePO4 de 560Ah
+   * Constrói o grupo 3D da Bateria Kingbo LiFePO4 de 560Ah sem posicionamento fixo
    */
-  static buildKingboBattery(targetGroup: THREE.Group, zCenter: number, labelsGroup?: THREE.Group) {
+  static createBatteryMesh(): THREE.Group {
     const mats = MaterialLibrary.materials;
     const batGroup = new THREE.Group();
     batGroup.name = "KingboBattery560Ah";
@@ -146,7 +146,17 @@ export class PowerStorageBuilder {
       }
     });
 
-    // 11. Etiqueta / Sprite 3D Flutuante
+    return batGroup;
+  }
+
+  /**
+   * Constrói a Bateria Kingbo LiFePO4 de 560Ah (Posicionada no Veículo)
+   */
+  static buildKingboBattery(targetGroup: THREE.Group, zCenter: number, labelsGroup?: THREE.Group) {
+    const batGroup = this.createBatteryMesh();
+    const height = 0.24;
+
+    // Etiqueta / Sprite 3D Flutuante
     const batLabel = TextureGenerator.createDimensionSprite(
       "KINGBO LiFePO4 560Ah",
       "12.8V • 7.168 kWh • JK BMS 4.3\"",
@@ -166,9 +176,9 @@ export class PowerStorageBuilder {
   }
 
   /**
-   * Constrói o Controlador de Carga Solar MPPT Kingbo 60A (230Vdc entrada FV)
+   * Constrói o grupo 3D do Controlador de Carga Solar MPPT Kingbo 60A sem posicionamento fixo
    */
-  static buildKingboMPPT(targetGroup: THREE.Group, zCenter: number, labelsGroup?: THREE.Group) {
+  static createMPPTMesh(options?: { includeCables?: boolean }): THREE.Group {
     const mats = MaterialLibrary.materials;
     const mppt = new THREE.Group();
     mppt.name = "KingboMPPT60A";
@@ -236,41 +246,28 @@ export class PowerStorageBuilder {
     termBatNeg.position.set(W * 0.18, -H / 2 - 0.009, -D * 0.15);
     mppt.add(termBatNeg);
 
-    // 7. Cabo PV
-    const pvCablePoints = [
-      new THREE.Vector3(-W * 0.18, H / 2 + 0.009, -D * 0.15),
-      new THREE.Vector3(-W * 0.18, H / 2 + 0.35,  -D * 0.15),
-      new THREE.Vector3(-W * 0.18, H / 2 + 0.75,   0.0)
-    ];
-    const pvCurve = new THREE.CatmullRomCurve3(pvCablePoints);
-    const pvCableGeo = new THREE.TubeGeometry(pvCurve, 10, 0.005, 6, false);
-    mppt.add(new THREE.Mesh(pvCableGeo, mats.cableRed));
+    // 7. Cabos opcionais (usados na visão solta original)
+    if (options?.includeCables) {
+      const pvCablePoints = [
+        new THREE.Vector3(-W * 0.18, H / 2 + 0.009, -D * 0.15),
+        new THREE.Vector3(-W * 0.18, H / 2 + 0.35, -D * 0.15),
+        new THREE.Vector3(-W * 0.18, H / 2 + 0.75, 0.0)
+      ];
+      const pvCurve = new THREE.CatmullRomCurve3(pvCablePoints);
+      const pvCableGeo = new THREE.TubeGeometry(pvCurve, 10, 0.005, 6, false);
+      mppt.add(new THREE.Mesh(pvCableGeo, mats.cableRed));
 
-    // 8. Cabo Bateria
-    const batCablePoints = [
-      new THREE.Vector3(W * 0.18,  -H / 2 - 0.009, -D * 0.15),
-      new THREE.Vector3(W * 0.18,  -H / 2 - 0.08,  -D * 0.15),
-      new THREE.Vector3(-0.50,     -H / 2 - 0.08,  -D * 0.15)
-    ];
-    const batCurve = new THREE.CatmullRomCurve3(batCablePoints);
-    const batCableGeo = new THREE.TubeGeometry(batCurve, 10, 0.005, 6, false);
-    mppt.add(new THREE.Mesh(batCableGeo, mats.cableBlack));
-
-    // 9. Label
-    const mpptLabel = TextureGenerator.createDimensionSprite(
-      "KINGBO MPPT 60A",
-      "12–96V · 230Vdc PV · RS485+WiFi · η≥96.5%",
-      "rgba(14, 30, 24, 0.94)",
-      "#10b981"
-    );
-    mpptLabel.position.set(0.25, 0.85 + H / 2 + 0.22, zCenter);
-    if (labelsGroup) {
-      labelsGroup.add(mpptLabel);
-    } else {
-      mppt.add(mpptLabel);
+      const batCablePoints = [
+        new THREE.Vector3(W * 0.18, -H / 2 - 0.009, -D * 0.15),
+        new THREE.Vector3(W * 0.18, -H / 2 - 0.08, -D * 0.15),
+        new THREE.Vector3(-0.50, -H / 2 - 0.08, -D * 0.15)
+      ];
+      const batCurve = new THREE.CatmullRomCurve3(batCablePoints);
+      const batCableGeo = new THREE.TubeGeometry(batCurve, 10, 0.005, 6, false);
+      mppt.add(new THREE.Mesh(batCableGeo, mats.cableBlack));
     }
 
-    // 10. Metadados Elétricos Completos para Hover / Raycaster
+    // 8. Metadados Elétricos Completos para Hover / Raycaster
     const mpptUserData = {
       isElectrical: true,
       isElectricalRoot: true,
@@ -298,6 +295,30 @@ export class PowerStorageBuilder {
       }
     });
 
+    return mppt;
+  }
+
+  /**
+   * Constrói o Controlador de Carga Solar MPPT Kingbo 60A (Posicionado no Veículo)
+   */
+  static buildKingboMPPT(targetGroup: THREE.Group, zCenter: number, labelsGroup?: THREE.Group) {
+    const mppt = this.createMPPTMesh({ includeCables: true });
+    const H = 0.215;
+
+    // Label
+    const mpptLabel = TextureGenerator.createDimensionSprite(
+      "KINGBO MPPT 60A",
+      "12–96V · 230Vdc PV · RS485+WiFi · η≥96.5%",
+      "rgba(14, 30, 24, 0.94)",
+      "#10b981"
+    );
+    mpptLabel.position.set(0.25, 0.85 + H / 2 + 0.22, zCenter);
+    if (labelsGroup) {
+      labelsGroup.add(mpptLabel);
+    } else {
+      mppt.add(mpptLabel);
+    }
+
     // X=+0.25, Y=0.85m, Z=zCenter
     mppt.position.set(0.25, 0.85, zCenter);
     mppt.rotation.y = 0;
@@ -306,10 +327,9 @@ export class PowerStorageBuilder {
   }
 
   /**
-   * Constrói o Carregador Inteligente DC-DC B2B1230 (12V 30A com Bluetooth)
-   * Extrai corrente do alternador da Doblò para carregar a bateria Kingbo LiFePO4
+   * Constrói o grupo 3D do Carregador Inteligente DC-DC B2B1230 sem posicionamento fixo
    */
-  static buildB2BCharger(targetGroup: THREE.Group, zCenter: number, labelsGroup?: THREE.Group) {
+  static createB2BMesh(options?: { includeCables?: boolean }): THREE.Group {
     const mats = MaterialLibrary.materials;
     const b2b = new THREE.Group();
     b2b.name = "B2BCharger1230";
@@ -343,7 +363,7 @@ export class PowerStorageBuilder {
     for (let i = 0; i < finCount; i++) {
       const yOffset = -finH / 2 + i * finSpacing;
       const finGeo = new THREE.BoxGeometry(0.008, 0.003, D * 0.7);
-      
+
       const finLeft = new THREE.Mesh(finGeo, mats.b2bHeatsink);
       finLeft.position.set(-W / 2 - 0.004, yOffset, 0);
       b2b.add(finLeft);
@@ -396,7 +416,7 @@ export class PowerStorageBuilder {
 
     // 7. Borneiras de Alta Corrente (Alternador IN vs Bateria OUT)
     const blockGeo = new THREE.BoxGeometry(0.026, 0.022, 0.020);
-    
+
     // Entrada Alternador (+)
     const altPos = new THREE.Mesh(blockGeo, mats.b2bTerminalAlt || mats.mpptTerminalPV);
     altPos.position.set(-W * 0.26, -H / 2 - 0.010, 0);
@@ -424,42 +444,29 @@ export class PowerStorageBuilder {
     outNeg.position.set(W * 0.26, -H / 2 - 0.010, 0);
     b2b.add(outNeg);
 
-    // 8. Fio do Alternador (vindo da dianteira / cofre do motor da Doblò)
-    const altCablePoints = [
-      new THREE.Vector3(-W * 0.26, -H / 2 - 0.010, 0),
-      new THREE.Vector3(-W * 0.26, -H / 2 - 0.10, 0),
-      new THREE.Vector3(-0.35,     -H / 2 - 0.10, 0.50), // corre para frente em direção ao motor
-      new THREE.Vector3(-0.35,     -H / 2 - 0.05, 1.30)  // dianteira do cofre do motor
-    ];
-    const altCurve = new THREE.CatmullRomCurve3(altCablePoints);
-    const altCableGeo = new THREE.TubeGeometry(altCurve, 14, 0.0055, 6, false);
-    b2b.add(new THREE.Mesh(altCableGeo, mats.cableRed));
+    // 8. Cabos opcionais (usados na visão solta original)
+    if (options?.includeCables) {
+      const altCablePoints = [
+        new THREE.Vector3(-W * 0.26, -H / 2 - 0.010, 0),
+        new THREE.Vector3(-W * 0.26, -H / 2 - 0.10, 0),
+        new THREE.Vector3(-0.35, -H / 2 - 0.10, 0.50),
+        new THREE.Vector3(-0.35, -H / 2 - 0.05, 1.30)
+      ];
+      const altCurve = new THREE.CatmullRomCurve3(altCablePoints);
+      const altCableGeo = new THREE.TubeGeometry(altCurve, 14, 0.0055, 6, false);
+      b2b.add(new THREE.Mesh(altCableGeo, mats.cableRed));
 
-    // 9. Fio de Saída do B2B para a Bateria LiFePO4 Kingbo 560Ah
-    const outCablePoints = [
-      new THREE.Vector3(W * 0.10, -H / 2 - 0.010, 0),
-      new THREE.Vector3(W * 0.10, -H / 2 - 0.08, 0),
-      new THREE.Vector3(-0.25,    -H / 2 - 0.08, -0.15) // conecta aos bornes da bateria
-    ];
-    const outCurve = new THREE.CatmullRomCurve3(outCablePoints);
-    const outCableGeo = new THREE.TubeGeometry(outCurve, 10, 0.0055, 6, false);
-    b2b.add(new THREE.Mesh(outCableGeo, mats.cableRed));
-
-    // 10. Label 3D do B2B1230
-    const b2bLabel = TextureGenerator.createDimensionSprite(
-      "CARREGADOR DC-DC B2B1230",
-      "12V · 30A (390W) · Alternador Doblò → LiFePO4 · Bluetooth",
-      "rgba(15, 23, 42, 0.94)",
-      "#38bdf8"
-    );
-    b2bLabel.position.set(0.0, 0.62 + H / 2 + 0.18, zCenter - 0.25);
-    if (labelsGroup) {
-      labelsGroup.add(b2bLabel);
-    } else {
-      b2b.add(b2bLabel);
+      const outCablePoints = [
+        new THREE.Vector3(W * 0.10, -H / 2 - 0.010, 0),
+        new THREE.Vector3(W * 0.10, -H / 2 - 0.08, 0),
+        new THREE.Vector3(-0.25, -H / 2 - 0.08, -0.15)
+      ];
+      const outCurve = new THREE.CatmullRomCurve3(outCablePoints);
+      const outCableGeo = new THREE.TubeGeometry(outCurve, 10, 0.0055, 6, false);
+      b2b.add(new THREE.Mesh(outCableGeo, mats.cableRed));
     }
 
-    // 11. Metadados Elétricos Completos para Hover / Raycaster
+    // 9. Metadados Elétricos Completos para Hover / Raycaster
     const b2bUserData = {
       isElectrical: true,
       isElectricalRoot: true,
@@ -487,6 +494,30 @@ export class PowerStorageBuilder {
       }
     });
 
+    return b2b;
+  }
+
+  /**
+   * Constrói o Carregador Inteligente DC-DC B2B1230 (Posicionado no Veículo)
+   */
+  static buildB2BCharger(targetGroup: THREE.Group, zCenter: number, labelsGroup?: THREE.Group) {
+    const b2b = this.createB2BMesh({ includeCables: true });
+    const H = 0.130;
+
+    // Label 3D do B2B1230
+    const b2bLabel = TextureGenerator.createDimensionSprite(
+      "CARREGADOR DC-DC B2B1230",
+      "12V · 30A (390W) · Alternador Doblò → LiFePO4 · Bluetooth",
+      "rgba(15, 23, 42, 0.94)",
+      "#38bdf8"
+    );
+    b2bLabel.position.set(0.0, 0.62 + H / 2 + 0.18, zCenter - 0.25);
+    if (labelsGroup) {
+      labelsGroup.add(b2bLabel);
+    } else {
+      b2b.add(b2bLabel);
+    }
+
     // Posição no interior do veículo: centralizado abaixo do leito (X=0.0, Y=0.62m, Z=zCenter - 0.25)
     b2b.position.set(0.0, 0.62, zCenter - 0.25);
     b2b.rotation.y = 0;
@@ -495,10 +526,9 @@ export class PowerStorageBuilder {
   }
 
   /**
-   * Constrói a Fonte e Carregador Automotivo Smart Connect Usina 150A 12V Bivolt
-   * Permite recarga ultra-rápida (até 150A / 2.160W) conectada à rede elétrica (110V/220V Shore Power)
+   * Constrói o grupo 3D da Fonte Usina Smart Connect sem posicionamento fixo
    */
-  static buildUsinaCharger(targetGroup: THREE.Group, zCenter: number, labelsGroup?: THREE.Group) {
+  static createUsinaMesh(options?: { includeCables?: boolean }): THREE.Group {
     const mats = MaterialLibrary.materials;
     const usina = new THREE.Group();
     usina.name = "UsinaSmartConnect150A";
@@ -592,57 +622,43 @@ export class PowerStorageBuilder {
     termNeg.position.set(-W * 0.20, -H * 0.10, -D / 2 - 0.010);
     usina.add(termNeg);
 
-    // 8. Cabo de Saída reforçado de 35mm² conectando a Usina 150A à Bateria Kingbo 560Ah
-    const cablePosPoints = [
-      new THREE.Vector3(-W * 0.35, -H * 0.10, -D / 2 - 0.010),
-      new THREE.Vector3(-W * 0.35, -H * 0.10, -D / 2 - 0.08),
-      new THREE.Vector3(-0.25,     0.15,      -0.08) // chega ao borne positivo da bateria LiFePO4
-    ];
-    const cablePosCurve = new THREE.CatmullRomCurve3(cablePosPoints);
-    const cablePosGeo = new THREE.TubeGeometry(cablePosCurve, 10, 0.007, 8, false);
-    usina.add(new THREE.Mesh(cablePosGeo, mats.cableRed));
+    // 8. Cabos opcionais (usados na visão solta original)
+    if (options?.includeCables) {
+      const cablePosPoints = [
+        new THREE.Vector3(-W * 0.35, -H * 0.10, -D / 2 - 0.010),
+        new THREE.Vector3(-W * 0.35, -H * 0.10, -D / 2 - 0.08),
+        new THREE.Vector3(-0.25, 0.15, -0.08)
+      ];
+      const cablePosCurve = new THREE.CatmullRomCurve3(cablePosPoints);
+      const cablePosGeo = new THREE.TubeGeometry(cablePosCurve, 10, 0.007, 8, false);
+      usina.add(new THREE.Mesh(cablePosGeo, mats.cableRed));
 
-    const cableNegPoints = [
-      new THREE.Vector3(-W * 0.20, -H * 0.10, -D / 2 - 0.010),
-      new THREE.Vector3(-W * 0.20, -H * 0.10, -D / 2 - 0.08),
-      new THREE.Vector3(-0.20,     0.15,      -0.08) // chega ao borne negativo
-    ];
-    const cableNegCurve = new THREE.CatmullRomCurve3(cableNegPoints);
-    const cableNegGeo = new THREE.TubeGeometry(cableNegCurve, 10, 0.007, 8, false);
-    usina.add(new THREE.Mesh(cableNegGeo, mats.cableBlack));
+      const cableNegPoints = [
+        new THREE.Vector3(-W * 0.20, -H * 0.10, -D / 2 - 0.010),
+        new THREE.Vector3(-W * 0.20, -H * 0.10, -D / 2 - 0.08),
+        new THREE.Vector3(-0.20, 0.15, -0.08)
+      ];
+      const cableNegCurve = new THREE.CatmullRomCurve3(cableNegPoints);
+      const cableNegGeo = new THREE.TubeGeometry(cableNegCurve, 10, 0.007, 8, false);
+      usina.add(new THREE.Mesh(cableNegGeo, mats.cableBlack));
 
-    // 9. Cabo de Entrada AC (Tomada Bivolt 110V/220V - Shore Power)
-    const acCablePoints = [
-      new THREE.Vector3(W * 0.35, -H * 0.10, -D / 2 - 0.010),
-      new THREE.Vector3(W * 0.35, -H * 0.10, -D / 2 - 0.18),
-      new THREE.Vector3(0.55,     -0.10,      -D / 2 - 0.25) // corre para a lateral da van (conector de camping)
-    ];
-    const acCurve = new THREE.CatmullRomCurve3(acCablePoints);
-    const acCableGeo = new THREE.TubeGeometry(acCurve, 10, 0.005, 6, false);
-    usina.add(new THREE.Mesh(acCableGeo, mats.weldedSteelMetalon));
+      const acCablePoints = [
+        new THREE.Vector3(W * 0.35, -H * 0.10, -D / 2 - 0.010),
+        new THREE.Vector3(W * 0.35, -H * 0.10, -D / 2 - 0.18),
+        new THREE.Vector3(0.55, -0.10, -D / 2 - 0.25)
+      ];
+      const acCurve = new THREE.CatmullRomCurve3(acCablePoints);
+      const acCableGeo = new THREE.TubeGeometry(acCurve, 10, 0.005, 6, false);
+      usina.add(new THREE.Mesh(acCableGeo, mats.weldedSteelMetalon));
 
-    // Plugue de Tomada Industrial AC (Shore Power)
-    const plugGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.038, 14);
-    plugGeo.rotateZ(Math.PI / 2);
-    const plugMesh = new THREE.Mesh(plugGeo, mats.mpptScreen);
-    plugMesh.position.set(0.55, -0.10, -D / 2 - 0.25);
-    usina.add(plugMesh);
-
-    // 10. Label 3D Flutuante da Fonte Usina 150A
-    const usinaLabel = TextureGenerator.createDimensionSprite(
-      "FONTE USINA 150A SMART CONNECT",
-      "Bivolt 110/220V · 150A (2.160W) · Shore Power Camping",
-      "rgba(30, 10, 10, 0.94)",
-      "#ef4444"
-    );
-    usinaLabel.position.set(-0.28, 0.52 + H / 2 + 0.18, zCenter - 0.28);
-    if (labelsGroup) {
-      labelsGroup.add(usinaLabel);
-    } else {
-      usina.add(usinaLabel);
+      const plugGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.038, 14);
+      plugGeo.rotateZ(Math.PI / 2);
+      const plugMesh = new THREE.Mesh(plugGeo, mats.mpptScreen);
+      plugMesh.position.set(0.55, -0.10, -D / 2 - 0.25);
+      usina.add(plugMesh);
     }
 
-    // 11. Metadados Elétricos Completos para Hover / Raycaster
+    // 9. Metadados Elétricos Completos para Hover / Raycaster
     const usinaUserData = {
       isElectrical: true,
       isElectricalRoot: true,
@@ -670,6 +686,30 @@ export class PowerStorageBuilder {
       }
     });
 
+    return usina;
+  }
+
+  /**
+   * Constrói a Fonte e Carregador Automotivo Smart Connect Usina 150A 12V Bivolt (Posicionado no Veículo)
+   */
+  static buildUsinaCharger(targetGroup: THREE.Group, zCenter: number, labelsGroup?: THREE.Group) {
+    const usina = this.createUsinaMesh({ includeCables: true });
+    const H = 0.088;
+
+    // Label 3D Flutuante da Fonte Usina 150A
+    const usinaLabel = TextureGenerator.createDimensionSprite(
+      "FONTE USINA 150A SMART CONNECT",
+      "Bivolt 110/220V · 150A (2.160W) · Shore Power Camping",
+      "rgba(30, 10, 10, 0.94)",
+      "#ef4444"
+    );
+    usinaLabel.position.set(-0.28, 0.52 + H / 2 + 0.18, zCenter - 0.28);
+    if (labelsGroup) {
+      labelsGroup.add(usinaLabel);
+    } else {
+      usina.add(usinaLabel);
+    }
+
     // Posição no interior do veículo: apoiado na central técnica (X=-0.28, Y=0.52m, Z=zCenter - 0.28)
     usina.position.set(-0.28, 0.52, zCenter - 0.28);
     usina.rotation.y = 0;
@@ -678,9 +718,36 @@ export class PowerStorageBuilder {
   }
 
   /**
-   * Constrói os 2 Canos de PVC Laterais (Caixa d'Água Lateral — 1 de cada lado da estrutura base)
-   * Limite máximo de comprimento = 2200 mm (2,20 m, comprimento total da base da estrutura)
-   * Permite selecionar o raio do cano (ex.: 50mm a 150mm -> Ø100mm a Ø300mm)
+   * Curva paramétrica para o joelho PVC 90° (Quarter Arc Curve)
+   */
+  static QuarterArcCurve = class extends THREE.Curve<THREE.Vector3> {
+    constructor(
+      public centerX: number,
+      public centerZ: number,
+      public radius: number,
+      public startAngle: number,
+      public endAngle: number
+    ) {
+      super();
+    }
+    getPoint(t: number, optionalTarget = new THREE.Vector3()): THREE.Vector3 {
+      const angle = this.startAngle + t * (this.endAngle - this.startAngle);
+      return optionalTarget.set(
+        this.centerX + this.radius * Math.cos(angle),
+        0,
+        this.centerZ + this.radius * Math.sin(angle)
+      );
+    }
+  };
+
+  /**
+   * Constrói a Caixa d'Água em formato de U 100% instalada DENTRO da estrutura de ferro (subchassi 1,40m × 2,20m):
+   * - O circuito fica na dianteira da van (extremidade -Z, sobre a cabine/para-brisa) abraçando o baú
+   * - 2 Canos de PVC laterais longitudinais (1 de cada lado do baú, encostados na face interna das longarinas)
+   * - 2 Joelhos de 90° em PVC na dianteira conectando as longarinas ao cano transversal
+   * - 1 Cano transversal dianteiro interligando o circuito hidráulico por dentro da travessa frontal
+   * - 2 Tampões (caps) traseiros com registros esfera de saída de água em latão voltados para o porta-malas (+Z)
+   * - Bocal de abastecimento rápido superior com tampa rosqueável e válvula de respiro
    */
   static buildWaterTankPipes(
     targetGroup: THREE.Group,
@@ -689,7 +756,9 @@ export class PowerStorageBuilder {
     baseY: number,
     zCenter: number,
     labelsGroup?: THREE.Group,
-    diameterMmInput: number = 200
+    diameterMmInput: number = 200,
+    cargoBoxEnabled: boolean = true,
+    cargoBoxLengthM: number = 1.60
   ) {
     if (!enabled) return;
 
@@ -698,13 +767,9 @@ export class PowerStorageBuilder {
     const lengthMm = Math.max(400, Math.min(BASE_MAX_MM, Math.round(lengthMmInput || BASE_MAX_MM)));
     const diameterMm = Math.max(80, Math.min(350, Math.round(diameterMmInput || 200)));
     const radiusMm = +(diameterMm / 2).toFixed(1);
-    const lengthM = lengthMm / 1000;
+    const lateralLengthM = lengthMm / 1000;
     const radiusM = radiusMm / 1000;
     const radiusDm = radiusMm / 100;
-
-    // Cálculo de volume: V = π × r² × L (com r e L em decímetros -> resultado em Litros)
-    const litersPerPipe = +(Math.PI * radiusDm * radiusDm * (lengthMm / 100)).toFixed(1);
-    const totalLiters = +(litersPerPipe * 2).toFixed(1);
 
     const pipeMat = new THREE.MeshStandardMaterial({
       color: 0x1e293b,
@@ -734,129 +799,254 @@ export class PowerStorageBuilder {
       metalness: 0.8
     });
 
-    const baseHalfWidth = 0.70; // Metade da largura de 1.40m da base da estrutura
-    const pipeOffsetX = baseHalfWidth + radiusM + 0.018; // ±0.818m (1 de cada lado da estrutura base)
+    const baseHalfWidth = 0.70; // Metade da largura de 1.40m do quadro de ferro
+    // A tubulação fica 100% DENTRO da estrutura de ferro (encostada na face interna da longarina 40x40 em ±0.66m)
+    const frameInnerX = baseHalfWidth - 0.04; // 0.66m
+    const pipeOffsetX = frameInnerX - radiusM; // Dentro do ferro
     const pipeCenterY = baseY + 0.02;
 
+    // Coordenadas em Z da van Doblò:
+    // Dianteira da van (para-brisa / capô) = +Z
+    // Traseira da van (porta-malas) = -Z
+    const zFrontFrame = zCenter + (BASE_MAX_MM / 2) / 1000; // Dianteira extrema da estrutura de ferro (+Z)
+    const zRearFrame = zCenter - (BASE_MAX_MM / 2) / 1000; // Traseira extrema da estrutura de ferro (-Z)
+    const zInnerFront = zFrontFrame - 0.04;                 // Face interna da travessa dianteira de ferro
+    const zInnerRear = zRearFrame + 0.04;                  // Face interna da travessa traseira de ferro
+
+    // Cano transversal frontal montado 100% dentro do ferro (imediatamente atrás da travessa dianteira)
+    const zFrontPipe = zInnerFront - radiusM;
+    const bendR = Math.max(0.06, radiusM * 1.35);          // Raio de curvatura dos joelhos 90° (~0.135m)
+
+    // O cano transversal conecta as bolsas dos 2 joelhos de 90° ao longo do eixo X na dianteira
+    const frontPipeSpan = (pipeOffsetX - bendR) * 2;
+    const frontPipeLengthM = Math.max(0.20, frontPipeSpan);
+
+    // Canos laterais longitudinais (estendem-se dos joelhos dianteiros em direção à traseira -Z)
+    const zPipeStart = zFrontPipe - bendR; // Ponto de encaixe com o joelho dianteiro
+    const maxAvailableLateral = zPipeStart - zInnerRear;
+    const lateralPipeLengthM = Math.max(0.20, Math.min(lateralLengthM - bendR, maxAvailableLateral));
+    const zRearEnd = zPipeStart - lateralPipeLengthM; // Ponto traseiro de término junto ao porta-malas (-Z)
+
+    // Cálculo do volume de água contínuo em U:
+    // 2 canos laterais + 1 cano frontal + 2 joelhos de 90° (arco total = π * bendR)
+    const totalEffectiveLengthM = 2 * lateralLengthM + frontPipeLengthM + Math.PI * bendR;
+    const singleLateralLiters = +(Math.PI * radiusDm * radiusDm * (lateralLengthM * 10)).toFixed(1);
+    const frontCircuitLiters = +(Math.PI * radiusDm * radiusDm * ((frontPipeLengthM + Math.PI * bendR) * 10)).toFixed(1);
+    const totalLiters = +(Math.PI * radiusDm * radiusDm * (totalEffectiveLengthM * 10)).toFixed(1);
+
+    const waterTankMasterGroup = new THREE.Group();
+    waterTankMasterGroup.name = "WaterTank_UShape_Assembly";
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 1. CANOS LATERAIS LONGITUDINAIS (1 de cada lado do baú, 100% dentro do ferro)
+    // ──────────────────────────────────────────────────────────────────────────
     const sides: Array<{ sign: -1 | 1; sideName: string }> = [
       { sign: -1, sideName: 'Lado Esquerdo (Motorista)' },
       { sign: 1, sideName: 'Lado Direito (Passageiro)' }
     ];
 
     sides.forEach(({ sign, sideName }) => {
-      const pipeGroup = new THREE.Group();
-      pipeGroup.name = `WaterTankPipe200mm_${sign < 0 ? 'Left' : 'Right'}`;
+      const lateralPipeGroup = new THREE.Group();
+      lateralPipeGroup.name = `WaterTankLateral_${sign < 0 ? 'Left' : 'Right'}`;
 
-      // 1. Corpo cilíndrico do cano de 200mm (eixo Z)
-      const bodyGeo = new THREE.CylinderGeometry(radiusM, radiusM, lengthM, 28);
+      // 1.1 Tubo cilíndrico reto ao longo de Z (da dianteira para a traseira da van)
+      const bodyGeo = new THREE.CylinderGeometry(radiusM, radiusM, lateralPipeLengthM, 28);
       bodyGeo.rotateX(Math.PI / 2);
       const bodyMesh = new THREE.Mesh(bodyGeo, pipeMat);
+      bodyMesh.position.set(sign * pipeOffsetX, pipeCenterY, zPipeStart - lateralPipeLengthM / 2);
       bodyMesh.castShadow = true;
       bodyMesh.receiveShadow = true;
-      pipeGroup.add(bodyMesh);
+      lateralPipeGroup.add(bodyMesh);
 
-      // 2. Tampões / Caps de vedação de 200mm nas duas extremidades (Frente e Trás)
+      // 1.2 Tampão traseiro de vedação em PVC voltado para o porta-malas (-Z)
       const capLen = 0.045;
       const capGeo = new THREE.CylinderGeometry(radiusM * 1.045, radiusM * 1.045, capLen, 28);
       capGeo.rotateX(Math.PI / 2);
-
-      const frontCap = new THREE.Mesh(capGeo, capMat);
-      frontCap.position.set(0, 0, lengthM / 2 - capLen / 2 + 0.005);
-      frontCap.castShadow = true;
-      pipeGroup.add(frontCap);
-
       const rearCap = new THREE.Mesh(capGeo, capMat);
-      rearCap.position.set(0, 0, -lengthM / 2 + capLen / 2 - 0.005);
+      rearCap.position.set(sign * pipeOffsetX, pipeCenterY, zRearEnd - capLen / 2 + 0.005);
       rearCap.castShadow = true;
-      pipeGroup.add(rearCap);
+      lateralPipeGroup.add(rearCap);
 
-      // 3. Faixa lateral azul indicadora de reservatório de água
-      const stripeGeo = new THREE.BoxGeometry(0.006, 0.024, Math.max(0.15, lengthM - 0.14));
+      // 1.3 Faixa lateral azul indicadora de reservatório
+      const stripeLen = Math.max(0.15, lateralPipeLengthM - 0.12);
+      const stripeGeo = new THREE.BoxGeometry(0.006, 0.024, stripeLen);
       const stripeMesh = new THREE.Mesh(stripeGeo, waterAccentMat);
-      stripeMesh.position.set(sign * (radiusM + 0.001), 0.015, 0);
-      pipeGroup.add(stripeMesh);
+      stripeMesh.position.set(sign * (pipeOffsetX - radiusM * 0.98), pipeCenterY + 0.015, zPipeStart - lateralPipeLengthM / 2);
+      lateralPipeGroup.add(stripeMesh);
 
-      // 4. Bocal superior de abastecimento (tampa rosqueável azul) na parte dianteira
-      const fillerZ = Math.min(lengthM * 0.32, lengthM / 2 - 0.08);
-      const neckMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.026, 0.025, 16), capMat);
-      neckMesh.position.set(0, radiusM + 0.010, fillerZ);
-      pipeGroup.add(neckMesh);
-
-      const fillerCap = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.014, 16), waterAccentMat);
-      fillerCap.position.set(0, radiusM + 0.026, fillerZ);
-      pipeGroup.add(fillerCap);
-
-      // 5. Torneira / Registro esfera traseiro de saída d'água
-      const valveBody = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.036, 12), brassMat);
+      // 1.4 Torneira / Registro esfera traseiro de saída d'água voltado para o vão traseiro da van (-Z)
+      const valveBody = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.038, 12), brassMat);
       valveBody.rotation.x = Math.PI / 2;
-      valveBody.position.set(0, -radiusM * 0.42, -lengthM / 2 - 0.018);
-      pipeGroup.add(valveBody);
+      valveBody.position.set(sign * pipeOffsetX, pipeCenterY - radiusM * 0.42, zRearEnd - 0.024);
+      lateralPipeGroup.add(valveBody);
 
       const valveHandle = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.038, 0.010), waterAccentMat);
-      valveHandle.position.set(0, -radiusM * 0.42 + 0.016, -lengthM / 2 - 0.026);
-      pipeGroup.add(valveHandle);
+      valveHandle.position.set(sign * pipeOffsetX, pipeCenterY - radiusM * 0.42 + 0.016, zRearEnd - 0.032);
+      lateralPipeGroup.add(valveHandle);
 
-      // 6. Abraçadeiras e berços metálicos fixados na longarina lateral da estrutura base
-      const bracketZList = lengthM >= 1.2
-        ? [-lengthM * 0.34, 0, lengthM * 0.34]
-        : [-lengthM * 0.28, lengthM * 0.28];
+      // 1.5 Abraçadeiras fixadas na face interna da longarina lateral de ferro
+      const bracketCount = lateralPipeLengthM >= 1.4 ? 3 : 2;
+      for (let i = 0; i < bracketCount; i++) {
+        const frac = bracketCount === 2 ? (i === 0 ? 0.22 : 0.78) : (0.15 + i * 0.35);
+        const bz = zPipeStart - lateralPipeLengthM * frac;
 
-      bracketZList.forEach((bz) => {
-        // Cinta circular em aço inox ao redor do tubo 200mm
+        // Cinta circular de aço inox ao redor do tubo
         const strapGeo = new THREE.CylinderGeometry(radiusM * 1.03, radiusM * 1.03, 0.022, 24);
         strapGeo.rotateX(Math.PI / 2);
         const strapMesh = new THREE.Mesh(strapGeo, clampMat);
-        strapMesh.position.set(0, 0, bz);
-        pipeGroup.add(strapMesh);
+        strapMesh.position.set(sign * pipeOffsetX, pipeCenterY, bz);
+        lateralPipeGroup.add(strapMesh);
 
-        // Braço de ancoragem ligando o cano à longarina lateral da base
-        const armLen = radiusM + 0.025;
+        // Suporte metálico de fixação na longarina de ferro 40x40
+        const armLen = radiusM + 0.02;
         const armGeo = new THREE.BoxGeometry(armLen, 0.032, 0.026);
         const armMesh = new THREE.Mesh(armGeo, clampMat);
-        armMesh.position.set(-sign * (armLen / 2 + radiusM * 0.45), -0.015, bz);
-        pipeGroup.add(armMesh);
-      });
+        armMesh.position.set(sign * (pipeOffsetX + armLen / 2), pipeCenterY - 0.015, bz);
+        lateralPipeGroup.add(armMesh);
+      }
 
-      // 7. Metadados para Tooltip interativo ao passar o mouse no 3D
-      const waterUserData = {
-        isElectrical: true,
-        isElectricalRoot: true,
-        electricalType: 'water' as const,
-        name: `Caixa d'Água PVC Raio ${radiusMm}mm / Ø${diameterMm}mm (${sideName})`,
-        category: `Reservatório Hidráulico Lateral (2× Canos R=${radiusMm}mm / Ø${diameterMm}mm)`,
-        voltage: `Raio: ${radiusMm} mm (Ø${diameterMm} mm) • Comprimento: ${lengthMm} mm (${lengthM.toFixed(2)} m)`,
-        capacity: `${totalLiters} Litros Total (${litersPerPipe} L neste cano)`,
-        current: `Ocupação da Base: ${lengthMm} / ${BASE_MAX_MM} mm (${Math.round((lengthMm / BASE_MAX_MM) * 100)}%)`,
-        power: `Peso da Água: +${totalLiters} kg cheio (${litersPerPipe} kg/lado)`,
-        material: `Tubo PVC Reforçado Ø${diameterMm}mm (Raio ${radiusMm}mm) + Abraçadeiras Inox 304`,
-        purpose: 'Reserva de água pressurizável ou por gravidade para banho, pia e cozinha do motorhome',
-        efficiency: '100% externo nas laterais do rack base (não ocupa espaço interno)',
-        features: [
-          `2× Tubos R=${radiusMm}mm (Ø${diameterMm}mm) × ${lengthMm}mm (${totalLiters} L)`,
-          'Bocal superior de abastecimento rápido',
-          'Registro traseiro com torneira em latão',
-          'Fixação lateral no perfil 40×40 da base'
-        ]
-      };
-      pipeGroup.userData = waterUserData;
-      pipeGroup.traverse((c) => {
-        if ((c as any).isMesh) {
-          c.userData = { ...waterUserData, isElectricalRoot: false, electricalRoot: pipeGroup };
-        }
-      });
-
-      pipeGroup.position.set(sign * pipeOffsetX, pipeCenterY, zCenter);
-      targetGroup.add(pipeGroup);
+      waterTankMasterGroup.add(lateralPipeGroup);
     });
 
-    // 8. Etiqueta 3D Flutuante mostrando medidas e Litros calculados
+    // ──────────────────────────────────────────────────────────────────────────
+    // 2. DOIS JOELHOS DE 90° EM PVC (Na dianteira da van, dentro da estrutura)
+    // ──────────────────────────────────────────────────────────────────────────
+    const leftElbowCurve = new PowerStorageBuilder.QuarterArcCurve(
+      -pipeOffsetX + bendR,
+      zFrontPipe - bendR,
+      bendR,
+      Math.PI / 2,
+      Math.PI
+    );
+    const leftElbowGeo = new THREE.TubeGeometry(leftElbowCurve, 16, radiusM, 24, false);
+    const leftElbowMesh = new THREE.Mesh(leftElbowGeo, pipeMat);
+    leftElbowMesh.position.y = pipeCenterY;
+    leftElbowMesh.castShadow = true;
+    leftElbowMesh.receiveShadow = true;
+    waterTankMasterGroup.add(leftElbowMesh);
+
+    const rightElbowCurve = new PowerStorageBuilder.QuarterArcCurve(
+      pipeOffsetX - bendR,
+      zFrontPipe - bendR,
+      bendR,
+      Math.PI / 2,
+      0
+    );
+    const rightElbowGeo = new THREE.TubeGeometry(rightElbowCurve, 16, radiusM, 24, false);
+    const rightElbowMesh = new THREE.Mesh(rightElbowGeo, pipeMat);
+    rightElbowMesh.position.y = pipeCenterY;
+    rightElbowMesh.castShadow = true;
+    rightElbowMesh.receiveShadow = true;
+    waterTankMasterGroup.add(rightElbowMesh);
+
+    // Bolsas reforçadas dos joelhos (socket rings das conexões de 90° de PVC)
+    const socketRingGeoZ = new THREE.CylinderGeometry(radiusM * 1.055, radiusM * 1.055, 0.032, 24);
+    socketRingGeoZ.rotateX(Math.PI / 2);
+    const socketRingGeoX = new THREE.CylinderGeometry(radiusM * 1.055, radiusM * 1.055, 0.032, 24);
+    socketRingGeoX.rotateZ(Math.PI / 2);
+
+    // Encaixes nos canos laterais (face Z)
+    [-pipeOffsetX, pipeOffsetX].forEach((xPos) => {
+      const ringZ = new THREE.Mesh(socketRingGeoZ, capMat);
+      ringZ.position.set(xPos, pipeCenterY, zPipeStart);
+      waterTankMasterGroup.add(ringZ);
+    });
+
+    // Encaixes no cano frontal (face X)
+    [-pipeOffsetX + bendR, pipeOffsetX - bendR].forEach((xPos) => {
+      const ringX = new THREE.Mesh(socketRingGeoX, capMat);
+      ringX.position.set(xPos, pipeCenterY, zFrontPipe);
+      waterTankMasterGroup.add(ringX);
+    });
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 3. CANO TRANSVERSAL DIANTEIRO (100% dentro do ferro, na frente do baú)
+    // ──────────────────────────────────────────────────────────────────────────
+    const frontBodyGeo = new THREE.CylinderGeometry(radiusM, radiusM, frontPipeLengthM, 28);
+    frontBodyGeo.rotateZ(Math.PI / 2);
+    const frontBodyMesh = new THREE.Mesh(frontBodyGeo, pipeMat);
+    frontBodyMesh.position.set(0, pipeCenterY, zFrontPipe);
+    frontBodyMesh.castShadow = true;
+    frontBodyMesh.receiveShadow = true;
+    waterTankMasterGroup.add(frontBodyMesh);
+
+    // Faixa azul indicadora no cano frontal
+    const frontStripeGeo = new THREE.BoxGeometry(frontPipeLengthM * 0.70, 0.024, 0.006);
+    const frontStripeMesh = new THREE.Mesh(frontStripeGeo, waterAccentMat);
+    frontStripeMesh.position.set(0, pipeCenterY + 0.015, zFrontPipe + radiusM * 0.98);
+    waterTankMasterGroup.add(frontStripeMesh);
+
+    // Bocal superior de abastecimento central (tampa rosqueável azul)
+    const neckMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.030, 0.028, 16), capMat);
+    neckMesh.position.set(0, pipeCenterY + radiusM + 0.012, zFrontPipe);
+    waterTankMasterGroup.add(neckMesh);
+
+    const fillerCap = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.016, 16), waterAccentMat);
+    fillerCap.position.set(0, pipeCenterY + radiusM + 0.030, zFrontPipe);
+    waterTankMasterGroup.add(fillerCap);
+
+    // Válvula de alívio / respiro de ar ao lado do bocal
+    const breatherMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.010, 0.022, 12), brassMat);
+    breatherMesh.position.set(0.12, pipeCenterY + radiusM + 0.011, zFrontPipe);
+    waterTankMasterGroup.add(breatherMesh);
+
+    // Suportes frontais ancorados na face interna da travessa dianteira de ferro 40x40
+    [-0.25, 0.25].forEach((fx) => {
+      const frontStrap = new THREE.Mesh(socketRingGeoX.clone(), clampMat);
+      frontStrap.position.set(fx, pipeCenterY, zFrontPipe);
+      waterTankMasterGroup.add(frontStrap);
+
+      const frontArmGeo = new THREE.BoxGeometry(0.032, 0.032, radiusM + 0.02);
+      const frontArm = new THREE.Mesh(frontArmGeo, clampMat);
+      frontArm.position.set(fx, pipeCenterY - 0.015, zFrontPipe + (radiusM * 0.5 + 0.01));
+      waterTankMasterGroup.add(frontArm);
+    });
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 4. METADADOS E TOOLTIP INTERATIVO
+    // ──────────────────────────────────────────────────────────────────────────
+    const waterUserData = {
+      isElectrical: true,
+      isElectricalRoot: true,
+      electricalType: 'water' as const,
+      name: `Caixa d'Água em U (2 Joelhos 90° + Canos PVC Ø${diameterMm}mm dentro do ferro)`,
+      category: `Reservatório Hidráulico Contínuo em U ao Redor do Baú (Ø${diameterMm}mm)`,
+      voltage: `Raio: ${radiusMm} mm (Ø${diameterMm} mm) • Extensão Total: ${totalEffectiveLengthM.toFixed(2)} m`,
+      capacity: `${totalLiters} Litros Total (${singleLateralLiters}L lateral esq. + ${singleLateralLiters}L lateral dir. + ${frontCircuitLiters}L interligação frontal)`,
+      current: `100% Interno no Quadro: 2× Laterais (${(lateralPipeLengthM * 1000).toFixed(0)}mm) + 1× Frontal (${(frontPipeLengthM * 1000).toFixed(0)}mm) + 2× Joelhos 90°`,
+      power: `Peso da Água: +${totalLiters} kg cheio`,
+      material: `Tubos PVC Série R Ø${diameterMm}mm + 2× Joelhos 90° com bolsa e anel + 2× Caps traseiros + Registros Latão 1/2"`,
+      purpose: 'Reserva de água contínua em formato U instalada internamente no quadro de ferro abraçando o baú',
+      efficiency: '100% embutido dentro da largura de 1,40m da estrutura de ferro (não projeta nas laterais da van)',
+      features: [
+        `Estrutura contínua em U dentro do ferro (${totalLiters} L)`,
+        `2× Joelhos PVC 90° Ø${diameterMm}mm interligando a estrutura na dianteira`,
+        `1× Cano frontal de ${(frontPipeLengthM * 1000).toFixed(0)}mm com bocal de abastecimento`,
+        `2× Canos laterais longitudinais de ${(lateralPipeLengthM * 1000).toFixed(0)}mm`,
+        '2× Registros traseiros de latão para saída de água na tampa da van',
+        'Nível equalizado por gravidade e sem protuberâncias externas'
+      ]
+    };
+
+    waterTankMasterGroup.userData = waterUserData;
+    waterTankMasterGroup.traverse((c) => {
+      if ((c as any).isMesh) {
+        c.userData = { ...waterUserData, isElectricalRoot: false, electricalRoot: waterTankMasterGroup };
+      }
+    });
+
+    targetGroup.add(waterTankMasterGroup);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 5. ETIQUETA TÉCNICA 3D FLUTUANTE
+    // ──────────────────────────────────────────────────────────────────────────
     const waterLabel = TextureGenerator.createDimensionSprite(
-      `💧 CAIXA D'ÁGUA: 2× R=${radiusMm}mm / Ø${diameterMm}mm (${totalLiters} L)`,
-      `Comp: ${lengthMm} mm (máx 2200mm) • ${litersPerPipe} L cada lado`,
+      `💧 CAIXA D'ÁGUA EM U (INTERNA): R=${radiusMm}mm / Ø${diameterMm}mm (${totalLiters} L)`,
+      `2× Joelhos 90° • Frontal ${(frontPipeLengthM * 1000).toFixed(0)}mm • 2× Laterais ${(lateralPipeLengthM * 1000).toFixed(0)}mm`,
       'rgba(8, 47, 73, 0.94)',
       '#38bdf8'
     );
-    waterLabel.position.set(-pipeOffsetX, pipeCenterY + radiusM + 0.16, zCenter);
+    waterLabel.position.set(0, pipeCenterY + radiusM + 0.18, zFrontPipe);
     if (labelsGroup) {
       labelsGroup.add(waterLabel);
     } else {

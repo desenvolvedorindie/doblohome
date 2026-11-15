@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSolar } from '../context/SolarContext';
-import { SlideDirection, PanelOrientation } from '../types';
+import { SlideDirection, PanelOrientation, METALON_COLOR_PRESETS, getMetalonGauge } from '../types';
 import { InternalBoxesPlanner } from './InternalBoxesPlanner';
+import { CuttingPlanSidePanel } from './cutting/CuttingPlanSidePanel';
 
 export const Sidebar: React.FC = () => {
   const {
@@ -21,6 +22,14 @@ export const Sidebar: React.FC = () => {
     setSteelProfileUnit,
     aluminumColor,
     setAluminumColor,
+    metalonColor,
+    setMetalonColor,
+    metalonWallThickness,
+    metalonThickness40,
+    metalonThickness30,
+    setMetalonWallThickness,
+    setMetalonThickness40,
+    setMetalonThickness30,
     offsetZ,
     setOffsetZ,
     offsetY,
@@ -29,6 +38,7 @@ export const Sidebar: React.FC = () => {
     setCargoBoxEnabled,
     setCargoBoxDimensions,
     setCargoBoxVerticalLift,
+    setCargoBoxTelescopic,
     setCargoBoxHingeSide,
     openModal,
     panelPresets,
@@ -46,14 +56,13 @@ export const Sidebar: React.FC = () => {
     setWaterTankEnabled,
     setWaterTankLength,
     setWaterTankRadius,
+    awning,
+    setAwning,
+    toggleAwningOpen,
     viewMode,
     setViewMode,
-    internalBoxes,
     internalGrid,
     setInternalGrid,
-    updateInternalBox,
-    selectedBoxId,
-    setSelectedBoxId,
     isOpenPreview,
     setIsOpenPreview,
     isVehicleVisible,
@@ -62,7 +71,7 @@ export const Sidebar: React.FC = () => {
     setVehicleOpacity
   } = useSolar();
 
-  const selectedBox = internalBoxes.find(b => b.id === selectedBoxId);
+  const [showCustomThicknessSizes, setShowCustomThicknessSizes] = useState<boolean>(false);
 
   const panelW = activePanelPreset.powerWatts;
   const panelCmW = Math.round(activePanelPreset.width * 100);
@@ -84,35 +93,42 @@ export const Sidebar: React.FC = () => {
   const pipeRadiusMm = Math.round(waterTank.diameterMm / 2);
   const pipeDiameterMm = waterTank.diameterMm;
   const pipeRadiusDm = pipeRadiusMm / 100; // ex.: 100mm = 1.0 dm
-  const pipeLengthDm = waterTank.lengthMm / 100; // mm -> dm
-  const singlePipeLiters = +(Math.PI * pipeRadiusDm * pipeRadiusDm * pipeLengthDm).toFixed(1);
-  const totalWaterLiters = +(singlePipeLiters * 2).toFixed(1);
+  const pipeRadiusM = pipeRadiusMm / 1000;
+  const frameInnerX = 0.70 - 0.04; // 0.66m
+  const pipeOffsetX = frameInnerX - pipeRadiusM;
+  const bendR = Math.max(0.06, pipeRadiusM * 1.35);
+  const frontPipeSpanM = Math.max(0.20, (pipeOffsetX - bendR) * 2);
+  const frontCircuitAddonM = frontPipeSpanM + Math.PI * bendR;
+  const singlePipeLiters = +(Math.PI * pipeRadiusDm * pipeRadiusDm * (waterTank.lengthMm / 100)).toFixed(1);
+  const frontCircuitLiters = +(Math.PI * pipeRadiusDm * pipeRadiusDm * (frontCircuitAddonM * 10)).toFixed(1);
+  const totalWaterLiters = +(singlePipeLiters * 2 + frontCircuitLiters).toFixed(1);
   const litersPerMeterSingle = +(Math.PI * pipeRadiusDm * pipeRadiusDm * 10).toFixed(1);
   const litersPerMeterTotal = +(litersPerMeterSingle * 2).toFixed(1);
   const baseLengthOccupationPct = Math.round((waterTank.lengthMm / baseMaxLengthMm) * 100);
 
   if (viewMode === 'internal_boxes') {
     return (
-      <aside className="sidebar-panel glass-panel" style={{ width: '420px', maxWidth: 'calc(100vw - 40px)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid rgba(56, 189, 248, 0.3)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '18px' }}>📦</span>
+      <aside className="sidebar-panel glass-panel" style={{ width: '600px', maxWidth: 'calc(100vw - 40px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid rgba(56, 189, 248, 0.3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '22px' }}>📦</span>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 900, color: '#f59e0b', letterSpacing: '0.5px' }}>
-                1. CAIXAS INTERNAS
+                1. CAIXAS INTERNAS & GRID CAMPER
               </div>
-              <div style={{ fontSize: '10px', color: '#94a3b8' }}>
-                Sistema de Grid & Armazenadores Camper da Doblò
+              <div style={{ fontSize: '10.5px', color: '#94a3b8' }}>
+                Sistema de Grid & Armazenadores Modulares da Doblò
               </div>
             </div>
           </div>
           <button
             onClick={() => setViewMode('assembled')}
             className="btn-compact primary"
-            style={{ fontSize: '10px', padding: '4px 8px' }}
-            title="Ir para o Modo 2: Doblò + Estrutura Solar"
+            style={{ fontSize: '11px', padding: '6px 12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Ir para o Modo 2: Doblò Externa + Sistema Solar de Teto"
           >
-            Avançar para 2. Doblò ➔
+            <span>Doblò Externa & Teto</span>
+            <span>➔</span>
           </button>
         </div>
 
@@ -121,41 +137,12 @@ export const Sidebar: React.FC = () => {
     );
   }
 
+  if (viewMode === 'bars_lineup') {
+    return <CuttingPlanSidePanel />;
+  }
+
   return (
     <aside className="sidebar-panel glass-panel">
-      {/* Atalho para Modo 1: Caixas Internas */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.25))',
-          border: '1px solid rgba(245, 158, 11, 0.45)',
-          borderRadius: '8px',
-          padding: '10px 12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          cursor: 'pointer',
-          marginBottom: '4px'
-        }}
-        onClick={() => setViewMode('internal_boxes')}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '20px' }}>📦</span>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b' }}>
-              1. CAIXAS & ARMAZENADORES INTERNOS
-            </div>
-            <div style={{ fontSize: '9.5px', color: '#cbd5e1' }}>
-              {internalBoxes.length} caixas configuradas no assoalho da Doblò
-            </div>
-          </div>
-        </div>
-        <button
-          className="btn-compact"
-          style={{ fontSize: '10px', background: '#f59e0b', color: '#000', fontWeight: 800, border: 'none' }}
-        >
-          Editar Grid
-        </button>
-      </div>
       {/* 1. Configurador Paramétrico do Stack de Painéis Solares Flexíveis */}
       <div className="panel-section">
         <div className="section-label">
@@ -164,9 +151,9 @@ export const Sidebar: React.FC = () => {
             className="btn-compact primary"
             onClick={() => openModal('panel-presets')}
             style={{ fontSize: '10px', padding: '3px 8px' }}
-            title="Gerenciar e cadastrar presets de placas solares"
+            title="Gerenciar presets de placas solares"
           >
-            ☀️ Presets / Cadastrar
+            ☀️ Presets
           </button>
         </div>
 
@@ -478,7 +465,7 @@ export const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Material da Estrutura (Toggle Alumínio vs Ferro Soldado) */}
+      {/* 2. Material da Estrutura (Toggle Alumínio Tubular vs T-Slot vs Ferro Soldado) */}
       <div className="panel-section">
         <div className="section-label">
           <span>⚙️ MATERIAL DA ESTRUTURA</span>
@@ -486,24 +473,33 @@ export const Sidebar: React.FC = () => {
             id="structure-weight-badge"
             style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)', fontSize: '11px' }}
           >
-            {structureMaterial === 'aluminum' ? '18.5 kg (Alumínio)' : '42.0 kg (Ferro)'}
+            {structureMaterial === 'aluminum_tube' ? '12.0 kg (Metalon Alumínio)' : structureMaterial === 'aluminum' ? '18.5 kg (Alumínio T-Slot)' : '42.0 kg (Ferro)'}
           </span>
         </div>
         <div className="material-toggle-container">
+          <button
+            className={`mat-toggle-btn ${structureMaterial === 'aluminum_tube' ? 'active' : ''}`}
+            id="btn-mat-aluminum-tube"
+            onClick={() => setStructureMaterial('aluminum_tube')}
+          >
+            <span>🔲 Alumínio Tubular Retangular (Metalon Alumínio)</span>
+            <small>Ultraleve (~12.0 kg / -30kg vs Aço), perfil tubular oco {metalonThickness40.toFixed(1)}mm / {metalonThickness30.toFixed(1)}mm</small>
+          </button>
+
           <button
             className={`mat-toggle-btn ${structureMaterial === 'aluminum' ? 'active' : ''}`}
             id="btn-mat-aluminum"
             onClick={() => setStructureMaterial('aluminum')}
           >
             <span>🔘 Alumínio Extrusão (T-Slot 40x40)</span>
-            <small>Leve (~18.5 kg), 100% anti-corrosão, ranhuras T e porcas T-Nut</small>
+            <small>Leve (~18.5 kg), 100% anti-corrosão, ranhuras T e porcas T-Nut modulares</small>
           </button>
 
-          {/* Seletor de Acabamento / Cor do Alumínio */}
-          {structureMaterial === 'aluminum' && (
+          {/* Seletor de Acabamento / Cor do Alumínio (Aplica a T-Slot e Metalon Alumínio) */}
+          {(structureMaterial === 'aluminum' || structureMaterial === 'aluminum_tube') && (
             <div id="aluminum-color-subbar" style={{ display: 'flex', gap: '6px', padding: '2px 4px 4px 4px' }}>
               <button
-                className={`btn-compact ${aluminumColor === 'silver' ? 'primary active' : ''}`}
+                className={`btn-compact ${aluminumColor === 'silver' ? 'active' : ''}`}
                 id="btn-color-silver"
                 onClick={() => setAluminumColor('silver')}
                 style={{ flex: 1, fontSize: '11px', padding: '5px 8px', borderRadius: '4px' }}
@@ -511,7 +507,7 @@ export const Sidebar: React.FC = () => {
                 ⚪ Alumínio Natural (Prata)
               </button>
               <button
-                className={`btn-compact ${aluminumColor === 'black' ? 'primary active' : ''}`}
+                className={`btn-compact ${aluminumColor === 'black' ? 'active' : ''}`}
                 id="btn-color-black"
                 onClick={() => setAluminumColor('black')}
                 style={{ flex: 1, fontSize: '11px', padding: '5px 8px', borderRadius: '4px' }}
@@ -527,28 +523,303 @@ export const Sidebar: React.FC = () => {
             onClick={() => setStructureMaterial('steel')}
           >
             <span>⚙️ Ferro Soldado {steelProfileUnit === 'inch' ? '(Metalon 1 ¼" / 1 ½")' : '(Metalon 30x30 / 40x40 mm)'}</span>
-            <small>Mais pesado (~42.0 kg / +23.5kg no teto), solda fixa</small>
+            <small>Mais pesado (~42.0 kg / +30kg no teto vs Alumínio Tubular), solda fixa</small>
           </button>
 
-          {/* Seletor de Unidade do Perfil de Ferro (Metalon) */}
+          {/* Seletor de Unidade e Cor do Perfil de Ferro (Metalon) */}
           {structureMaterial === 'steel' && (
-            <div id="steel-unit-subbar" style={{ display: 'flex', gap: '6px', padding: '2px 4px 4px 4px' }}>
+            <div id="steel-unit-subbar" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '6px 4px 4px 4px' }}>
+              <div>
+                <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '3px', fontWeight: 600 }}>
+                  Unidade de Medida dos Perfis:
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className={`btn-compact ${steelProfileUnit === 'mm' ? 'active' : ''}`}
+                    id="btn-steel-unit-mm"
+                    onClick={() => setSteelProfileUnit('mm')}
+                    style={{ flex: 1, fontSize: '11px', padding: '5px 8px', borderRadius: '4px' }}
+                  >
+                    📏 Milímetros (mm)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-compact ${steelProfileUnit === 'inch' ? 'active' : ''}`}
+                    id="btn-steel-unit-inch"
+                    onClick={() => setSteelProfileUnit('inch')}
+                    style={{ flex: 1, fontSize: '11px', padding: '5px 8px', borderRadius: '4px' }}
+                  >
+                    📐 Polegadas (")
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '4px', fontWeight: 600 }}>
+                  🎨 Cor / Pintura do Metalon:
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+                  {METALON_COLOR_PRESETS.map((preset) => {
+                    const isSelected = (metalonColor || '#333b47').toLowerCase() === preset.color.toLowerCase();
+                    return (
+                      <button
+                        key={preset.color}
+                        type="button"
+                        className={`btn-compact ${isSelected ? 'active' : ''}`}
+                        onClick={() => setMetalonColor(preset.color)}
+                        style={{
+                          fontSize: '10px',
+                          padding: '6px 2px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}
+                        title={preset.name}
+                      >
+                        <span
+                          style={{
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            backgroundColor: preset.color,
+                            border: '1.5px solid rgba(255, 255, 255, 0.4)',
+                            display: 'inline-block'
+                          }}
+                        />
+                        <span>{preset.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Seletor de Espessura de Parede do Tubo Metalon (Alumínio ou Ferro) */}
+          {(structureMaterial === 'aluminum_tube' || structureMaterial === 'steel') && (
+            <div
+              id="metalon-thickness-subbar"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                padding: '8px 6px',
+                background: 'rgba(15, 23, 42, 0.55)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '6px',
+                marginTop: '4px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 700 }}>
+                  📐 Espessura da Parede do Tubo:
+                </span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#38bdf8',
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-mono)',
+                    background: 'rgba(56, 189, 248, 0.1)',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    border: '1px solid rgba(56, 189, 248, 0.3)'
+                  }}
+                >
+                  {metalonWallThickness.toFixed(1)} mm {structureMaterial === 'steel' ? `(${getMetalonGauge(metalonWallThickness)})` : ''}
+                </span>
+              </div>
+
+              {/* Botões Rápidos de Bitola Comercial */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+                {[1.2, 1.5, 2.0, 3.0].map((t) => {
+                  const isAct = Math.abs(metalonWallThickness - t) < 0.05 && (!showCustomThicknessSizes || Math.abs(metalonThickness40 - t) < 0.05);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      className={`btn-compact ${isAct ? 'active' : ''}`}
+                      onClick={() => setMetalonWallThickness(t)}
+                      style={{
+                        fontSize: '10px',
+                        padding: '4px 2px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '1px'
+                      }}
+                      title={`${t.toFixed(1)} mm (${getMetalonGauge(t)})`}
+                    >
+                      <span style={{ fontWeight: 800 }}>{t.toFixed(1)} mm</span>
+                      <small style={{ fontSize: '8px', opacity: 0.8 }}>
+                        {t === 1.2 ? '#18 Leve' : t === 1.5 ? '#16 Padrão' : t === 2.0 ? '#14 Reforço' : '#1/8" Pesado'}
+                      </small>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Slider de Ajuste Contínuo + Campo Numérico */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="range"
+                  min="0.8"
+                  max="4.0"
+                  step="0.1"
+                  value={metalonWallThickness}
+                  onChange={(e) => setMetalonWallThickness(parseFloat(e.target.value))}
+                  style={{ flex: 1, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                  title="Ajuste fino da espessura da parede do tubo"
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                  <input
+                    type="number"
+                    min="0.5"
+                    max="6.0"
+                    step="0.1"
+                    value={metalonWallThickness}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val) && val >= 0.5 && val <= 6.0) {
+                        setMetalonWallThickness(val);
+                      }
+                    }}
+                    style={{
+                      width: '46px',
+                      background: 'rgba(15, 23, 42, 0.85)',
+                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      borderRadius: '4px',
+                      padding: '3px 4px',
+                      color: '#f8fafc',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      textAlign: 'center'
+                    }}
+                  />
+                  <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600 }}>mm</span>
+                </div>
+              </div>
+
+              {/* Botão de Expansão para Configurar 40x40 e 30x30 separadamente */}
               <button
-                className={`btn-compact ${steelProfileUnit === 'mm' ? 'primary active' : ''}`}
-                id="btn-steel-unit-mm"
-                onClick={() => setSteelProfileUnit('mm')}
-                style={{ flex: 1, fontSize: '11px', padding: '5px 8px', borderRadius: '4px' }}
+                type="button"
+                className="btn-compact"
+                onClick={() => setShowCustomThicknessSizes(!showCustomThicknessSizes)}
+                style={{
+                  fontSize: '9.5px',
+                  padding: '3px 6px',
+                  background: showCustomThicknessSizes ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                  border: '1px dashed rgba(56, 189, 248, 0.35)',
+                  borderRadius: '4px',
+                  color: '#94a3b8',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
               >
-                📏 Milímetros (mm)
+                <span>⚙️ Ajustar 40x40 e 30x30 separadamente</span>
+                <span>{showCustomThicknessSizes ? '▲ Fechar' : '▼ Expandir'}</span>
               </button>
-              <button
-                className={`btn-compact ${steelProfileUnit === 'inch' ? 'primary active' : ''}`}
-                id="btn-steel-unit-inch"
-                onClick={() => setSteelProfileUnit('inch')}
-                style={{ flex: 1, fontSize: '11px', padding: '5px 8px', borderRadius: '4px' }}
-              >
-                📐 Polegadas (")
-              </button>
+
+              {showCustomThicknessSizes && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    padding: '6px 8px',
+                    background: 'rgba(2, 6, 23, 0.5)',
+                    borderRadius: '4px',
+                    borderLeft: '2px solid var(--primary)'
+                  }}
+                >
+                  {/* Espessura 40x40 (Rack Base e Subchassi) */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', marginBottom: '2px' }}>
+                      <span style={{ color: '#cbd5e1' }}>Base & Torres (40x40):</span>
+                      <strong style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                        {metalonThickness40.toFixed(1)} mm
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input
+                        type="range"
+                        min="0.8"
+                        max="4.0"
+                        step="0.1"
+                        value={metalonThickness40}
+                        onChange={(e) => setMetalonThickness40(parseFloat(e.target.value))}
+                        style={{ flex: 1, accentColor: 'var(--primary)', height: '4px' }}
+                      />
+                      <input
+                        type="number"
+                        min="0.5"
+                        max="6.0"
+                        step="0.1"
+                        value={metalonThickness40}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val) && val >= 0.5 && val <= 6.0) setMetalonThickness40(val);
+                        }}
+                        style={{
+                          width: '40px',
+                          background: 'rgba(15, 23, 42, 0.85)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          borderRadius: '3px',
+                          padding: '1px 3px',
+                          color: '#fff',
+                          fontSize: '10px',
+                          textAlign: 'center'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Espessura 30x30 (Bandejas e Pilares) */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', marginBottom: '2px' }}>
+                      <span style={{ color: '#cbd5e1' }}>Bandejas & Pilares (30x30):</span>
+                      <strong style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                        {metalonThickness30.toFixed(1)} mm
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input
+                        type="range"
+                        min="0.8"
+                        max="4.0"
+                        step="0.1"
+                        value={metalonThickness30}
+                        onChange={(e) => setMetalonThickness30(parseFloat(e.target.value))}
+                        style={{ flex: 1, accentColor: 'var(--primary)', height: '4px' }}
+                      />
+                      <input
+                        type="number"
+                        min="0.5"
+                        max="6.0"
+                        step="0.1"
+                        value={metalonThickness30}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val) && val >= 0.5 && val <= 6.0) setMetalonThickness30(val);
+                        }}
+                        style={{
+                          width: '40px',
+                          background: 'rgba(15, 23, 42, 0.85)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          borderRadius: '3px',
+                          padding: '1px 3px',
+                          color: '#fff',
+                          fontSize: '10px',
+                          textAlign: 'center'
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -785,113 +1056,6 @@ export const Sidebar: React.FC = () => {
             </button>
           </div>
         </div>
-
-        {/* Resumo e Seleção Rápida de Caixas */}
-        {internalBoxes.length > 0 && (
-          <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(148, 163, 184, 0.15)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 700 }}>
-                📦 Selecionar Caixa ({internalBoxes.length}):
-              </span>
-              {selectedBoxId && (
-                <button
-                  onClick={() => setSelectedBoxId(null)}
-                  style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '9px', cursor: 'pointer', padding: 0 }}
-                >
-                  Desmarcar
-                </button>
-              )}
-            </div>
-
-            <select
-              value={selectedBoxId || ''}
-              onChange={(e) => setSelectedBoxId(e.target.value || null)}
-              style={{
-                width: '100%',
-                background: 'rgba(30, 41, 59, 0.9)',
-                border: selectedBoxId ? '1px solid #38bdf8' : '1px solid rgba(148, 163, 184, 0.3)',
-                color: '#ffffff',
-                padding: '6px 8px',
-                borderRadius: '6px',
-                fontSize: '11px',
-                marginBottom: selectedBoxId ? '8px' : '0'
-              }}
-            >
-              <option value="">-- Clique em uma caixa no 3D ou selecione aqui --</option>
-              {internalBoxes.map(b => (
-                <option key={b.id} value={b.id}>
-                  {b.name} ({b.type === 'drawer' ? 'Gavetão' : b.type === 'open' ? 'Nicho' : b.type === 'slat_bed' ? 'Cama Ripas' : 'Baú'}) - {b.heightMm}mm
-                </option>
-              ))}
-            </select>
-
-            {/* Ajuste rápido da caixa selecionada */}
-            {selectedBox && (
-              <div style={{ background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '6px', padding: '8px', marginTop: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8' }}>{selectedBox.name}</span>
-                  <span style={{ fontSize: '9.5px', color: '#4ade80', fontWeight: 700 }}>
-                    {Math.round((selectedBox.colSpan * (internalGrid.widthMm / Math.max(1, internalGrid.colsX)) * selectedBox.rowSpan * (internalGrid.lengthMm / Math.max(1, internalGrid.rowsZ)) * selectedBox.heightMm) / 1_000_000)} L
-                  </span>
-                </div>
-
-                {/* Altura da caixa selecionada */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: '#94a3b8', marginBottom: '2px' }}>
-                  <span>Altura:</span>
-                  <span style={{ fontWeight: 800, color: '#38bdf8' }}>{selectedBox.heightMm} mm</span>
-                </div>
-                <input
-                  type="range"
-                  min={200}
-                  max={700}
-                  step={10}
-                  value={selectedBox.heightMm}
-                  onChange={(e) => updateInternalBox(selectedBox.id, { heightMm: Number(e.target.value) })}
-                  style={{ width: '100%', marginBottom: '8px' }}
-                />
-
-                {/* Mover caixa no grid */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 700 }}>Mover no Grid:</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
-                  <button
-                    disabled={selectedBox.colStart <= 0}
-                    onClick={() => updateInternalBox(selectedBox.id, { colStart: selectedBox.colStart - 1 })}
-                    className="btn-compact"
-                    style={{ fontSize: '9.5px', padding: '3px 4px' }}
-                  >
-                    ⬅ Esq
-                  </button>
-                  <button
-                    disabled={selectedBox.colStart + selectedBox.colSpan >= Math.max(1, internalGrid.colsX)}
-                    onClick={() => updateInternalBox(selectedBox.id, { colStart: selectedBox.colStart + 1 })}
-                    className="btn-compact"
-                    style={{ fontSize: '9.5px', padding: '3px 4px' }}
-                  >
-                    Dir ➡
-                  </button>
-                  <button
-                    disabled={selectedBox.rowStart <= 0}
-                    onClick={() => updateInternalBox(selectedBox.id, { rowStart: selectedBox.rowStart - 1 })}
-                    className="btn-compact"
-                    style={{ fontSize: '9.5px', padding: '3px 4px' }}
-                  >
-                    ⬆ Diant
-                  </button>
-                  <button
-                    disabled={selectedBox.rowStart + selectedBox.rowSpan >= Math.max(1, internalGrid.rowsZ)}
-                    onClick={() => updateInternalBox(selectedBox.id, { rowStart: selectedBox.rowStart + 1 })}
-                    className="btn-compact"
-                    style={{ fontSize: '9.5px', padding: '3px 4px' }}
-                  >
-                    Tras ⬇
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* 9. Baú de Teto Motobul Off Road & Subchassi */}
@@ -1034,37 +1198,91 @@ export const Sidebar: React.FC = () => {
                 />
               </div>
 
-              {(() => {
-                const maxLiftMm = Math.max(60, Math.floor(((cargoBox.height || 330) - 100) / 10) * 10);
-                const curLiftMm = Math.min(maxLiftMm, cargoBox.verticalLiftMm || 0);
-                return (
-                  <div
-                    style={{
-                      background: 'rgba(14, 165, 233, 0.08)',
-                      border: '1px solid rgba(56, 189, 248, 0.3)',
-                      borderRadius: '6px',
-                      padding: '8px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#38bdf8', fontWeight: 700 }}>
-                      <span>↕ Abertura Vertical (Torres Telescópicas):</span>
-                      <strong>+{curLiftMm} / {maxLiftMm} mm</strong>
+              {/* Checkbox Torres Telescópicas vs Fixas */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'rgba(255, 255, 255, 0.03)',
+                padding: '6px 8px',
+                borderRadius: '6px',
+                marginBottom: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.06)'
+              }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#f8fafc',
+                  userSelect: 'none'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={cargoBox.isTelescopic !== false}
+                    onChange={(e) => setCargoBoxTelescopic(e.target.checked)}
+                    style={{ accentColor: '#38bdf8', width: '15px', height: '15px', cursor: 'pointer' }}
+                  />
+                  <span>Torres Telescópicas de Elevação</span>
+                </label>
+                <span style={{
+                  fontSize: '9.5px',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  background: cargoBox.isTelescopic !== false ? 'rgba(56, 189, 248, 0.15)' : 'rgba(148, 163, 184, 0.12)',
+                  color: cargoBox.isTelescopic !== false ? '#38bdf8' : '#94a3b8',
+                  fontWeight: 700
+                }}>
+                  {cargoBox.isTelescopic !== false ? '↕ Telescópica' : '🔒 Fixa'}
+                </span>
+              </div>
+
+              {cargoBox.isTelescopic !== false ? (
+                (() => {
+                  const maxLiftMm = Math.max(60, Math.floor(((cargoBox.height || 330) - 100) / 10) * 10);
+                  const curLiftMm = Math.min(maxLiftMm, cargoBox.verticalLiftMm || 0);
+                  return (
+                    <div
+                      style={{
+                        background: 'rgba(14, 165, 233, 0.08)',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        borderRadius: '6px',
+                        padding: '8px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#38bdf8', fontWeight: 700 }}>
+                        <span>↕ Abertura Vertical (Torres Telescópicas):</span>
+                        <strong>+{curLiftMm} / {maxLiftMm} mm</strong>
+                      </div>
+                      <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                        Curso real da barra 30×30 ({cargoBox.height + 20}mm c/ 90mm engaste mín. na base 40×40) • Vão livre: {cargoBox.height + curLiftMm + 8} mm
+                      </div>
+                      <input
+                        type="range"
+                        className="custom-slider"
+                        min="0"
+                        max={maxLiftMm}
+                        step="10"
+                        value={curLiftMm}
+                        onChange={(e) => setCargoBoxVerticalLift(parseFloat(e.target.value))}
+                      />
                     </div>
-                    <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      Curso real da barra 30×30 ({cargoBox.height + 20}mm c/ 90mm engaste mín. na base 40×40) • Vão livre: {cargoBox.height + curLiftMm + 30} mm
-                    </div>
-                    <input
-                      type="range"
-                      className="custom-slider"
-                      min="0"
-                      max={maxLiftMm}
-                      step="10"
-                      value={curLiftMm}
-                      onChange={(e) => setCargoBoxVerticalLift(parseFloat(e.target.value))}
-                    />
-                  </div>
-                );
-              })()}
+                  );
+                })()
+              ) : (
+                <div style={{
+                  fontSize: '10px',
+                  color: '#94a3b8',
+                  background: 'rgba(15, 23, 42, 0.5)',
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  borderLeft: '3px solid #38bdf8'
+                }}>
+                  🔒 <strong>Torres Fixas Selecionadas:</strong> Perfil monobloco fixo no limite mínimo de altura (vão livre rente de 8mm sobre a tampa do baú). Economiza peso e garante a menor altura do conjunto.
+                </div>
+              )}
             </div>
 
             <button
@@ -1078,10 +1296,10 @@ export const Sidebar: React.FC = () => {
         )}
       </div>
 
-      {/* 8B. Caixa d'Água Lateral (2× Canos PVC — 1 de cada lado da estrutura) */}
+      {/* 8B. Caixa d'Água em U (2 Joelhos 90° + Canos PVC 100% Internos à Estrutura) */}
       <div className="panel-section">
         <div className="section-label">
-          <span>💧 CAIXA D'ÁGUA (2× R={pipeRadiusMm}mm / Ø{pipeDiameterMm}mm)</span>
+          <span>💧 CAIXA D'ÁGUA EM U (2× Joelhos 90° · Ø{pipeDiameterMm}mm)</span>
           <span
             style={{
               fontFamily: 'var(--font-mono)',
@@ -1094,7 +1312,7 @@ export const Sidebar: React.FC = () => {
           </span>
         </div>
 
-        {/* Checkbox principal para incluir/remover os 2 canos laterais */}
+        {/* Checkbox principal para incluir/remover a caixa d'água em U */}
         <label
           style={{
             display: 'flex',
@@ -1123,10 +1341,10 @@ export const Sidebar: React.FC = () => {
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <span style={{ fontSize: '11.5px', fontWeight: 700, color: waterTank.enabled ? '#f8fafc' : '#94a3b8' }}>
-              Incluir 2 Canos Laterais (Raio {pipeRadiusMm}mm / Ø{pipeDiameterMm}mm)
+              Caixa d'Água em U (100% Dentro do Ferro · Ø{pipeDiameterMm}mm)
             </span>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-              1 de cada lado da base • Limite máx.: {baseMaxLengthMm} mm (comprimento total da base)
+              2 canos laterais + 1 frontal + 2 joelhos de 90° em volta do baú • 100% embutida no subchassi
             </span>
           </div>
         </label>
@@ -1249,7 +1467,7 @@ export const Sidebar: React.FC = () => {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '10.5px', color: '#bae6fd', fontWeight: 700 }}>
-                  💧 Capacidade Total de Água (2 Canos):
+                  💧 Capacidade Total de Água (Circuito em U):
                 </span>
                 <span
                   style={{
@@ -1274,9 +1492,9 @@ export const Sidebar: React.FC = () => {
                 }}
               >
                 <div style={{ color: '#94a3b8' }}>
-                  Cada cano (R={pipeRadiusMm}mm / Ø{pipeDiameterMm}):{' '}
+                  2× Laterais (Ø{pipeDiameterMm}):{' '}
                   <strong style={{ color: '#f8fafc', fontFamily: 'var(--font-mono)' }}>
-                    {singlePipeLiters.toFixed(1)} L
+                    {(singlePipeLiters * 2).toFixed(1)} L
                   </strong>
                 </div>
                 <div style={{ color: '#94a3b8', textAlign: 'right' }}>
@@ -1286,17 +1504,204 @@ export const Sidebar: React.FC = () => {
                   </strong>
                 </div>
                 <div style={{ color: '#94a3b8' }}>
-                  Volume por metro:{' '}
-                  <strong style={{ color: '#f8fafc', fontFamily: 'var(--font-mono)' }}>
-                    {litersPerMeterSingle} L/m (×2 = {litersPerMeterTotal} L/m)
+                  Frontal + 2 Joelhos 90°:{' '}
+                  <strong style={{ color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                    +{frontCircuitLiters.toFixed(1)} L
                   </strong>
                 </div>
                 <div style={{ color: '#94a3b8', textAlign: 'right' }}>
-                  Ocupação da base:{' '}
+                  Montagem:{' '}
                   <strong style={{ color: '#34d399', fontFamily: 'var(--font-mono)' }}>
-                    {baseLengthOccupationPct}% de 2.20m
+                    100% interna ao ferro
                   </strong>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 10. Toldo Retrátil Overland (Traseiro ou Asa de Morcego 270°) */}
+      <div className="panel-section">
+        <div className="section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>⛺ TOLDO RETRÁTIL OVERLAND</span>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '11px',
+              color: awning.enabled ? '#38bdf8' : 'var(--text-muted)'
+            }}
+          >
+            {awning.enabled ? (awning.type === 'batwing_270' ? 'Asa 270°' : 'Traseiro') : 'Desativado'}
+          </span>
+        </div>
+
+        {/* Toggle Ativar / Desativar Toldo */}
+        <label
+          className="checkbox-custom"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            padding: '7px 9px',
+            borderRadius: '6px',
+            background: awning.enabled ? 'rgba(14, 165, 233, 0.14)' : 'rgba(15, 23, 42, 0.5)',
+            border: `1px solid ${awning.enabled ? 'rgba(56, 189, 248, 0.5)' : 'rgba(100, 116, 139, 0.3)'}`,
+            marginBottom: awning.enabled ? '10px' : '0',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={awning.enabled}
+            onChange={(e) => setAwning({ enabled: e.target.checked })}
+            style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: 'var(--primary)' }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: awning.enabled ? '#f8fafc' : '#94a3b8' }}>
+              ⛺ Ativar Toldo Retrátil no Rack
+            </span>
+            <small style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+              Case em alumínio fixado na longarina com lona impermeável ripstop
+            </small>
+          </div>
+        </label>
+
+        {awning.enabled && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '9px', marginTop: '4px' }}>
+            {/* Seletor de Modelo */}
+            <div>
+              <div style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}>
+                Modelo do Toldo Overland:
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+                <button
+                  type="button"
+                  className={`btn-compact ${awning.type === 'rear' ? 'active' : ''}`}
+                  onClick={() => setAwning({ type: 'rear' })}
+                  style={{
+                    fontSize: '11px',
+                    padding: '7px 4px',
+                    fontWeight: 700
+                  }}
+                >
+                  🚗 Traseiro Reto
+                </button>
+                <button
+                  type="button"
+                  className={`btn-compact ${awning.type === 'batwing_270' ? 'active accent-amber' : ''}`}
+                  onClick={() => setAwning({ type: 'batwing_270' })}
+                  style={{
+                    fontSize: '11px',
+                    padding: '7px 4px',
+                    fontWeight: 700
+                  }}
+                >
+                  🦇 Asa Morcego 270°
+                </button>
+              </div>
+            </div>
+
+            {/* Lado de Fixação se for Asa de Morcego */}
+            {awning.type === 'batwing_270' && (
+              <div style={{ background: 'rgba(15, 23, 42, 0.4)', borderRadius: '6px', padding: '6px 8px', border: '1px solid rgba(148, 163, 184, 0.15)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8', marginBottom: '4px' }}>
+                  <span>Montagem do Estojo no Rack:</span>
+                  <span style={{ color: '#38bdf8', fontWeight: 700 }}>
+                    {awning.side === 'passenger' ? 'Passageiro (Direita)' : 'Motorista (Esquerda)'}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+                  <button
+                    type="button"
+                    className={`btn-compact ${awning.side === 'passenger' ? 'active' : ''}`}
+                    onClick={() => setAwning({ side: 'passenger' })}
+                    style={{ fontSize: '10px', padding: '5px 4px' }}
+                  >
+                    Direita (Passageiro)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-compact ${awning.side === 'driver' ? 'active' : ''}`}
+                    onClick={() => setAwning({ side: 'driver' })}
+                    style={{ fontSize: '10px', padding: '5px 4px' }}
+                  >
+                    Esquerda (Motorista)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Botão de Ação: Abrir / Recolher */}
+            <button
+              type="button"
+              className={`btn-compact primary ${awning.isOpen ? 'active' : ''}`}
+              onClick={toggleAwningOpen}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                fontWeight: 800,
+                fontSize: '11.5px',
+                background: awning.isOpen
+                  ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.4))'
+                  : 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(37, 99, 235, 0.3))',
+                borderColor: awning.isOpen ? '#10b981' : '#38bdf8',
+                color: awning.isOpen ? '#34d399' : '#38bdf8',
+                boxShadow: awning.isOpen ? '0 0 10px rgba(16, 185, 129, 0.3)' : undefined
+              }}
+            >
+              {awning.isOpen ? '⛺ Recolher Toldo no Estojo' : '⛺ Desdobrar Lona (Abrir Toldo)'}
+            </button>
+
+            {/* Cor da Lona Ripstop */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 4px', fontSize: '10px', color: '#94a3b8' }}>
+              <span>🎨 Cor da Lona Impermeável:</span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {[
+                  { label: 'Safari', color: '#c2b280' },
+                  { label: 'Grafite', color: '#374151' },
+                  { label: 'Oliva', color: '#4b5320' },
+                  { label: 'Preto', color: '#18181b' }
+                ].map((c) => (
+                  <button
+                    key={c.color}
+                    type="button"
+                    onClick={() => setAwning({ fabricColor: c.color })}
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      backgroundColor: c.color,
+                      border: awning.fabricColor === c.color ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.3)',
+                      boxShadow: awning.fabricColor === c.color ? '0 0 6px rgba(56, 189, 248, 0.7)' : undefined,
+                      cursor: 'pointer'
+                    }}
+                    title={c.label}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Card com Especificações do Toldo */}
+            <div
+              style={{
+                background: 'rgba(56, 189, 248, 0.08)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '6px',
+                padding: '8px 10px',
+                fontSize: '10px',
+                color: '#cbd5e1',
+                lineHeight: 1.45
+              }}
+            >
+              <div style={{ fontWeight: 700, color: '#38bdf8', marginBottom: '2px' }}>
+                {awning.type === 'batwing_270' ? '🦇 Asa de Morcego 270° Overland' : '🚗 Toldo Reto Traseiro'}
+              </div>
+              <div>
+                {awning.type === 'batwing_270'
+                  ? 'Cobertura total de 270° contornando lateral e traseira da Doblò (~10 m² de sombra).'
+                  : 'Projeção reta traseira de 2,00m cobrindo a tampa aberta do porta-malas (~2,8 m² de sombra).'}
               </div>
             </div>
           </div>
@@ -1442,16 +1847,12 @@ export const Sidebar: React.FC = () => {
               {([70, 120, 150, 200] as const).map((rating) => (
                 <button
                   key={rating}
-                  className={`btn-compact ${usinaCharger.modelRating === rating ? 'active' : ''}`}
+                  className={`btn-compact ${usinaCharger.modelRating === rating ? 'active accent-red' : ''}`}
                   onClick={() => setUsinaModel(rating)}
                   style={{
                     fontSize: '9.5px',
-                    padding: '3px 0',
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    background: usinaCharger.modelRating === rating ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 255, 255, 0.05)',
-                    borderColor: usinaCharger.modelRating === rating ? '#ef4444' : 'rgba(255, 255, 255, 0.1)',
-                    color: usinaCharger.modelRating === rating ? '#fca5a5' : '#cbd5e1'
+                    padding: '4px 0',
+                    textAlign: 'center'
                   }}
                   title={`Modelo Usina ${rating}A 12V Bivolt (${Math.round(rating * 14.4)}W)`}
                 >
