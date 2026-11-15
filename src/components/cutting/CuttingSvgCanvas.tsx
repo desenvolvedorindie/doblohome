@@ -32,6 +32,12 @@ export const CuttingSvgCanvas: React.FC<CuttingSvgCanvasProps> = ({
   onPointerMove,
   onPointerUp
 }) => {
+  const isSheetFoam = Boolean(
+    currentSheet?.material?.includes('Espuma') ||
+    currentSheet?.woodMaterial?.includes('Espuma') ||
+    currentSheet?.placedPieces.some((p) => p.isUpholstery)
+  );
+
   return (
     <div
       style={{
@@ -60,8 +66,8 @@ export const CuttingSvgCanvas: React.FC<CuttingSvgCanvasProps> = ({
             maxHeight: '460px',
             borderRadius: '4px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-            background: '#090d16',
-            border: '2px solid #b45309'
+            background: isSheetFoam ? '#081426' : '#090d16',
+            border: isSheetFoam ? '2px solid #0284c7' : '2px solid #b45309'
           }}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -128,6 +134,8 @@ export const CuttingSvgCanvas: React.FC<CuttingSvgCanvasProps> = ({
 
             const hasHoles = piece.holes && piece.holes.length > 0;
 
+            const isFoamPiece = Boolean(piece.isUpholstery || piece.woodMaterial?.includes('Espuma'));
+
             return (
               <g
                 key={piece.id}
@@ -147,19 +155,27 @@ export const CuttingSvgCanvas: React.FC<CuttingSvgCanvasProps> = ({
                     !collisionCheck.isValid
                       ? 'rgba(239, 68, 68, 0.45)'
                       : isSelected
-                        ? 'rgba(56, 189, 248, 0.35)'
-                        : piece.isPerforated
-                          ? 'rgba(52, 211, 153, 0.22)'
-                          : 'rgba(51, 65, 85, 0.85)'
+                        ? 'rgba(56, 189, 248, 0.38)'
+                        : isFoamPiece
+                          ? piece.hasCabinetCutout
+                            ? 'rgba(245, 158, 11, 0.28)'
+                            : 'rgba(30, 58, 138, 0.45)'
+                          : piece.isPerforated
+                            ? 'rgba(52, 211, 153, 0.22)'
+                            : 'rgba(51, 65, 85, 0.85)'
                   }
                   stroke={
                     !collisionCheck.isValid
                       ? '#ef4444'
                       : isSelected
                         ? '#38bdf8'
-                        : piece.isPerforated
-                          ? '#34d399'
-                          : 'rgba(245, 158, 11, 0.65)'
+                        : isFoamPiece
+                          ? piece.hasCabinetCutout
+                            ? '#f59e0b'
+                            : '#60a5fa'
+                          : piece.isPerforated
+                            ? '#34d399'
+                            : 'rgba(245, 158, 11, 0.65)'
                   }
                   strokeWidth={isSelected || !collisionCheck.isValid ? 3 : 1.5}
                 />
@@ -241,6 +257,23 @@ export const CuttingSvgCanvas: React.FC<CuttingSvgCanvasProps> = ({
                     pointerEvents="none"
                   >
                     🕳️ Vazado CNC ({piece.holes?.length || 0} furos)
+                  </text>
+                )}
+
+                {/* Indicador de Recorte Especial de Armário Aéreo */}
+                {piece.hasCabinetCutout && piece.w > 90 && piece.h > 90 && (
+                  <text
+                    x={piece.w / 2}
+                    y={piece.h / 2 + 28}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="#fbbf24"
+                    fontSize="9"
+                    fontWeight="700"
+                    fontFamily="sans-serif"
+                    pointerEvents="none"
+                  >
+                    ✂️ Recorte p/ Armário Aéreo
                   </text>
                 )}
               </g>

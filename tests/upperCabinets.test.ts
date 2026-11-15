@@ -99,7 +99,7 @@ describe('Upper Cabinets / Armários Aéreos Opening System', () => {
     expect(cabinetDoorPart?.qty).toBe(1);
   });
 
-  it('builds upper cabinet with telescopic slides and drawer when upperCabinetClosure is drawer', () => {
+  it('builds upper cabinet with sliding doors (2 leaves divided in middle) when upperCabinetClosure is sliding_doors or drawer', () => {
     const builder = new InternalBoxesBuilder();
     const grid: InternalGridConfig = { ...DEFAULT_INTERNAL_GRID };
     const box: InternalBoxItem = {
@@ -115,27 +115,62 @@ describe('Upper Cabinets / Armários Aéreos Opening System', () => {
       upperCabinet: true,
       upperCabinetAlign: 'rear',
       upperCabinetDepthMm: 250,
-      upperCabinetClosure: 'drawer',
+      upperCabinetClosure: 'sliding_doors',
       upperCabinetShelves: 1
     };
 
-    // 1. Fechado
+    // 1. Fechado: 2 folhas de porta divididas no meio
     builder.update(grid, [box], null, { openCabinets: false });
-    const drawerClosed = builder.boxesGroup.getObjectByName(`UpperCabinetDrawer_${box.id}_rear`);
-    expect(drawerClosed).toBeDefined();
-    expect(drawerClosed?.position.z).toBeCloseTo(0, 4);
+    const door1Closed = builder.boxesGroup.getObjectByName(`UpperCabinetSlidingDoor1_${box.id}_rear`);
+    const door2Closed = builder.boxesGroup.getObjectByName(`UpperCabinetSlidingDoor2_${box.id}_rear`);
+    expect(door1Closed).toBeDefined();
+    expect(door2Closed).toBeDefined();
 
-    // 2. Aberto (gaveta desliza para frente no eixo Z)
+    // 2. Aberto: Folha 2 corre lateralmente no eixo X sobre a Folha 1 (e NÃO para frente no eixo Z)
     builder.update(grid, [box], null, { openCabinets: true });
-    const drawerOpen = builder.boxesGroup.getObjectByName(`UpperCabinetDrawer_${box.id}_rear`);
-    expect(drawerOpen).toBeDefined();
-    expect(drawerOpen?.position.z).toBeGreaterThan(0.05);
+    const door2Open = builder.boxesGroup.getObjectByName(`UpperCabinetSlidingDoor2_${box.id}_rear`);
+    expect(door2Open).toBeDefined();
 
-    // 3. Plano de corte de madeira inclui frente e fundo da gaveta
+    // 3. Plano de corte de madeira inclui as 2 folhas da porta de correr
     const woodStats = extractWoodCutGroups({ internalBoxesBuilder: builder });
-    const frontPart = woodStats.cutGroups.find((g) => g.label.includes('Frente Gaveta c/ Trava'));
-    const bottomPart = woodStats.cutGroups.find((g) => g.label.includes('Fundo da Gaveta'));
-    expect(frontPart).toBeDefined();
-    expect(bottomPart).toBeDefined();
+    const slidingPart = woodStats.cutGroups.find((g) => g.label.includes('Porta de Correr'));
+    expect(slidingPart).toBeDefined();
+    expect(slidingPart?.qty).toBe(2);
+  });
+
+  it('builds longitudinal upper cabinet with sliding doors moving along Z axis', () => {
+    const builder = new InternalBoxesBuilder();
+    const grid: InternalGridConfig = { ...DEFAULT_INTERNAL_GRID };
+    const box: InternalBoxItem = {
+      id: 'box-side-sliding',
+      name: 'Aéreo Lateral Correr',
+      colStart: 0,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 1,
+      type: 'chest',
+      material: 'plywood',
+      color: '#d4a373',
+      upperCabinet: true,
+      upperCabinetAlign: 'left',
+      upperCabinetDepthMm: 250,
+      upperCabinetClosure: 'sliding_doors',
+      upperCabinetShelves: 2
+    };
+
+    builder.update(grid, [box], null, { openCabinets: false });
+    const door1Closed = builder.boxesGroup.getObjectByName(`UpperCabinetSlidingDoor1_${box.id}_left`);
+    const door2Closed = builder.boxesGroup.getObjectByName(`UpperCabinetSlidingDoor2_${box.id}_left`);
+    expect(door1Closed).toBeDefined();
+    expect(door2Closed).toBeDefined();
+
+    builder.update(grid, [box], null, { openCabinets: true });
+    const door2Open = builder.boxesGroup.getObjectByName(`UpperCabinetSlidingDoor2_${box.id}_left`);
+    expect(door2Open).toBeDefined();
+
+    const woodStats = extractWoodCutGroups({ internalBoxesBuilder: builder });
+    const slidingPart = woodStats.cutGroups.find((g) => g.label.includes('Porta de Correr') && g.moduleName === box.name);
+    expect(slidingPart).toBeDefined();
+    expect(slidingPart?.qty).toBe(2);
   });
 });

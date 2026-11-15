@@ -79,7 +79,7 @@ export class SpacerPostsBuilder {
       if (isTSlot) {
         post = AluminumExtrusionFactory.createProfileMesh(postH, postMat, { axis: 'y', size: postSize, showCutFace: true });
       } else {
-        post = MetalonTubeFactory.createTubeMesh(postH, postMat, { axis: 'y', size: postSize, thickness: thicknessM });
+        post = MetalonTubeFactory.createTubeMesh(postH, postMat, { axis: 'y', size: postSize, thickness: thicknessM, showCutFace: true });
       }
       post.position.set(xP, yCenterPillar, cfg.z);
       post.castShadow = true;

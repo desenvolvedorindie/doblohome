@@ -5,6 +5,7 @@ import { CuttingToolbar } from './CuttingToolbar';
 import { CuttingSheetNav } from './CuttingSheetNav';
 import { CuttingSvgCanvas } from './CuttingSvgCanvas';
 import { CuttingPieceInspector } from './CuttingPieceInspector';
+import { printCuttingPlan } from '../../utils/printCuttingPlan';
 
 export const CuttingPlanPanel: React.FC<CuttingPlanPanelProps> = ({
   woodCutGroups,
@@ -70,6 +71,7 @@ export const CuttingPlanPanel: React.FC<CuttingPlanPanelProps> = ({
         customSheetW={customSheetW}
         customSheetH={customSheetH}
         onReoptimize={handleReoptimize}
+        onPrintPlan={currentPlan ? () => printCuttingPlan(currentPlan) : undefined}
         materialGroups={materialGroups}
         activeGroupKey={activeGroupKey}
         onSelectGroupKey={(key) => {

@@ -1,0 +1,215 @@
+import { useState, useEffect } from 'react';
+import {
+  InternalBoxItem,
+  InternalGridConfig,
+  CeilingConfig
+} from '../../types';
+import {
+  DEFAULT_INTERNAL_GRID,
+  INTERNAL_BOXES_PRESETS,
+  DEFAULT_CEILING_CONFIG
+} from '../../data/internalBoxesPresets';
+import { dbSet } from '../../data/db';
+
+export function useInternalBoxesManager(
+  isDbLoaded: boolean,
+  flashToast: (msg: string) => void,
+  sceneManager: any,
+  viewMode: string,
+  setViewMode: (mode: any) => void,
+  isVehicleVisible: boolean
+) {
+  const [internalGrid, setInternalGridState] = useState<InternalGridConfig>(DEFAULT_INTERNAL_GRID);
+  const [internalBoxes, setInternalBoxesState] = useState<InternalBoxItem[]>(INTERNAL_BOXES_PRESETS[0].boxes);
+  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+  const [isolatedBoxId, setIsolatedBoxIdState] = useState<string | null>(null);
+  const [isOpenPreview, setIsOpenPreview] = useState<boolean>(false);
+  const [isCabinetsOpenPreview, setIsCabinetsOpenPreview] = useState<boolean>(false);
+  const [isBedOpenPreview, setIsBedOpenPreview] = useState<boolean>(false);
+  const [showMattress, setShowMattress] = useState<boolean>(true);
+
+  const setIsIsolatedBoxId = (id: string | null) => {
+    setIsolatedBoxIdState(id);
+    if (id) {
+      setSelectedBoxId(id);
+      if (viewMode !== 'internal_boxes') {
+        setViewMode('internal_boxes');
+        if (sceneManager) sceneManager.setViewMode('internal_boxes', isVehicleVisible);
+      }
+      const targetBox = internalBoxes.find((b) => b.id === id);
+      flashToast(`🎯 Modo Foco: Visualizando apenas "${targetBox?.name || 'Baú'}"`);
+      if (sceneManager) {
+        sceneManager.focusOnBox(id);
+      }
+    } else {
+      flashToast('👁️ Exibindo todos os baús');
+      if (sceneManager) {
+        sceneManager.focusOnBox(null);
+      }
+    }
+  };
+
+  // Tecla ESC para sair do modo de foco isolado
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isolatedBoxId) {
+        setIsIsolatedBoxId(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isolatedBoxId]);
+
+  // Persiste caixas e grid no IndexedDB apenas após a carga inicial
+  useEffect(() => {
+    if (!isDbLoaded) return;
+    dbSet('doblo_internal_grid', internalGrid);
+  }, [internalGrid, isDbLoaded]);
+
+  useEffect(() => {
+    if (!isDbLoaded) return;
+    dbSet('doblo_internal_boxes', internalBoxes);
+  }, [internalBoxes, isDbLoaded]);
+
+  const setInternalGrid = (newGrid: InternalGridConfig | ((prev: InternalGridConfig) => InternalGridConfig)) => {
+    setInternalGridState(prev => {
+      const next = typeof newGrid === 'function' ? newGrid(prev) : newGrid;
+      if (isDbLoaded) {
+        dbSet('doblo_internal_grid', next);
+      }
+      return next;
+    });
+  };
+
+  const setCeiling = (updates: Partial<CeilingConfig> | ((prev: CeilingConfig) => Partial<CeilingConfig>)) => {
+    setInternalGridState(prev => {
+      const currentCeiling = prev.ceiling || { ...DEFAULT_CEILING_CONFIG };
+      const resolved = typeof updates === 'function' ? updates(currentCeiling) : updates;
+      const sanitizedUpdates = { ...resolved };
+      if (typeof sanitizedUpdates.curvatureMm === 'number') {
+        sanitizedUpdates.curvatureMm = Math.max(0, Math.min(30, sanitizedUpdates.curvatureMm));
+      }
+      const next: InternalGridConfig = {
+        ...prev,
+        ceiling: {
+          ...currentCeiling,
+          ...sanitizedUpdates
+        }
+      };
+      if (isDbLoaded) {
+        dbSet('doblo_internal_grid', next);
+      }
+      return next;
+    });
+  };
+
+  const toggleCeiling3D = () => {
+    setCeiling(prev => ({ visibleIn3D: !(prev.visibleIn3D !== false) }));
+  };
+
+  const setInternalBoxes = (newBoxes: InternalBoxItem[] | ((prev: InternalBoxItem[]) => InternalBoxItem[])) => {
+    setInternalBoxesState(prev => {
+      const next = typeof newBoxes === 'function' ? newBoxes(prev) : newBoxes;
+      if (isDbLoaded) {
+        dbSet('doblo_internal_boxes', next);
+      }
+      return next;
+    });
+  };
+
+  const applyInternalBoxesPreset = (presetId: string) => {
+    const preset = INTERNAL_BOXES_PRESETS.find(p => p.id === presetId);
+    if (preset) {
+      setInternalGridState(preset.grid);
+      setInternalBoxesState(preset.boxes);
+      setSelectedBoxId(null);
+      setIsolatedBoxIdState(null);
+      if (isDbLoaded) {
+        dbSet('doblo_internal_grid', preset.grid);
+        dbSet('doblo_internal_boxes', preset.boxes);
+      }
+      flashToast(`📐 Layout Aplicado: ${preset.name}`);
+    }
+  };
+
+  const addInternalBox = (box: Omit<InternalBoxItem, 'id'>): string => {
+    const id = `box_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const newBox: InternalBoxItem = { ...box, id };
+    setInternalBoxesState(prev => {
+      const next = [...prev, newBox];
+      if (isDbLoaded) {
+        dbSet('doblo_internal_boxes', next);
+      }
+      return next;
+    });
+    setSelectedBoxId(id);
+    flashToast(`📦 Caixa "${newBox.name}" adicionada ao grid`);
+    return id;
+  };
+
+  const updateInternalBox = (id: string, updates: Partial<InternalBoxItem>) => {
+    setInternalBoxesState(prev => {
+      const next = prev.map(b => (b.id === id ? { ...b, ...updates } : b));
+      if (isDbLoaded) {
+        dbSet('doblo_internal_boxes', next);
+      }
+      return next;
+    });
+  };
+
+  const removeInternalBox = (id: string) => {
+    setInternalBoxesState(prev => {
+      const next = prev.filter(b => b.id !== id);
+      if (isDbLoaded) {
+        dbSet('doblo_internal_boxes', next);
+      }
+      return next;
+    });
+    if (selectedBoxId === id) setSelectedBoxId(null);
+    if (isolatedBoxId === id) {
+      setIsolatedBoxIdState(null);
+      if (sceneManager) sceneManager.focusOnBox(null);
+    }
+    flashToast('🗑️ Caixa removida do grid');
+  };
+
+  const clearInternalBoxes = () => {
+    setInternalBoxesState([]);
+    setSelectedBoxId(null);
+    setIsolatedBoxIdState(null);
+    if (sceneManager) sceneManager.focusOnBox(null);
+    if (isDbLoaded) {
+      dbSet('doblo_internal_boxes', []);
+    }
+    flashToast('🧹 Grid limpo: todas as caixas foram removidas');
+  };
+
+  return {
+    internalGrid,
+    setInternalGridState,
+    setInternalGrid,
+    setCeiling,
+    toggleCeiling3D,
+    internalBoxes,
+    setInternalBoxesState,
+    setInternalBoxes,
+    selectedBoxId,
+    setSelectedBoxId,
+    isolatedBoxId,
+    setIsolatedBoxIdState,
+    setIsolatedBoxId: setIsIsolatedBoxId,
+    isOpenPreview,
+    setIsOpenPreview,
+    isCabinetsOpenPreview,
+    setIsCabinetsOpenPreview,
+    isBedOpenPreview,
+    setIsBedOpenPreview,
+    showMattress,
+    setShowMattress,
+    applyInternalBoxesPreset,
+    addInternalBox,
+    updateInternalBox,
+    removeInternalBox,
+    clearInternalBoxes
+  };
+}

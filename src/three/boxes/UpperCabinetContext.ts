@@ -1,0 +1,37 @@
+import * as THREE from 'three';
+import { InternalBoxItem, UpperCabinetClosure } from '../../types';
+
+export interface UpperCabinetContext {
+  container: THREE.Group;
+  upperGroup: THREE.Group;
+  box: InternalBoxItem;
+  side: 'rear' | 'front' | 'left' | 'right';
+  boxWM: number;
+  boxLM: number;
+  cabinetH: number;
+  cabinetCenterY: number;
+  t: number;
+  tMm: number;
+  woodMat: string;
+  cabinetUserData: any;
+  cabinetMat: THREE.Material;
+  edgeMat: THREE.LineBasicMaterial;
+  offsetM: number;
+  depthOffsetM: number;
+  positionMode: string;
+  behindOffsetM: number;
+  transverseMode: string;
+  besideSide: string;
+  besideOffsetM: number;
+  closure: UpperCabinetClosure;
+  hasDoors: boolean;
+  isSlidingDoors: boolean;
+  isDrawer: boolean;
+  numShelves: number;
+  isOpen: boolean;
+  isSelected: boolean;
+  innerH: number;
+  interiorBottomY: number;
+  backY: number;
+  hasBasePanel: boolean;
+}

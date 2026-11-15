@@ -10,6 +10,7 @@ export const BarTooltip: React.FC = () => {
   const posY = Math.min(hoverPos.y + 14, window.innerHeight - 300);
 
   const isElect = hoveredBar.isElectrical;
+  const isAppliance = hoveredBar.isAppliance;
 
   // Cor temática baseada no componente
   let accentColor = '#38bdf8'; // Azul padrão
@@ -34,9 +35,23 @@ export const BarTooltip: React.FC = () => {
       accentColor = '#f59e0b';
       icon = '☀️';
     }
+  } else if (isAppliance) {
+    if (hoveredBar.applianceType === 'stove') {
+      accentColor = '#f97316';
+      icon = '🔥';
+    } else if (hoveredBar.applianceType === 'fridge') {
+      accentColor = '#38bdf8';
+      icon = '❄️';
+    } else {
+      accentColor = '#0284c7';
+      icon = '🚽';
+    }
   } else if (hoveredBar.category?.includes('🪵') || hoveredBar.name?.includes('Compensado')) {
     accentColor = '#f59e0b';
     icon = '🪵';
+  } else if (hoveredBar.isMetalonCap || hoveredBar.category?.includes('🛡️') || hoveredBar.name?.includes('CAP')) {
+    accentColor = '#38bdf8';
+    icon = '🛡️';
   } else if (hoveredBar.category?.includes('📦') || hoveredBar.category?.includes('🧰')) {
     accentColor = '#38bdf8';
     icon = hoveredBar.category.includes('📦') ? '📦' : '🧰';
@@ -157,9 +172,21 @@ export const BarTooltip: React.FC = () => {
             </div>
           )}
           {hoveredBar.barProfile && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ color: '#94a3b8' }}>Perfil:</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ color: '#94a3b8' }}>{isAppliance ? 'Dimensões:' : 'Perfil:'}</span>
               <span style={{ fontWeight: 600, color: '#10b981' }}>{hoveredBar.barProfile}</span>
+            </div>
+          )}
+          {hoveredBar.power && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ color: '#94a3b8' }}>{hoveredBar.applianceType === 'stove' ? 'Consumo / Queimador:' : 'Potência:'}</span>
+              <span style={{ fontWeight: 600, color: '#fb923c', textAlign: 'right' }}>{hoveredBar.power}</span>
+            </div>
+          )}
+          {hoveredBar.weightText && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ color: '#94a3b8' }}>Peso Líquido:</span>
+              <span style={{ fontWeight: 600, color: '#fbbf24' }}>{hoveredBar.weightText}</span>
             </div>
           )}
           {hoveredBar.cutAngle && (

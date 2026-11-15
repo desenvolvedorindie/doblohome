@@ -26,8 +26,27 @@ export function useCuttingPlan(
   const [marginMm, setMarginMm] = useState<number>(10); // 10mm refilo
   const [allowRotation, setAllowRotation] = useState<boolean>(true);
 
-  const sheetWidthMm = sheetStandard === 'plywood_2440' ? 2440 : sheetStandard === 'mdf_2750' ? 2750 : customSheetW;
-  const sheetHeightMm = sheetStandard === 'plywood_2440' ? 1220 : sheetStandard === 'mdf_2750' ? 1830 : customSheetH;
+  const sheetWidthMm =
+    sheetStandard === 'plywood_2440'
+      ? 2440
+      : sheetStandard === 'mdf_2750'
+        ? 2750
+        : sheetStandard === 'foam_1900'
+          ? 1900
+          : sheetStandard === 'foam_2000'
+            ? 2000
+            : customSheetW;
+
+  const sheetHeightMm =
+    sheetStandard === 'plywood_2440'
+      ? 1220
+      : sheetStandard === 'mdf_2750'
+        ? 1830
+        : sheetStandard === 'foam_1900'
+          ? 1400
+          : sheetStandard === 'foam_2000'
+            ? 1400
+            : customSheetH;
 
   // 1. Agrupamento de peças por [Material + Espessura]
   const materialGroups = useMemo<MaterialGroup[]>(() => {
@@ -43,6 +62,7 @@ export function useCuttingPlan(
             : 'Compensado Naval');
       const thick = g.thicknessMm || 15;
       const key = `${woodMat}__${thick}`;
+      const isUpholstery = Boolean(g.isUpholstery || g.woodMaterial?.includes('Espuma'));
 
       if (!map.has(key)) {
         map.set(key, {
@@ -50,7 +70,8 @@ export function useCuttingPlan(
           woodMaterial: woodMat,
           thicknessMm: thick,
           pieces: [],
-          totalPieces: 0
+          totalPieces: 0,
+          isUpholstery
         });
       }
 
@@ -71,6 +92,8 @@ export function useCuttingPlan(
           spacingMm: g.spacingMm,
           exclusionZones: g.exclusionZones,
           partType: g.partType,
+          isUpholstery: g.isUpholstery,
+          hasCabinetCutout: g.hasCabinetCutout,
           canRotate: true
         });
         group.totalPieces += 1;
@@ -115,6 +138,23 @@ export function useCuttingPlan(
   const activeGroup = useMemo(() => {
     return materialGroups.find((g) => g.key === activeGroupKey) || materialGroups[0];
   }, [materialGroups, activeGroupKey]);
+
+  // Auto-ajusta padrão de chapa e kerf ao alternar entre madeira e espuma
+  useEffect(() => {
+    if (!activeGroup) return;
+    const isFoam = Boolean(activeGroup.isUpholstery || activeGroup.woodMaterial?.includes('Espuma'));
+    if (isFoam) {
+      if (sheetStandard !== 'foam_1900' && sheetStandard !== 'foam_2000') {
+        setSheetStandard('foam_1900');
+        setKerfMm(2);
+      }
+    } else {
+      if (sheetStandard === 'foam_1900' || sheetStandard === 'foam_2000') {
+        setSheetStandard('plywood_2440');
+        setKerfMm(3);
+      }
+    }
+  }, [activeGroupKey, activeGroup]);
 
   // 2. Planos de corte otimizados
   const [cuttingPlans, setCuttingPlans] = useState<Record<string, CuttingResult>>({});

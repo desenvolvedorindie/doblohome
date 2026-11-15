@@ -55,8 +55,8 @@ export class BaseRackBuilder {
       barLeft = AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true });
       barRight = AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true });
     } else {
-      barLeft = MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: profileSize, thickness: thicknessM });
-      barRight = MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: profileSize, thickness: thicknessM });
+      barLeft = MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: profileSize, thickness: thicknessM, showCutFace: true });
+      barRight = MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: profileSize, thickness: thicknessM, showCutFace: true });
     }
 
     barLeft.position.set(-width / 2 + profileSize / 2, curBaseY, zCenter);

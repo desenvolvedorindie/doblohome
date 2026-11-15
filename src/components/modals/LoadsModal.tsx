@@ -5,6 +5,8 @@ export const LoadsModal: React.FC = () => {
   const {
     activeModal,
     closeModal,
+    openModal,
+    activeFridgePreset,
     appliances,
     loadsSummary,
     batteryPerformance,
@@ -169,9 +171,25 @@ export const LoadsModal: React.FC = () => {
             <button
               type="button"
               className="preset-chip"
-              onClick={() => applyPreset('Geladeira 12V (compressor ciclo 40%)', 45, 9.5, 1)}
+              style={{ background: 'rgba(2, 132, 199, 0.22)', borderColor: '#0284c7', color: '#38bdf8', fontWeight: 700 }}
+              onClick={() => applyPreset(
+                `${activeFridgePreset?.name || 'Geladeira Resfri Ar 35L'} (12V Compressor)`,
+                activeFridgePreset?.ratedWatts || activeFridgePreset?.powerEcoWatts || 48,
+                activeFridgePreset?.dailyHours || 9.6,
+                1
+              )}
+              title="Adicionar carga da geladeira ativa configurada nos presets"
             >
-              + Geladeira (45W · 9.5h)
+              + ❄️ {activeFridgePreset?.model || 'Resfri Ar 35L'} ({activeFridgePreset?.powerEcoWatts || 48}W · {activeFridgePreset?.dailyHours || 9.6}h)
+            </button>
+            <button
+              type="button"
+              className="preset-chip"
+              style={{ background: 'rgba(56, 189, 248, 0.1)', borderColor: 'rgba(56, 189, 248, 0.35)', color: '#7dd3fc' }}
+              onClick={() => openModal('fridge-presets')}
+              title="Ver catálogo de presets de geladeiras"
+            >
+              ⚙️ Geladeiras...
             </button>
             <button
               type="button"

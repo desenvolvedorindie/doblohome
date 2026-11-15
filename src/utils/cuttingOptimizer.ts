@@ -6,162 +6,17 @@
  * espessura de corte de serra (kerf), rotação 90° e manipulação manual interativa.
  */
 
-export interface CutPieceInput {
-  id: string;
-  pieceId?: string;
-  label: string;
-  moduleName?: string;
-  lengthMm: number; // maior dimensão (comprimento)
-  widthMm: number;  // menor dimensão (largura)
-  thicknessMm: number;
-  material: string;
-  woodMaterial?: string;
-  isPerforated?: boolean;
-  holeDiameterMm?: number;
-  spacingMm?: number;
-  exclusionZones?: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
-  canRotate?: boolean;
-  partType?: string;
-}
+import {
+  CutPieceInput,
+  PlacedPiece,
+  SheetPlan,
+  CuttingOptimizerOptions,
+  CuttingResult
+} from './cuttingOptimizerTypes';
+import { computePerforationHoles } from './cuttingValidation';
 
-export interface CutHole {
-  x: number; // mm relativo ao canto sup. esq. da peça
-  y: number;
-  r: number; // raio em mm
-}
-
-export interface PlacedPiece {
-  id: string;
-  pieceId: string;
-  label: string;
-  moduleName?: string;
-  x: number; // mm a partir da borda esquerda da folha
-  y: number; // mm a partir da borda superior da folha
-  w: number; // largura na folha (eixo X)
-  h: number; // altura na folha (eixo Y)
-  originalLength: number;
-  originalWidth: number;
-  thicknessMm: number;
-  rotated: boolean;
-  material: string;
-  woodMaterial?: string;
-  isPerforated?: boolean;
-  holeDiameterMm?: number;
-  spacingMm?: number;
-  exclusionZones?: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
-  holes?: CutHole[];
-  partType?: string;
-}
-
-export interface SheetPlan {
-  sheetIndex: number;
-  sheetWidthMm: number;  // padrão 2440 mm
-  sheetHeightMm: number; // padrão 1220 mm
-  material: string;
-  woodMaterial?: string;
-  thicknessMm: number;
-  marginMm: number;      // refilo (padrão 10 mm)
-  kerfMm: number;        // espessura da serra (padrão 3 mm)
-  placedPieces: PlacedPiece[];
-  usedAreaM2: number;
-  totalAreaM2: number;
-  efficiencyPct: number; // % aproveitamento útil
-  wastePct: number;      // % sobra / retalho
-}
-
-export interface CuttingResult {
-  materialGroupKey: string;
-  materialName: string;
-  woodMaterial: string;
-  thicknessMm: number;
-  sheets: SheetPlan[];
-  unplacedPieces: CutPieceInput[];
-  totalSheets: number;
-  totalPiecesCount: number;
-  totalAreaUsedM2: number;
-  overallEfficiencyPct: number;
-}
-
-export interface CuttingOptimizerOptions {
-  sheetWidthMm?: number;
-  sheetHeightMm?: number;
-  kerfMm?: number;
-  marginMm?: number;
-  allowRotation?: boolean;
-}
-
-/**
- * Calcula a posição exata de cada furo de alívio CNC para um tampo perfurado,
- * respeitando diâmetro, espaçamento e zonas de exclusão (ex: apoio do armário aéreo).
- */
-export function computePerforationHoles(
-  wMm: number,
-  hMm: number,
-  options?: {
-    holeDiameterMm?: number;
-    spacingMm?: number;
-    exclusionZones?: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
-  }
-): CutHole[] {
-  const diameterMm = Math.max(15, Math.min(85, options?.holeDiameterMm ?? 40));
-  const spacingMm = Math.max(diameterMm + 12, Math.min(180, options?.spacingMm ?? 85));
-
-  // Margem mínima de segurança na borda da madeira
-  const marginX = Math.min(45, Math.max(25, wMm * 0.10));
-  const marginY = Math.min(45, Math.max(25, hMm * 0.10));
-
-  const usableW = Math.max(20, wMm - 2 * marginX);
-  const usableH = Math.max(20, hMm - 2 * marginY);
-
-  const cols = Math.max(1, Math.round(usableW / spacingMm));
-  const rows = Math.max(1, Math.round(usableH / spacingMm));
-
-  const stepX = usableW / cols;
-  const stepY = usableH / rows;
-
-  const maxSafeRadius = Math.max(6, Math.min(stepX, stepY) * 0.45);
-  const holeRadius = Math.min(diameterMm / 2, maxSafeRadius);
-
-  const holes: CutHole[] = [];
-
-  // Exclusões convertidas para mm relativas ao centro da peça
-  const exclusions = options?.exclusionZones || [];
-
-  for (let c = 0; c <= cols; c++) {
-    const hx = marginX + c * stepX;
-    // Centralizado relativo ao centro da peça
-    const relX = (hx - wMm / 2) / 1000;
-
-    for (let r = 0; r <= rows; r++) {
-      const hy = marginY + r * stepY;
-      const relY = (hy - hMm / 2) / 1000;
-
-      // Verifica se o furo cai em zona proibida
-      let isExcluded = false;
-      for (const zone of exclusions) {
-        if (
-          relX >= zone.minX - 0.015 &&
-          relX <= zone.maxX + 0.015 &&
-          relY >= zone.minZ - 0.015 &&
-          relY <= zone.maxZ + 0.015
-        ) {
-          isExcluded = true;
-          break;
-        }
-      }
-
-      if (!isExcluded) {
-        holes.push({
-          x: Math.round(hx),
-          y: Math.round(hy),
-          r: Math.round(holeRadius)
-        });
-      }
-    }
-  }
-
-  return holes;
-}
+export * from './cuttingOptimizerTypes';
+export * from './cuttingValidation';
 
 interface FreeRect {
   x: number;
@@ -283,10 +138,10 @@ export function optimizeCuttingPlan(
         // Calcula furos se vazado
         const holes = item.isPerforated
           ? computePerforationHoles(pieceW, pieceH, {
-              holeDiameterMm: item.holeDiameterMm,
-              spacingMm: item.spacingMm,
-              exclusionZones: item.exclusionZones
-            })
+            holeDiameterMm: item.holeDiameterMm,
+            spacingMm: item.spacingMm,
+            exclusionZones: item.exclusionZones
+          })
           : undefined;
 
         const placedObj: PlacedPiece = {
@@ -309,7 +164,9 @@ export function optimizeCuttingPlan(
           spacingMm: item.spacingMm,
           exclusionZones: item.exclusionZones,
           holes,
-          partType: item.partType
+          partType: item.partType,
+          isUpholstery: item.isUpholstery,
+          hasCabinetCutout: item.hasCabinetCutout
         };
 
         state.plan.placedPieces.push(placedObj);
@@ -363,10 +220,10 @@ export function optimizeCuttingPlan(
 
         const holes = item.isPerforated
           ? computePerforationHoles(pieceW, pieceH, {
-              holeDiameterMm: item.holeDiameterMm,
-              spacingMm: item.spacingMm,
-              exclusionZones: item.exclusionZones
-            })
+            holeDiameterMm: item.holeDiameterMm,
+            spacingMm: item.spacingMm,
+            exclusionZones: item.exclusionZones
+          })
           : undefined;
 
         newState.plan.placedPieces.push({
@@ -389,7 +246,9 @@ export function optimizeCuttingPlan(
           spacingMm: item.spacingMm,
           exclusionZones: item.exclusionZones,
           holes,
-          partType: item.partType
+          partType: item.partType,
+          isUpholstery: item.isUpholstery,
+          hasCabinetCutout: item.hasCabinetCutout
         });
 
         const remW = rect.w - pieceW - kerfMm;
@@ -451,64 +310,5 @@ export function optimizeCuttingPlan(
     totalPiecesCount,
     totalAreaUsedM2: Number(totalAreaUsed.toFixed(3)),
     overallEfficiencyPct: overallEfficiency
-  };
-}
-
-/**
- * Recalcula o aproveitamento de uma folha após modificação manual de posições
- */
-export function recalculateSheetStats(sheet: SheetPlan): SheetPlan {
-  let usedM2 = 0;
-  for (const p of sheet.placedPieces) {
-    usedM2 += (p.w * p.h) / 1_000_000;
-  }
-  const efficiency = Number(((usedM2 / sheet.totalAreaM2) * 100).toFixed(1));
-  return {
-    ...sheet,
-    usedAreaM2: Number(usedM2.toFixed(3)),
-    efficiencyPct: Math.min(100, efficiency),
-    wastePct: Math.max(0, Number((100 - efficiency).toFixed(1)))
-  };
-}
-
-/**
- * Validação de colisão e limites da chapa para arrasto manual
- */
-export function checkPiecePlacement(
-  piece: PlacedPiece,
-  otherPieces: PlacedPiece[],
-  sheetWidthMm: number,
-  sheetHeightMm: number,
-  marginMm: number,
-  kerfMm: number
-): { isValid: boolean; isOutOfBounds: boolean; isColliding: boolean; collidingWith?: string } {
-  const isOutOfBounds =
-    piece.x < marginMm ||
-    piece.y < marginMm ||
-    piece.x + piece.w > sheetWidthMm - marginMm ||
-    piece.y + piece.h > sheetHeightMm - marginMm;
-
-  let isColliding = false;
-  let collidingWith: string | undefined;
-
-  for (const other of otherPieces) {
-    if (other.id === piece.id) continue;
-
-    // Tolerância com serra (kerf)
-    const overlapX = piece.x < other.x + other.w + kerfMm && piece.x + piece.w + kerfMm > other.x;
-    const overlapY = piece.y < other.y + other.h + kerfMm && piece.y + piece.h + kerfMm > other.y;
-
-    if (overlapX && overlapY) {
-      isColliding = true;
-      collidingWith = other.label;
-      break;
-    }
-  }
-
-  return {
-    isValid: !isOutOfBounds && !isColliding,
-    isOutOfBounds,
-    isColliding,
-    collidingWith
   };
 }

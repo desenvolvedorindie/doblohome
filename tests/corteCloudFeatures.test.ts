@@ -407,4 +407,81 @@ describe('Corte Cloud & Configuração de Espessuras das Peças', () => {
     expect(Array.isArray(barStats.cutGroups)).toBe(true);
     expect(Array.isArray(barStats.profileSummaries)).toBe(true);
   });
+
+  it('10. Deve incluir almofadas do colchão (Espuma D33) no plano de corte 2D com bloco 1.90x1.40m e identificar recorte do aéreo', async () => {
+    const { extractWoodCutGroups, extractUpholsteryStats, groupWoodCutPieces } = await import('../src/utils/woodUtils');
+    const { optimizeCuttingPlan } = await import('../src/utils/cuttingOptimizer');
+    const THREE = await import('three');
+
+    const group = new THREE.Group();
+    const cushion1 = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.08, 0.58), new THREE.MeshBasicMaterial());
+    cushion1.userData = {
+      isWoodPart: false,
+      isUpholstery: true,
+      partLabel: 'Almofada Cama #1 - Traseira',
+      woodMaterial: 'Espuma D33 (Colchão)',
+      thicknessMm: 80,
+      dimW: 1.22,
+      dimH: 0.08,
+      dimL: 0.58,
+      hasCabinetCutout: false,
+      moduleName: 'Cama Dobrável',
+      partType: 'upholstery'
+    };
+    group.add(cushion1);
+
+    const cushion2 = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.08, 0.58), new THREE.MeshBasicMaterial());
+    cushion2.userData = {
+      isWoodPart: false,
+      isUpholstery: true,
+      partLabel: 'Almofada Cama #2 - Central (Corte Especial)',
+      woodMaterial: 'Espuma D33 (Colchão)',
+      thicknessMm: 80,
+      dimW: 1.22,
+      dimH: 0.08,
+      dimL: 0.58,
+      hasCabinetCutout: true,
+      moduleName: 'Cama Dobrável',
+      partType: 'upholstery'
+    };
+    group.add(cushion2);
+
+    const mockSceneManager = { internalBoxesBuilder: { group } };
+    const stats = extractWoodCutGroups(mockSceneManager);
+    expect(stats.totalPieces).toBe(2);
+
+    const upholsteryStats = extractUpholsteryStats(stats.cutGroups);
+    expect(upholsteryStats.totalPieces).toBe(2);
+    expect(upholsteryStats.cushions.some((c) => c.hasCabinetCutout)).toBe(true);
+    expect(upholsteryStats.estimatedSheets1900).toBe(1);
+
+    const categories = groupWoodCutPieces(stats.cutGroups);
+    const foamCategory = categories.find((c) => c.woodMaterial.includes('Espuma'));
+    expect(foamCategory).toBeDefined();
+    expect(foamCategory!.estimatedSheets).toBe(1);
+
+    const plan = optimizeCuttingPlan(
+      foamCategory!.pieces.map((p, idx) => ({
+        id: `foam_${idx}`,
+        pieceId: p.key,
+        label: p.label,
+        lengthMm: p.lengthMm,
+        widthMm: p.widthMm,
+        thicknessMm: p.thicknessMm,
+        material: p.material,
+        woodMaterial: p.woodMaterial,
+        isUpholstery: p.isUpholstery,
+        hasCabinetCutout: p.hasCabinetCutout,
+        canRotate: true
+      })),
+      foamCategory!.key,
+      foamCategory!.woodMaterial,
+      foamCategory!.thicknessMm,
+      { sheetWidthMm: 1900, sheetHeightMm: 1400, kerfMm: 2, marginMm: 10, allowRotation: true }
+    );
+
+    expect(plan.sheets.length).toBe(1);
+    expect(plan.sheets[0].placedPieces.length).toBe(2);
+    expect(plan.sheets[0].placedPieces.some((p) => p.hasCabinetCutout)).toBe(true);
+  });
 });

@@ -21,6 +21,8 @@ export interface WoodCutGroup {
   exclusionZones?: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
   hasCabinetExclusion?: boolean;
   isRearShelf?: boolean;
+  isUpholstery?: boolean;
+  hasCabinetCutout?: boolean;
 }
 
 export interface WoodGroupByCategory {
@@ -52,6 +54,61 @@ export interface ProfileSummary {
 }
 
 /**
+ * Sanitiza o nome de peças de estofaria/almofada para remover prefixos de marcenaria,
+ * emojis de madeira (🪵/📦) ou nomes de gavetões herdados da caixa.
+ */
+export function sanitizeUpholsteryLabel(raw: string): string {
+  if (!raw) return 'Almofada de Espuma D33';
+  let cleaned = raw
+    // Remove emojis e caracteres especiais iniciais
+    .replace(/^[\s\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]+/u, '')
+    .trim();
+
+  // Se houver separador " • " e o lado esquerdo for nome de caixa/gavetão/módulo, descarta o lado esquerdo
+  if (cleaned.includes('•')) {
+    const parts = cleaned.split('•');
+    if (parts.length >= 2) {
+      cleaned = parts.slice(1).join('•').trim();
+    }
+  }
+
+  // Remove dimensões redundantes como "(388×1259×80mm)", pois as dimensões já têm coluna própria
+  cleaned = cleaned.replace(/\s*\(\d+\s*[×xX*]\s*\d+\s*[×xX*]\s*\d+\s*mm\)/gi, '').trim();
+
+  // Remove redundâncias de palavras "Colchão Colchão" ou "Colchão Almofada"
+  cleaned = cleaned.replace(/^Colchão\s+(?=Almofada)/i, '');
+  cleaned = cleaned.replace(/^Colchão\s+/i, '');
+
+  if (!cleaned.toLowerCase().includes('almofada')) {
+    cleaned = `Almofada ${cleaned}`;
+  }
+
+  return cleaned.trim();
+}
+
+/**
+ * Sanitiza o módulo de estofaria para garantir que peças de colchão não fiquem
+ * associadas a nomes como "Gavetão Mantimentos", "Madeira" ou ícones de marcenaria.
+ */
+export function sanitizeUpholsteryModuleName(rawModuleName: string): string {
+  if (
+    !rawModuleName ||
+    rawModuleName.includes('Gavetão') ||
+    rawModuleName.includes('🪵') ||
+    rawModuleName.includes('Armário') ||
+    rawModuleName.includes('Gaveta') ||
+    rawModuleName.includes('Mantimentos')
+  ) {
+    return '🛏️ Cama Retrátil / Sofá-Cama';
+  }
+  let cleaned = rawModuleName.replace(/^[\s🪵📦🍳🪚]+/u, '').trim();
+  if (!cleaned.startsWith('🛏️')) {
+    cleaned = `🛏️ ${cleaned}`;
+  }
+  return cleaned;
+}
+
+/**
  * Extrai todas as peças e chapas de madeira dos módulos internos do campervan
  * a partir do sceneManager.internalBoxesBuilder.
  */
@@ -67,7 +124,9 @@ export function extractWoodCutGroups(sceneManager: any): {
 
   if (sceneManager && sceneManager.internalBoxesBuilder) {
     sceneManager.internalBoxesBuilder.group.traverse((obj: any) => {
-      if (!obj.isMesh || !obj.userData || !obj.userData.isWoodPart) return;
+      const isWood = Boolean(obj.userData?.isWoodPart);
+      const isUpholstery = Boolean(obj.userData?.isUpholstery);
+      if (!obj.isMesh || !obj.userData || (!isWood && !isUpholstery)) return;
       if (obj.userData.isInternalBoxHitbox) return;
 
       if (!obj.geometry.boundingBox) obj.geometry.computeBoundingBox();
@@ -88,31 +147,39 @@ export function extractWoodCutGroups(sceneManager: any): {
       const isPerforated = Boolean(obj.userData.isPerforated);
       const hasCabinetExclusion = Boolean(obj.userData.hasCabinetExclusion);
       const isRearShelf = Boolean(obj.userData.isRearShelf);
+      const hasCabinetCutout = Boolean(obj.userData.hasCabinetCutout);
 
-      const woodMaterial = String(
-        obj.userData.woodMaterial ||
-        (obj.userData.material?.includes('MDF')
-          ? 'MDF Branco Ultra'
-          : obj.userData.material?.includes('Maciça')
-            ? 'Madeira Nobre Maciça'
-            : 'Compensado Naval')
-      );
+      const woodMaterial = isUpholstery
+        ? String(obj.userData.woodMaterial || 'Espuma D33 (Colchão)')
+        : String(
+          obj.userData.woodMaterial ||
+          (obj.userData.material?.includes('MDF')
+            ? 'MDF Branco Ultra'
+            : obj.userData.material?.includes('Maciça')
+              ? 'Madeira Nobre Maciça'
+              : 'Compensado Naval')
+        );
 
-      const moduleName = String(obj.userData.moduleName || '');
-      const partType = String(obj.userData.partType || '');
+      const moduleName = isUpholstery
+        ? sanitizeUpholsteryModuleName(String(obj.userData.moduleName || ''))
+        : String(obj.userData.moduleName || '');
+      const partType = isUpholstery ? 'upholstery' : String(obj.userData.partType || '');
       const holeDiameterMm = obj.userData.holeDiameterMm ? Number(obj.userData.holeDiameterMm) : 40;
       const spacingMm = obj.userData.spacingMm ? Number(obj.userData.spacingMm) : 85;
       const exclusionZones = obj.userData.exclusionZones || undefined;
 
-      const rawLabel = String(obj.userData.partLabel || obj.userData.name || `Chapa ${woodMaterial} ${thicknessMm}mm`)
+      const rawLabel = String(obj.userData.partLabel || obj.userData.name || `${isUpholstery ? 'Almofada Colchão' : 'Chapa'} ${woodMaterial} ${thicknessMm}mm`)
         .replace(/\s*\(#\d+\)/g, '')
         .trim();
-      const material = String(obj.userData.material || `${woodMaterial} ${thicknessMm}mm Impermeabilizado`);
+      const label = isUpholstery ? sanitizeUpholsteryLabel(rawLabel) : rawLabel;
+      const material = isUpholstery
+        ? String(obj.userData.material || 'Espuma D33 Revestida em Tecido Impermeável')
+        : String(obj.userData.material || `${woodMaterial} ${thicknessMm}mm Impermeabilizado`);
 
       totalPieces += 1;
       totalAreaM2 += areaM2;
 
-      const key = `${woodMaterial}__${thicknessMm}__${rawLabel}__${widthMm}x${lengthMm}${isPerforated ? '__perf' : ''}${hasCabinetExclusion ? '__cabex' : ''}${isRearShelf ? '__shelf' : ''}`;
+      const key = `${woodMaterial}__${thicknessMm}__${label}__${widthMm}x${lengthMm}${isPerforated ? '__perf' : ''}${hasCabinetExclusion ? '__cabex' : ''}${hasCabinetCutout ? '__cutout' : ''}${isRearShelf ? '__shelf' : ''}`;
       const existing = groupsMap.get(key);
       if (existing) {
         existing.qty += 1;
@@ -120,7 +187,7 @@ export function extractWoodCutGroups(sceneManager: any): {
       } else {
         groupsMap.set(key, {
           key,
-          label: rawLabel,
+          label,
           lengthMm,
           widthMm,
           thicknessMm,
@@ -138,7 +205,9 @@ export function extractWoodCutGroups(sceneManager: any): {
           spacingMm,
           exclusionZones,
           hasCabinetExclusion,
-          isRearShelf
+          isRearShelf,
+          isUpholstery,
+          hasCabinetCutout
         });
       }
     });
@@ -150,7 +219,8 @@ export function extractWoodCutGroups(sceneManager: any): {
     return a.label.localeCompare(b.label);
   });
 
-  const standardSheets = Math.max(1, Math.ceil((totalAreaM2 * 1.10) / 2.977));
+  const woodArea = cutGroups.filter(g => !g.isUpholstery).reduce((acc, g) => acc + g.totalAreaM2, 0);
+  const standardSheets = Math.max(1, Math.ceil((woodArea * 1.10) / 2.977));
 
   return {
     totalPieces,
@@ -191,14 +261,47 @@ export function groupWoodCutPieces(cutGroups: WoodCutGroup[]): WoodGroupByCatego
 
   const result = Array.from(map.values());
   result.forEach((cat) => {
-    const sheetArea = cat.woodMaterial.includes('MDF') ? 2.75 * 1.83 : 2.44 * 1.22;
-    cat.estimatedSheets = Math.max(1, Math.ceil((cat.totalAreaM2 * 1.10) / sheetArea));
+    const isFoam = cat.woodMaterial.includes('Espuma') || cat.pieces.some(p => p.isUpholstery);
+    const sheetArea = isFoam ? 1.90 * 1.40 : cat.woodMaterial.includes('MDF') ? 2.75 * 1.83 : 2.44 * 1.22;
+    const wasteFactor = isFoam ? 1.15 : 1.10;
+    cat.estimatedSheets = Math.max(1, Math.ceil((cat.totalAreaM2 * wasteFactor) / sheetArea));
   });
 
   return result.sort((a, b) => {
     if (a.woodMaterial !== b.woodMaterial) return a.woodMaterial.localeCompare(b.woodMaterial);
     return b.thicknessMm - a.thicknessMm;
   });
+}
+
+export interface UpholsteryStats {
+  totalPieces: number;
+  totalAreaM2: number;
+  totalVolumeLiters: number;
+  estimatedSheets1900: number; // Bloco padrão 1.90m x 1.40m
+  cushions: WoodCutGroup[];
+}
+
+/**
+ * Extrai resumo específico de espumas/estofarias (colchão campervan)
+ */
+export function extractUpholsteryStats(cutGroups: WoodCutGroup[]): UpholsteryStats {
+  const cushions = cutGroups.filter(g => g.isUpholstery);
+  const totalPieces = cushions.reduce((acc, c) => acc + c.qty, 0);
+  const totalAreaM2 = cushions.reduce((acc, c) => acc + c.totalAreaM2, 0);
+  const totalVolumeLiters = cushions.reduce(
+    (acc, c) => acc + (c.totalAreaM2 * (c.thicknessMm / 1000) * 1000),
+    0
+  );
+  // Bloco de espuma padrão 1.90m x 1.40m = 2.66 m²
+  const estimatedSheets1900 = Math.max(totalPieces > 0 ? 1 : 0, Math.ceil((totalAreaM2 * 1.15) / 2.66));
+
+  return {
+    totalPieces,
+    totalAreaM2,
+    totalVolumeLiters,
+    estimatedSheets1900,
+    cushions
+  };
 }
 
 /**

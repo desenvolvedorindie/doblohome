@@ -13,11 +13,18 @@ import { UsinaModal } from './components/modals/UsinaModal';
 import { BomModal } from './components/modals/BomModal';
 import { PanelPresetsModal } from './components/modals/PanelPresetsModal';
 import { CargoBoxPresetsModal } from './components/modals/CargoBoxPresetsModal';
+import { FridgePresetsModal } from './components/modals/FridgePresetsModal';
+import { PortaPottiPresetsModal } from './components/modals/PortaPottiPresetsModal';
+import { StovePresetsModal } from './components/modals/StovePresetsModal';
+import { ElectricalPlanarView } from './components/electrical/ElectricalPlanarView';
+import { HydraulicPlanarView } from './components/hydraulic/HydraulicPlanarView';
 
 export const App: React.FC = () => {
   return (
     <>
       <CanvasViewport />
+      <ElectricalPlanarView />
+      <HydraulicPlanarView />
       <Header />
       <Sidebar />
       <RightPanel />
@@ -33,6 +40,9 @@ export const App: React.FC = () => {
       <BomModal />
       <PanelPresetsModal />
       <CargoBoxPresetsModal />
+      <FridgePresetsModal />
+      <PortaPottiPresetsModal />
+      <StovePresetsModal />
     </>
   );
 };

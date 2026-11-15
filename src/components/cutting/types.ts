@@ -1,6 +1,6 @@
 import { CutPieceInput, PlacedPiece, SheetPlan, CuttingResult } from '../../utils/cuttingOptimizer';
 
-export type SheetStandard = 'plywood_2440' | 'mdf_2750' | 'custom';
+export type SheetStandard = 'plywood_2440' | 'mdf_2750' | 'foam_1900' | 'foam_2000' | 'custom';
 
 export interface WoodCutGroupInput {
   key: string;
@@ -17,6 +17,8 @@ export interface WoodCutGroupInput {
   exclusionZones?: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
   moduleName?: string;
   partType?: string;
+  isUpholstery?: boolean;
+  hasCabinetCutout?: boolean;
 }
 
 export interface CuttingPlanPanelProps {
@@ -33,4 +35,5 @@ export interface MaterialGroup {
   thicknessMm: number;
   pieces: CutPieceInput[];
   totalPieces: number;
+  isUpholstery?: boolean;
 }

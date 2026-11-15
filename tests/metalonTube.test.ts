@@ -6,6 +6,8 @@ import { BaseRackBuilder } from '../src/three/BaseRackBuilder';
 import { SolarTrayBuilder } from '../src/three/SolarTrayBuilder';
 import { SpacerPostsBuilder } from '../src/three/SpacerPosts';
 import { CargoBoxSystem } from '../src/three/CargoBox';
+import { BarsLineupCollector } from '../src/three/scene/BarsLineupCollector';
+import { BarsLineupBuilder } from '../src/three/scene/BarsLineupBuilder';
 
 describe('Metalon Tubular Paramétrico (Alumínio & Ferro Oco)', () => {
   it('1. Deve gerar Shape 2D com cavidade interna (furo) proporcional à espessura de parede', () => {
@@ -248,6 +250,20 @@ describe('Metalon Tubular Paramétrico (Alumínio & Ferro Oco)', () => {
       }
     });
     expect(meshes.length).toBeGreaterThanOrEqual(3);
+
+    // Deve estar perfeitamente centralizado em (0, 0, 0) para assentamento correto na bancada
+    const b3 = new THREE.Box3().setFromObject(elbow);
+    const center = new THREE.Vector3();
+    b3.getCenter(center);
+    expect(Math.abs(center.x)).toBeLessThan(0.001);
+    expect(Math.abs(center.y)).toBeLessThan(0.001);
+    expect(Math.abs(center.z)).toBeLessThan(0.001);
+
+    const size = new THREE.Vector3();
+    b3.getSize(size);
+    expect(size.y).toBeCloseTo(0.219, 2);
+    expect(size.x).toBeCloseTo(0.290, 2);
+    expect(size.z).toBeCloseTo(0.290, 2);
   });
 
   it('13. MetalonTubeFactory.createPvcCapMesh deve gerar CAP Tampão com domo abaulado, dreno em latão e hitbox', () => {
@@ -269,5 +285,181 @@ describe('Metalon Tubular Paramétrico (Alumínio & Ferro Oco)', () => {
       }
     });
     expect(meshes.length).toBeGreaterThanOrEqual(4);
+
+    // Deve estar perfeitamente centralizado e unido sem vão (zero gap)
+    const b3 = new THREE.Box3().setFromObject(cap);
+    const center = new THREE.Vector3();
+    b3.getCenter(center);
+    expect(Math.abs(center.x)).toBeLessThan(0.001);
+    expect(Math.abs(center.y)).toBeLessThan(0.001);
+    expect(Math.abs(center.z)).toBeLessThan(0.001);
+
+    const size = new THREE.Vector3();
+    b3.getSize(size);
+    expect(size.x).toBeCloseTo(0.219, 2);
+    expect(size.y).toBeCloseTo(0.219, 2);
+    expect(size.z).toBeGreaterThan(0.08);
+  });
+
+  it('14. buildTubeShape deve gerar furo com sentido horário (CW / área negativa) para triangulação Earcut vazada', () => {
+    const shape = MetalonTubeFactory.buildTubeShape(0.040, 0.040, 0.0020, 0.0025);
+    const outerPts = shape.getPoints(12);
+    const holePts = shape.holes[0].getPoints(12);
+
+    const outerArea = THREE.ShapeUtils.area(outerPts);
+    const holeArea = THREE.ShapeUtils.area(holePts);
+
+    // O contorno externo deve ser CCW (área positiva)
+    expect(outerArea).toBeGreaterThan(0);
+    // O furo interno deve ser CW (área negativa) para validação Earcut
+    expect(holeArea).toBeLessThan(0);
+  });
+
+  it('15. Perfil de Metalon 3D deve ser 100% vazado com cavidade passante sem obstrução no eixo central', () => {
+    const length = 2.0;
+    const size = 0.040;
+    const thickness = 0.0020;
+    const geo = MetalonTubeFactory.getTubeGeometry(length, size, size, thickness, 'z');
+    const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.updateMatrixWorld();
+
+    const raycaster = new THREE.Raycaster();
+    // Raio disparado diretamente pelo centro do tubo (0, 0, -2) em direção a +Z (0, 0, 1)
+    raycaster.set(new THREE.Vector3(0, 0, -2), new THREE.Vector3(0, 0, 1));
+    const centerHits = raycaster.intersectObject(mesh);
+    // Não pode haver faces obstruindo o furo vazado do metalon
+    expect(centerHits.length).toBe(0);
+
+    // Raio disparado através da parede metálica (x=0.019, dentro da parede de 2mm entre 0.018 e 0.020)
+    raycaster.set(new THREE.Vector3(0.019, 0, -2), new THREE.Vector3(0, 0, 1));
+    const wallHits = raycaster.intersectObject(mesh);
+    // Deve atingir as extremidades/faces da parede metálica
+    expect(wallHits.length).toBe(2);
+  });
+
+  it('16. createTubeMesh com showCutFace deve anexar faces de corte nas extremidades abertas com espessura visível', () => {
+    const length = 2.20;
+    const mat = new THREE.MeshBasicMaterial({ color: 0x333b47 });
+    const meshZ = MetalonTubeFactory.createTubeMesh(length, mat, {
+      axis: 'z',
+      size: 0.040,
+      thickness: 0.0020,
+      showCutFace: true
+    });
+
+    const childMeshes = meshZ.children.filter((c: any) => c.isMesh && c.name !== '__hitbox');
+    expect(childMeshes.length).toBe(2); // endFront e endRear
+    expect(childMeshes[0].position.z).toBeCloseTo(length / 2, 3);
+    expect(childMeshes[1].position.z).toBeCloseTo(-length / 2, 3);
+
+    // Eixo Y (pilares verticais)
+    const meshY = MetalonTubeFactory.createTubeMesh(0.50, mat, {
+      axis: 'y',
+      size: 0.030,
+      thickness: 0.0015,
+      showCutFace: true
+    });
+    const childMeshesY = meshY.children.filter((c: any) => c.isMesh && c.name !== '__hitbox');
+    expect(childMeshesY.length).toBe(2); // endTop e endBottom
+    expect(childMeshesY[0].position.y).toBeCloseTo(0.25, 3);
+    expect(childMeshesY[1].position.y).toBeCloseTo(-0.25, 3);
+  });
+
+  it('17. MetalonTubeFactory.createMetalonCapMesh deve gerar CAP com flange, haste de encaixe, 3 aletas de retenção e hitbox', () => {
+    const width = 0.040;
+    const height = 0.040;
+    const wallThickness = 0.0020;
+    const cap = MetalonTubeFactory.createMetalonCapMesh(width, height, wallThickness);
+
+    expect(cap).toBeInstanceOf(THREE.Group);
+    expect(cap.name).toBe('MetalonCapMesh');
+
+    const hitbox = cap.getObjectByName('__hitbox');
+    expect(hitbox).toBeDefined();
+    expect((hitbox as THREE.Mesh).geometry).toBeInstanceOf(THREE.BoxGeometry);
+
+    const flange = cap.getObjectByName('MetalonCap_Flange');
+    expect(flange).toBeDefined();
+
+    const shank = cap.getObjectByName('MetalonCap_Shank');
+    expect(shank).toBeDefined();
+
+    const rib1 = cap.getObjectByName('MetalonCap_Rib_1');
+    const rib2 = cap.getObjectByName('MetalonCap_Rib_2');
+    const rib3 = cap.getObjectByName('MetalonCap_Rib_3');
+    expect(rib1).toBeDefined();
+    expect(rib2).toBeDefined();
+    expect(rib3).toBeDefined();
+  });
+
+  it('18. createMetalonCapMesh com centered: true deve centralizar perfeitamente no ponto (0, 0, 0)', () => {
+    const width = 0.040;
+    const height = 0.040;
+    const cap = MetalonTubeFactory.createMetalonCapMesh(width, height, 0.0020, undefined, { centered: true });
+
+    const b3 = new THREE.Box3().setFromObject(cap);
+    const center = new THREE.Vector3();
+    b3.getCenter(center);
+    expect(Math.abs(center.x)).toBeLessThan(0.001);
+    expect(Math.abs(center.y)).toBeLessThan(0.001);
+    expect(Math.abs(center.z)).toBeLessThan(0.001);
+
+    const size = new THREE.Vector3();
+    b3.getSize(size);
+    expect(size.x).toBeCloseTo(width, 2);
+    expect(size.y).toBeCloseTo(height, 2);
+    expect(size.z).toBeGreaterThan(0.015);
+  });
+
+  it('19. createTubeMesh com addCaps: true deve anexar caps plásticos nas duas extremidades abertas do tubo', () => {
+    const length = 2.20;
+    const mat = new THREE.MeshBasicMaterial({ color: 0x333b47 });
+    const mesh = MetalonTubeFactory.createTubeMesh(length, mat, {
+      axis: 'z',
+      size: 0.040,
+      thickness: 0.0020,
+      addCaps: true
+    });
+
+    const capChildren = mesh.children.filter((c: any) => c.name === 'MetalonCapMesh');
+    expect(capChildren.length).toBe(2);
+    expect(capChildren[0].position.z).toBeCloseTo(length / 2, 3);
+    expect(capChildren[1].position.z).toBeCloseTo(-length / 2, 3);
+  });
+
+  it('20. BarsLineupCollector e BarsLineupBuilder devem incluir linha de CAPS de Metalon na visualização das peças', () => {
+    const mockSolarSystem = {
+      group: new THREE.Group(),
+      cargoBoxConfig: { enabled: true },
+      cargoBoxSystem: { group: new THREE.Group() },
+      stackLevels: 2,
+      metalonThickness40: 2.0,
+      metalonThickness30: 1.5
+    };
+    const mockInternalBoxesBuilder = {
+      group: new THREE.Group()
+    };
+
+    const collected = BarsLineupCollector.collect(mockSolarSystem, mockInternalBoxesBuilder);
+    expect(collected.metalonCapItems.length).toBeGreaterThan(0);
+    // 4 do rack + 4 do baú + 4 do nível 2 = 12 caps
+    expect(collected.metalonCapItems.length).toBe(12);
+
+    const capRow = collected.sortedMetalRows.find(r => r.key === 'metalon_caps_row');
+    expect(capRow).toBeDefined();
+    expect(capRow!.items.length).toBe(12);
+
+    // Renderiza na bancada de visualização de peças
+    const lineupGroup = new THREE.Group();
+    const total = BarsLineupBuilder.build(lineupGroup, mockSolarSystem, mockInternalBoxesBuilder, 'metal');
+    expect(total).toBeGreaterThanOrEqual(12);
+    expect(lineupGroup.children.length).toBeGreaterThan(0);
+
+    // Verifica que objetos de CAP com userData apropriado foram inseridos
+    const capLineupParts = lineupGroup.children.filter((c: any) => c.userData?.isMetalonCap);
+    expect(capLineupParts.length).toBe(12);
+    expect(capLineupParts[0].userData.profileSpec).toContain('Metalon');
+    expect(capLineupParts[0].userData.purpose).toContain('Ponteira');
   });
 });

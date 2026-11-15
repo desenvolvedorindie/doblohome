@@ -12,9 +12,11 @@
     "test:unit": "vitest run",
     "test:cutting": "vitest run tests/cuttingOptimizer.test.ts",
     "test:cutting:script": "npx vite-node tmp/scripts/test_cutting_plan_automated.ts",
-    "test:combinations": "npx vite-node tmp/scripts/run_all_combinations.ts"
+    "test:combinations": "npx vite-node tmp/scripts/run_all_combinations.ts",
+    "pdf": "node tmp/scripts/build_pdf.cjs"
   },
   "dependencies": {
+    "@xyflow/react": "^12.12.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "^0.170.0"

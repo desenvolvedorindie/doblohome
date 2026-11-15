@@ -64,6 +64,34 @@ export const CuttingPieceInspector: React.FC<CuttingPieceInspectorProps> = ({
                 🕳️ Tampo Vazado CNC
               </span>
             )}
+            {selectedPiece.isUpholstery && (
+              <span
+                style={{
+                  fontSize: '9px',
+                  color: '#38bdf8',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  marginLeft: '6px'
+                }}
+              >
+                🛏️ Espuma D33
+              </span>
+            )}
+            {selectedPiece.hasCabinetCutout && (
+              <span
+                style={{
+                  fontSize: '9px',
+                  color: '#f59e0b',
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  marginLeft: '6px'
+                }}
+              >
+                ✂️ Recorte Armário Aéreo
+              </span>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

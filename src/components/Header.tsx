@@ -74,6 +74,30 @@ export const Header: React.FC = () => {
           🧰 Presets Baú
         </button>
         <button
+          className="icon-btn"
+          onClick={() => openModal('fridge-presets')}
+          title="Presets e Cadastro de Geladeiras 12V / 24V (Resfri Ar 35L)"
+          style={{ borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38bdf8' }}
+        >
+          ❄️ Geladeiras
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => openModal('portapotti-presets')}
+          title="Presets e Cadastro de Vaso Sanitário Químico (Seaflo 20L)"
+          style={{ borderColor: 'rgba(2, 132, 199, 0.4)', color: '#7dd3fc' }}
+        >
+          🚽 Porta Potti
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => openModal('stove-presets')}
+          title="Presets e Cadastro de Fogareiro Portátil (NTK Duo Ceramik)"
+          style={{ borderColor: 'rgba(249, 115, 22, 0.45)', color: '#fb923c' }}
+        >
+          🔥 Fogareiro
+        </button>
+        <button
           className="icon-btn accent-orange"
           onClick={() => openModal('loads')}
           title="Editor de Consumo de Cargas & Balanço Energético"

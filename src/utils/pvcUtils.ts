@@ -46,8 +46,11 @@ export interface PvcCuttingPlanResult {
   enabled: boolean;
   diameterMm: number;
   radiusMm: number;
+  connectionPosition: 'front' | 'rear';
   lateralPipeLengthMm: number;
   frontPipeLengthMm: number;
+  transversePieceLengthMm: number;
+  verticalNippleLengthMm: number;
   totalEffectiveLengthM: number;
   totalCapacityL: number;
   singleLateralL: number;
@@ -135,9 +138,11 @@ function computeLinearBarPlan(
  * dos canos de PVC do reservatório d'água contínuo em U.
  */
 export function extractPvcCutStats(
-  waterTankConfig?: { enabled?: boolean; lengthMm?: number; diameterMm?: number }
+  waterTankConfig?: { enabled?: boolean; lengthMm?: number; diameterMm?: number; connectionPosition?: 'front' | 'rear' }
 ): PvcCuttingPlanResult {
   const enabled = waterTankConfig?.enabled ?? true;
+  const connectionPosition: 'front' | 'rear' = waterTankConfig?.connectionPosition === 'rear' ? 'rear' : 'front';
+  const isRear = connectionPosition === 'rear';
   const BASE_MAX_MM = 2200;
   const lengthMm = Math.max(400, Math.min(BASE_MAX_MM, Math.round(waterTankConfig?.lengthMm || BASE_MAX_MM)));
   const diameterMm = Math.max(80, Math.min(350, Math.round(waterTankConfig?.diameterMm || 200)));
@@ -167,10 +172,23 @@ export function extractPvcCutStats(
   const lateralPipeLengthMm = Math.round(lateralPipeLengthM * 1000);
   const frontPipeLengthMm = Math.round(frontPipeLengthM * 1000);
 
+  // Divisões do Cano Transversal pelo Tê 90° Central e Niple Vertical entre Tê e Cap
+  const teeRunLengthM = Math.min(0.24, radiusM * 2.2);
+  const teeSocketDepthM = Math.max(0.035, radiusM * 0.35);
+  const transversePieceLengthM = Math.max(0.08, +( (frontPipeLengthM / 2) - (teeRunLengthM / 2 - teeSocketDepthM) ).toFixed(3));
+  const transversePieceLengthMm = Math.round(transversePieceLengthM * 1000);
+
+  // Pedacinho de cano entre o Tê e o Cap superior
+  const verticalNippleLengthM = Math.max(0.08, Math.min(0.14, +(radiusM * 1.0).toFixed(3)));
+  const verticalNippleLengthMm = Math.round(verticalNippleLengthM * 1000);
+
   const totalEffectiveLengthM = +(2 * lateralLengthM + frontPipeLengthM + Math.PI * bendR).toFixed(2);
   const singleLateralL = +(Math.PI * radiusDm * radiusDm * (lateralLengthM * 10)).toFixed(1);
   const frontCircuitL = +(Math.PI * radiusDm * radiusDm * ((frontPipeLengthM + Math.PI * bendR) * 10)).toFixed(1);
   const totalCapacityL = +(Math.PI * radiusDm * radiusDm * (totalEffectiveLengthM * 10)).toFixed(1);
+
+  const posLabel = isRear ? 'Traseiro' : 'Dianteiro';
+  const posNote = isRear ? 'traseira da van (acesso fácil pelo porta-malas)' : 'dianteira da van (frente do rack)';
 
   const cutItems: PvcCutItem[] = [
     {
@@ -198,21 +216,45 @@ export function extractPvcCutStats(
       notes: 'Fixado com abraçadeiras inox na longarina interna direita da Doblò'
     },
     {
-      key: 'pvc_front_transverse',
-      label: 'Cano Transversal Dianteiro',
+      key: 'pvc_transverse_left',
+      label: `Cano Transversal Esquerdo (${posLabel})`,
       spec: `Tubo PVC Esgoto/Série R Ø${diameterMm} mm`,
       diameterMm,
-      lengthMm: frontPipeLengthMm,
-      lengthM: frontPipeLengthM,
+      lengthMm: transversePieceLengthMm,
+      lengthM: transversePieceLengthM,
       qty: 1,
-      totalLengthM: frontPipeLengthM,
+      totalLengthM: transversePieceLengthM,
       category: 'Tubulação Transversal',
-      notes: 'Interliga os 2 joelhos de 90° na dianteira da van (com bocal de abastecimento)'
+      notes: `Conecta o joelho 90° esquerdo à bolsa esquerda do Tê central na ${posNote}`
+    },
+    {
+      key: 'pvc_transverse_right',
+      label: `Cano Transversal Direito (${posLabel})`,
+      spec: `Tubo PVC Esgoto/Série R Ø${diameterMm} mm`,
+      diameterMm,
+      lengthMm: transversePieceLengthMm,
+      lengthM: transversePieceLengthM,
+      qty: 1,
+      totalLengthM: transversePieceLengthM,
+      category: 'Tubulação Transversal',
+      notes: `Conecta o joelho 90° direito à bolsa direita do Tê central na ${posNote}`
+    },
+    {
+      key: 'pvc_vertical_nipple',
+      label: 'Extensão Vertical / Niple (Tê ao Cap)',
+      spec: `Tubo PVC Esgoto/Série R Ø${diameterMm} mm`,
+      diameterMm,
+      lengthMm: verticalNippleLengthMm,
+      lengthM: verticalNippleLengthM,
+      qty: 1,
+      totalLengthM: verticalNippleLengthM,
+      category: 'Extensão do Bocal',
+      notes: 'Pedacinho de cano que une a bolsa vertical do Tê 90° ao CAP superior onde assenta a tampinha'
     }
   ];
 
-  const totalPieces = 3;
-  const totalLinearMeters = +(2 * lateralPipeLengthM + frontPipeLengthM).toFixed(2);
+  const totalPieces = 5;
+  const totalLinearMeters = +(2 * lateralPipeLengthM + 2 * transversePieceLengthM + verticalNippleLengthM).toFixed(2);
 
   const fittings: PvcFittingItem[] = [
     {
@@ -221,15 +263,31 @@ export function extractPvcCutStats(
       spec: `90° Ø${diameterMm} mm`,
       qty: 2,
       unit: 'un',
-      notes: 'Interligam os canos laterais ao cano frontal na dianteira da estrutura'
+      notes: `Interligam os canos laterais aos canos transversais na ${posNote}`
+    },
+    {
+      key: 'fit_tee_90',
+      label: 'Tê 90° PVC com bolsas reforçadas',
+      spec: `Tê 90° Ø${diameterMm} mm`,
+      qty: 1,
+      unit: 'un',
+      notes: `Instalado no centro do cano transversal ${posLabel.toLowerCase()} para elevação vertical do bocal`
     },
     {
       key: 'fit_cap',
-      label: 'CAPs (Tampões) de Vedação PVC Traseiros',
+      label: 'CAPs (Tampões) de Vedação PVC Soldáveis',
       spec: `CAP Soldável Ø${diameterMm} mm`,
-      qty: 2,
+      qty: 3,
       unit: 'un',
-      notes: 'Vedação estanque traseira das pontas voltadas para a tampa do porta-malas'
+      notes: `3 unidades: 2× de extremidade (${isRear ? 'dianteiras' : 'traseiras'}) + 1× superior no Tê (base da tampinha)`
+    },
+    {
+      key: 'fit_filler',
+      label: 'Bocal / Tampinha Hermética de Abastecimento e Inspeção',
+      spec: 'Rosqueável 2" ou 3" com vedação hermética',
+      qty: 1,
+      unit: 'un',
+      notes: 'Montada no topo do CAP superior do Tê para abastecimento rápido de água potável'
     },
     {
       key: 'fit_valve',
@@ -237,15 +295,7 @@ export function extractPvcCutStats(
       spec: '1/2" ou 3/4" BSP com manopla',
       qty: 2,
       unit: 'un',
-      notes: 'Instalados nos CAPs traseiros para saída de água e ducha externa'
-    },
-    {
-      key: 'fit_filler',
-      label: 'Bocal de Abastecimento Rápido com Tampa Hermética',
-      spec: 'Rosqueável 2" com vedação EPDM',
-      qty: 1,
-      unit: 'un',
-      notes: 'Montado na parte superior central do cano frontal dianteiro'
+      notes: 'Instalados na traseira para dreno, ducha externa e tomada de água'
     },
     {
       key: 'fit_breather',
@@ -253,7 +303,7 @@ export function extractPvcCutStats(
       spec: '1/2" automática c/ membrana',
       qty: 1,
       unit: 'un',
-      notes: 'Garante fluxo contínuo de água sem sucção negativa ou refluxo'
+      notes: 'Instalada junto ao CAP/Tê para garantir fluxo contínuo sem vácuo ou refluxo'
     },
     {
       key: 'fit_clamp',
@@ -269,40 +319,36 @@ export function extractPvcCutStats(
       spec: 'Bisnaga 175g / 75g',
       qty: 1,
       unit: 'kit',
-      notes: 'Soldagem a frio com adesivo nas bolsas e joelhos'
+      notes: 'Soldagem a frio com adesivo nas bolsas, Tê e joelhos'
     }
   ];
 
   const KERF = 4; // 4 mm de corte de serra
 
+  // Lista de todas as 5 peças a cortar
+  const piecesToCut = [
+    { label: 'Lateral Esq.', lengthMm: lateralPipeLengthMm, color: '#0284c7' },
+    { label: 'Lateral Dir.', lengthMm: lateralPipeLengthMm, color: '#0ea5e9' },
+    { label: 'Transv. Esq.', lengthMm: transversePieceLengthMm, color: '#38bdf8' },
+    { label: 'Transv. Dir.', lengthMm: transversePieceLengthMm, color: '#67e8f9' },
+    { label: 'Extensão Tê-Cap', lengthMm: verticalNippleLengthMm, color: '#a5f3fc' }
+  ];
+
   // Plano para Barras Comerciais de 6.000 mm (6m):
-  const plan6m = computeLinearBarPlan(
-    6000,
-    [
-      { label: 'Lateral Esq.', lengthMm: lateralPipeLengthMm, color: '#0284c7' },
-      { label: 'Lateral Dir.', lengthMm: lateralPipeLengthMm, color: '#0ea5e9' },
-      { label: 'Cano Frontal', lengthMm: frontPipeLengthMm, color: '#38bdf8' }
-    ],
-    KERF
-  );
+  const plan6m = computeLinearBarPlan(6000, piecesToCut, KERF);
 
   // Plano para Barras Comerciais de 3.000 mm (3m):
-  const plan3m = computeLinearBarPlan(
-    3000,
-    [
-      { label: 'Lateral Esq.', lengthMm: lateralPipeLengthMm, color: '#0284c7' },
-      { label: 'Lateral Dir.', lengthMm: lateralPipeLengthMm, color: '#0ea5e9' },
-      { label: 'Cano Frontal', lengthMm: frontPipeLengthMm, color: '#38bdf8' }
-    ],
-    KERF
-  );
+  const plan3m = computeLinearBarPlan(3000, piecesToCut, KERF);
 
   return {
     enabled,
     diameterMm,
     radiusMm,
+    connectionPosition,
     lateralPipeLengthMm,
     frontPipeLengthMm,
+    transversePieceLengthMm,
+    verticalNippleLengthMm,
     totalEffectiveLengthM,
     totalCapacityL,
     singleLateralL,

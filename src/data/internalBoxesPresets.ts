@@ -111,6 +111,9 @@ export const INTERNAL_BOXES_PRESETS: InternalBoxesPreset[] = [
         heightMm: 400,
         color: '#059669',
         material: 'dark_wood',
+        hasStove: true,
+        stovePresetId: 'ntk-duo-ceramik',
+        stovePlacement: 'inside',
         hasLedCorner: true,
         ledCorner: {
           enabled: true,
