@@ -237,3 +237,40 @@ export interface InternalBoxesPreset {
   grid: InternalGridConfig;
   boxes: InternalBoxItem[];
 }
+
+export type RulerSnapType = 'vertex' | 'midpoint' | 'face_center' | 'edge' | 'face';
+export type RulerAxisLock = 'x' | 'y' | 'z' | null;
+
+export interface RulerSnapInfo {
+  point: { x: number; y: number; z: number };
+  snapType: RulerSnapType;
+  snapLabel: string;
+  partName: string;
+}
+
+export interface RulerMeasurement {
+  id: string;
+  start: { x: number; y: number; z: number };
+  end: { x: number; y: number; z: number };
+  distanceMm: number;
+  deltaXMm: number;
+  deltaYMm: number;
+  deltaZMm: number;
+  axis: RulerAxisLock;
+  startLabel: string;
+  endLabel: string;
+}
+
+export interface RulerLiveState {
+  isActive: boolean;
+  lockedAxis: RulerAxisLock;
+  inferredAxis: RulerAxisLock;
+  hasStartPoint: boolean;
+  startSnap: RulerSnapInfo | null;
+  currentSnap: RulerSnapInfo | null;
+  previewDistanceMm: number | null;
+  previewDeltaXMm: number | null;
+  previewDeltaYMm: number | null;
+  previewDeltaZMm: number | null;
+  measurements: RulerMeasurement[];
+}

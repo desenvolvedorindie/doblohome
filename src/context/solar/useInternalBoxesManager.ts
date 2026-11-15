@@ -2,8 +2,24 @@ import { useState, useEffect } from 'react';
 import {
   InternalBoxItem,
   InternalGridConfig,
-  CeilingConfig
+  CeilingConfig,
+  RulerAxisLock,
+  RulerLiveState
 } from '../../types';
+
+const INITIAL_RULER_STATE: RulerLiveState = {
+  isActive: false,
+  lockedAxis: null,
+  inferredAxis: null,
+  hasStartPoint: false,
+  startSnap: null,
+  currentSnap: null,
+  previewDistanceMm: null,
+  previewDeltaXMm: null,
+  previewDeltaYMm: null,
+  previewDeltaZMm: null,
+  measurements: []
+};
 import {
   DEFAULT_INTERNAL_GRID,
   INTERNAL_BOXES_PRESETS,
@@ -27,6 +43,53 @@ export function useInternalBoxesManager(
   const [isCabinetsOpenPreview, setIsCabinetsOpenPreview] = useState<boolean>(false);
   const [isBedOpenPreview, setIsBedOpenPreview] = useState<boolean>(false);
   const [showMattress, setShowMattress] = useState<boolean>(true);
+  const [rulerState, setRulerState] = useState<RulerLiveState>(INITIAL_RULER_STATE);
+
+  const setRulerActive = (active: boolean) => {
+    if (sceneManager?.internalBoxesRuler) {
+      sceneManager.internalBoxesRuler.setActive(active);
+    } else {
+      setRulerState((prev) => ({ ...prev, isActive: active }));
+    }
+    if (active) {
+      flashToast('📏 Régua ativada: clique em 2 pontos para medir (Setas travam eixo X/Y/Z)');
+    } else {
+      flashToast('📏 Régua desativada');
+    }
+  };
+
+  const toggleRuler = () => {
+    const currentlyActive = sceneManager?.internalBoxesRuler?.isActive ?? rulerState.isActive;
+    setRulerActive(!currentlyActive);
+  };
+
+  const setRulerAxisLock = (axis: RulerAxisLock) => {
+    if (sceneManager?.internalBoxesRuler) {
+      sceneManager.internalBoxesRuler.setAxisLock(axis);
+    } else {
+      setRulerState((prev) => ({ ...prev, lockedAxis: axis }));
+    }
+  };
+
+  const clearRulerMeasurements = () => {
+    if (sceneManager?.internalBoxesRuler) {
+      sceneManager.internalBoxesRuler.clearMeasurements();
+    } else {
+      setRulerState((prev) => ({ ...prev, measurements: [] }));
+    }
+    flashToast('🗑️ Medidas da régua removidas');
+  };
+
+  const removeRulerMeasurement = (id: string) => {
+    if (sceneManager?.internalBoxesRuler) {
+      sceneManager.internalBoxesRuler.removeMeasurement(id);
+    } else {
+      setRulerState((prev) => ({
+        ...prev,
+        measurements: prev.measurements.filter((m) => m.id !== id)
+      }));
+    }
+  };
 
   const setIsIsolatedBoxId = (id: string | null) => {
     setIsolatedBoxIdState(id);
@@ -49,16 +112,61 @@ export function useInternalBoxesManager(
     }
   };
 
-  // Tecla ESC para sair do modo de foco isolado
+  // Atalhos de teclado da Régua 3D (T, Setas X/Y/Z, ESC) e saída do modo de foco isolado
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (viewMode === 'internal_boxes') {
+        if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          e.preventDefault();
+          toggleRuler();
+          return;
+        }
+
+        const isRulerActive = sceneManager?.internalBoxesRuler?.isActive ?? rulerState.isActive;
+        if (isRulerActive) {
+          const currentLock = sceneManager?.internalBoxesRuler?.lockedAxis ?? rulerState.lockedAxis;
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            setRulerAxisLock(currentLock === 'x' ? null : 'x');
+            return;
+          }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setRulerAxisLock(currentLock === 'y' ? null : 'y');
+            return;
+          }
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setRulerAxisLock(currentLock === 'z' ? null : 'z');
+            return;
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            if (sceneManager?.internalBoxesRuler?.hasPendingStartPoint()) {
+              sceneManager.internalBoxesRuler.cancelPendingPoint();
+            } else {
+              setRulerActive(false);
+            }
+            return;
+          }
+        }
+      }
+
       if (e.key === 'Escape' && isolatedBoxId) {
         setIsIsolatedBoxId(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isolatedBoxId]);
+  }, [isolatedBoxId, viewMode, rulerState.isActive, rulerState.lockedAxis, sceneManager]);
 
   // Persiste caixas e grid no IndexedDB apenas após a carga inicial
   useEffect(() => {
@@ -210,6 +318,13 @@ export function useInternalBoxesManager(
     addInternalBox,
     updateInternalBox,
     removeInternalBox,
-    clearInternalBoxes
+    clearInternalBoxes,
+    rulerState,
+    setRulerState,
+    toggleRuler,
+    setRulerActive,
+    setRulerAxisLock,
+    clearRulerMeasurements,
+    removeRulerMeasurement
   };
 }

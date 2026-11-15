@@ -5,10 +5,11 @@ import { MechanicalAudio } from './Audio';
 import { DobloVehicle } from './DobloModel';
 import { SolarSystem } from './SolarSystem';
 import { SolarSimulation } from './SolarSimulation';
-import { BarMeasurementData, CameraPreset, ViewMode, PartsGroupFilter, InternalBoxItem, InternalGridConfig, InternalBoxesPreviewOptions } from '../types';
+import { BarMeasurementData, CameraPreset, ViewMode, PartsGroupFilter, InternalBoxItem, InternalGridConfig, InternalBoxesPreviewOptions, RulerLiveState } from '../types';
 import { CollisionChecker, CollisionSummary } from './CollisionChecker';
 import { FloatingChecker, FloatingSummary } from './FloatingChecker';
 import { InternalBoxesBuilder } from './InternalBoxesBuilder';
+import { InternalBoxesRuler } from './boxes/InternalBoxesRuler';
 import { SceneRaycaster } from './scene/SceneRaycaster';
 import { BarsLineupBuilder } from './scene/BarsLineupBuilder';
 import { SceneCameraManager } from './scene/SceneCameraManager';
@@ -27,6 +28,7 @@ export class SceneManager {
   solarSystem: SolarSystem;
   solarSim: SolarSimulation;
   internalBoxesBuilder: InternalBoxesBuilder;
+  internalBoxesRuler: InternalBoxesRuler;
 
   viewMode: ViewMode = 'assembled';
   barsLineupGroup: THREE.Group;
@@ -49,6 +51,7 @@ export class SceneManager {
   onExpansionChange?: (progress: number) => void;
   onBoxSelect?: (boxId: string | null) => void;
   onBoxDoubleClick?: (boxId: string | null) => void;
+  onRulerStateChange?: (state: RulerLiveState) => void;
 
   private isDisposed: boolean = false;
 
@@ -88,6 +91,9 @@ export class SceneManager {
     this.solarSim = new SolarSimulation(this.scene);
     this.internalBoxesBuilder = new InternalBoxesBuilder();
     this.scene.add(this.internalBoxesBuilder.group);
+
+    this.internalBoxesRuler = new InternalBoxesRuler(this);
+    this.scene.add(this.internalBoxesRuler.group);
 
     this.barsLineupGroup = new THREE.Group();
     this.barsLineupGroup.name = 'BarsLineupGroup';
@@ -249,6 +255,17 @@ export class SceneManager {
       const wasDrag = didDrag || Math.hypot(e.clientX - downX, e.clientY - downY) > 4;
       isMouseDown = false;
       didDrag = false;
+      if (!wasDrag && this.viewMode === 'internal_boxes' && this.internalBoxesRuler.isActive) {
+        if (e.button === 0) {
+          this.internalBoxesRuler.handleClick(e.clientX, e.clientY, e.shiftKey);
+          this.audio.playLockClick();
+          return;
+        }
+        if (e.button === 2 && this.internalBoxesRuler.hasPendingStartPoint()) {
+          this.internalBoxesRuler.cancelPendingPoint();
+          return;
+        }
+      }
       if (!wasDrag && e.button === 0) {
         this.handleCanvasClick(e.clientX, e.clientY);
       }
@@ -256,6 +273,9 @@ export class SceneManager {
 
     el.addEventListener('dblclick', (e: MouseEvent) => {
       if (e.button === 0) {
+        if (this.viewMode === 'internal_boxes' && this.internalBoxesRuler.isActive) {
+          return;
+        }
         this.handleCanvasDoubleClick(e.clientX, e.clientY);
       }
     });
@@ -268,6 +288,11 @@ export class SceneManager {
         this.clearBarHover();
         return;
       }
+      if (this.viewMode === 'internal_boxes' && this.internalBoxesRuler.isActive) {
+        this.clearBarHover();
+        this.internalBoxesRuler.handleMouseMove(e.clientX, e.clientY, e.shiftKey);
+        return;
+      }
       // Hover só acontece quando não estiver arrastando (botão solto)
       this.updateBarHover(e.clientX, e.clientY);
     });
@@ -276,6 +301,7 @@ export class SceneManager {
       isMouseDown = false;
       didDrag = false;
       this.clearBarHover();
+      this.internalBoxesRuler.handleMouseLeave();
     });
   }
 
@@ -333,6 +359,13 @@ export class SceneManager {
   setViewMode(mode: ViewMode, currentVehicleVisible: boolean = true) {
     this.clearBarHover();
     this.viewMode = mode;
+
+    if (mode !== 'internal_boxes') {
+      this.internalBoxesRuler.setActive(false);
+      this.internalBoxesRuler.group.visible = false;
+    } else {
+      this.internalBoxesRuler.group.visible = true;
+    }
 
     if (mode === 'internal_boxes') {
       this.barsLineupGroup.visible = false;
@@ -484,6 +517,7 @@ export class SceneManager {
     this.isDisposed = true;
     window.removeEventListener('resize', this.onWindowResize);
     this.cancelCurrentAnimation();
+    this.internalBoxesRuler.dispose();
     if (this.renderer && this.renderer.domElement && this.renderer.domElement.parentElement) {
       this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);
     }

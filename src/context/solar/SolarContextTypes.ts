@@ -30,7 +30,9 @@ import {
   BarMeasurementData,
   InternalBoxItem,
   InternalGridConfig,
-  CeilingConfig
+  CeilingConfig,
+  RulerLiveState,
+  RulerAxisLock
 } from '../../types';
 
 export interface SolarContextType {
@@ -126,6 +128,14 @@ export interface SolarContextType {
   updateInternalBox: (id: string, updates: Partial<InternalBoxItem>) => void;
   removeInternalBox: (id: string) => void;
   clearInternalBoxes: () => void;
+
+  // Régua 3D estilo SketchUp (Caixas Internas)
+  rulerState: RulerLiveState;
+  toggleRuler: () => void;
+  setRulerActive: (active: boolean) => void;
+  setRulerAxisLock: (axis: RulerAxisLock) => void;
+  clearRulerMeasurements: () => void;
+  removeRulerMeasurement: (id: string) => void;
 
   setStackLevels: (levels: StackLevels) => void;
   setLevel1Panels: (count: number) => void;

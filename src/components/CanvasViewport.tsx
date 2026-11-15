@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useSolar } from '../context/SolarContext';
 import { SceneManager } from '../three/SceneManager';
+import { InternalRulerHUD } from './planner/InternalRulerHUD';
 
 export const CanvasViewport: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -100,6 +101,8 @@ export const CanvasViewport: React.FC = () => {
           </div>
         </div>
       )}
+
+      <InternalRulerHUD />
     </>
   );
 };

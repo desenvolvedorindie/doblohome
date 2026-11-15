@@ -177,6 +177,10 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       boxesMgr.setIsolatedBoxId(boxId);
     };
 
+    sceneManager.onRulerStateChange = (state) => {
+      boxesMgr.setRulerState(state);
+    };
+
     appliancesMgr.updateCalculations();
   }, [sceneManager]);
 
@@ -335,6 +339,12 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         updateInternalBox: boxesMgr.updateInternalBox,
         removeInternalBox: boxesMgr.removeInternalBox,
         clearInternalBoxes: boxesMgr.clearInternalBoxes,
+        rulerState: boxesMgr.rulerState,
+        toggleRuler: boxesMgr.toggleRuler,
+        setRulerActive: boxesMgr.setRulerActive,
+        setRulerAxisLock: boxesMgr.setRulerAxisLock,
+        clearRulerMeasurements: boxesMgr.clearRulerMeasurements,
+        removeRulerMeasurement: boxesMgr.removeRulerMeasurement,
         setStackLevels: structureMgr.setStackLevels,
         setLevel1Panels: structureMgr.setLevel1Panels,
         setLevel1Direction: structureMgr.setLevel1Direction,

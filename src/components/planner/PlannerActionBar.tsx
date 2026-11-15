@@ -25,6 +25,8 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
     setIsCabinetsOpenPreview,
     updateInternalBox,
     toggleCeiling3D,
+    rulerState,
+    toggleRuler,
   } = useSolar();
 
   const isolatedBox = internalBoxes.find(b => b.id === isolatedBoxId);
@@ -182,6 +184,30 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
               </span>
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={toggleRuler}
+            className="btn-compact"
+            style={{
+              fontSize: '11px',
+              padding: '5px 12px',
+              fontWeight: 700,
+              background: rulerState.isActive
+                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                : 'rgba(15, 23, 42, 0.85)',
+              borderColor: rulerState.isActive ? '#fbbf24' : 'rgba(245, 158, 11, 0.45)',
+              color: rulerState.isActive ? '#0f172a' : '#fbbf24',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              boxShadow: rulerState.isActive ? '0 0 12px rgba(245, 158, 11, 0.4)' : 'none'
+            }}
+            title="Ativar / desativar régua de medição 3D (Atalho: T)"
+          >
+            <span>📏</span>
+            <span>{rulerState.isActive ? 'Régua: Ativa (T)' : 'Régua (T)'}</span>
+          </button>
 
           <button
             onClick={onRequestClear}
