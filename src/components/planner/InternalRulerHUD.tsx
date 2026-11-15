@@ -56,8 +56,8 @@ export const InternalRulerHUD: React.FC = () => {
   return (
     <div
       style={{
-        position: 'fixed',
-        bottom: '18px',
+        position: 'absolute',
+        bottom: '16px',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 45,
@@ -65,7 +65,7 @@ export const InternalRulerHUD: React.FC = () => {
         flexDirection: 'column',
         alignItems: 'center',
         gap: '8px',
-        maxWidth: 'calc(100vw - 32px)',
+        maxWidth: 'calc(100% - 32px)',
         pointerEvents: 'auto'
       }}
     >

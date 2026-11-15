@@ -1,7 +1,7 @@
 {
-  "name": "doblo-solar-expander",
+  "name": "doblohome",
   "version": "2.0.0",
-  "description": "Visualizador 3D Interativo de Painéis Solares Retráteis para Fiat Doblò com Three.js e React",
+  "description": "DoblòHome — Studio 3D Interativo Motorhome & Energia Solar para Fiat Doblò",
   "private": true,
   "type": "module",
   "scripts": {

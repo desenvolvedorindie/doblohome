@@ -7,7 +7,15 @@ import { PlannerFloorGrid } from './planner/PlannerFloorGrid';
 import { PlannerGridConfig } from './planner/PlannerGridConfig';
 import { PlannerCeilingSection } from './planner/PlannerCeilingSection';
 
-export const InternalBoxesPlanner: React.FC = () => {
+export type InternalBoxesLeftTab = 'all' | 'grid' | 'ceiling';
+
+interface InternalBoxesPlannerProps {
+  activeTab?: InternalBoxesLeftTab;
+}
+
+export const InternalBoxesPlanner: React.FC<InternalBoxesPlannerProps> = ({
+  activeTab = 'all',
+}) => {
   const {
     internalGrid,
     internalBoxes,
@@ -88,27 +96,31 @@ export const InternalBoxesPlanner: React.FC = () => {
         onCancel={handleCancelAction}
       />
 
-      <PlannerActionBar
-        onRequestClear={handleRequestClear}
-        onRequestPreset={handleRequestPreset}
-        hasUpperCabinets={hasUpperCabinets}
-      />
+      {(activeTab === 'all' || activeTab === 'grid') && (
+        <>
+          <PlannerActionBar
+            onRequestClear={handleRequestClear}
+            onRequestPreset={handleRequestPreset}
+            hasUpperCabinets={hasUpperCabinets}
+          />
 
-      <PlannerFloorGrid
-        dragStart={dragStart}
-        setDragStart={setDragStart}
-        dragCurrent={dragCurrent}
-        setDragCurrent={setDragCurrent}
-        isDraggingRef={isDraggingRef}
-        cols={cols}
-        rows={rows}
-        cellWidthCm={cellWidthCm}
-        cellLengthCm={cellLengthCm}
-      />
+          <PlannerFloorGrid
+            dragStart={dragStart}
+            setDragStart={setDragStart}
+            dragCurrent={dragCurrent}
+            setDragCurrent={setDragCurrent}
+            isDraggingRef={isDraggingRef}
+            cols={cols}
+            rows={rows}
+            cellWidthCm={cellWidthCm}
+            cellLengthCm={cellLengthCm}
+          />
 
-      <PlannerGridConfig />
+          <PlannerGridConfig />
+        </>
+      )}
 
-      <PlannerCeilingSection />
+      {(activeTab === 'all' || activeTab === 'ceiling') && <PlannerCeilingSection />}
     </div>
   );
 };

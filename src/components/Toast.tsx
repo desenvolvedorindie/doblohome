@@ -10,7 +10,7 @@ export const Toast: React.FC = () => {
     <div
       style={{
         position: 'fixed',
-        top: '64px',
+        top: '82px',
         left: '50%',
         transform: 'translateX(-50%)',
         background: 'rgba(16, 185, 129, 0.92)',

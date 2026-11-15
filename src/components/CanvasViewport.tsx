@@ -27,32 +27,40 @@ export const CanvasViewport: React.FC = () => {
   const isolatedBox = isolatedBoxId ? internalBoxes.find((b) => b.id === isolatedBoxId) : null;
 
   return (
-    <>
+    <div
+      style={{
+        position: 'relative',
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        minWidth: 0,
+        minHeight: 0,
+        overflow: 'hidden',
+      }}
+    >
       <div
         id="canvas-container"
         ref={containerRef}
         style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
+          position: 'relative',
+          width: '100%',
+          height: '100%',
           zIndex: 0,
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}
       />
 
       {isolatedBox && (
         <div
           style={{
-            position: 'fixed',
-            top: '20px',
-            left: '20px',
-            zIndex: 60,
+            position: 'absolute',
+            top: '14px',
+            left: '14px',
+            zIndex: 40,
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            animation: 'fadeIn 0.2s ease-out'
+            animation: 'fadeIn 0.2s ease-out',
           }}
         >
           <button
@@ -103,6 +111,6 @@ export const CanvasViewport: React.FC = () => {
       )}
 
       <InternalRulerHUD />
-    </>
+    </div>
   );
 };

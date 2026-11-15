@@ -15,7 +15,24 @@ import {
 import { calculateWeldedJoints } from '../../utils/weldedJointsUtils';
 import { extractPvcCutStats } from '../../utils/pvcUtils';
 
-export const CuttingPlanSidePanel: React.FC = () => {
+export type CuttingTabId =
+  | 'cutting_plan'
+  | 'wood_pieces'
+  | 'upholstery_pieces'
+  | 'metal_bars'
+  | 'pvc_pipes';
+
+interface CuttingPlanSidePanelProps {
+  docked?: boolean;
+  activeTab?: CuttingTabId;
+  onTabChange?: (tab: CuttingTabId) => void;
+}
+
+export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
+  docked = false,
+  activeTab: controlledTab,
+  onTabChange,
+}) => {
   const {
     sceneManager,
     partsFilter,
@@ -37,7 +54,7 @@ export const CuttingPlanSidePanel: React.FC = () => {
   } = useSolar();
 
   // Abas internas do painel com persistência
-  const [activeTab, setActiveTabState] = useState<'cutting_plan' | 'wood_pieces' | 'upholstery_pieces' | 'metal_bars' | 'pvc_pipes'>(() => {
+  const [internalActiveTab, setActiveTabState] = useState<CuttingTabId>(() => {
     try {
       const v = localStorage.getItem('doblo_cutting_active_tab');
       if (v === 'cutting_plan' || v === 'wood_pieces' || v === 'upholstery_pieces' || v === 'metal_bars' || v === 'pvc_pipes') return v;
@@ -45,8 +62,11 @@ export const CuttingPlanSidePanel: React.FC = () => {
     return 'cutting_plan';
   });
 
-  const setActiveTab = (tab: 'cutting_plan' | 'wood_pieces' | 'upholstery_pieces' | 'metal_bars' | 'pvc_pipes') => {
+  const activeTab = controlledTab ?? internalActiveTab;
+
+  const setActiveTab = (tab: CuttingTabId) => {
     setActiveTabState(tab);
+    onTabChange?.(tab);
     dbSet('doblo_cutting_active_tab', tab);
     try { localStorage.setItem('doblo_cutting_active_tab', tab); } catch { }
   };
@@ -198,8 +218,8 @@ export const CuttingPlanSidePanel: React.FC = () => {
     }
   }, [activeTab, activeGroupKey]);
 
-  // Botão flutuante minimalista quando colapsado
-  if (isCollapsed) {
+  // Botão flutuante minimalista quando colapsado (somente modo não-docked)
+  if (!docked && isCollapsed) {
     const isDockLeft = dockPosition === 'left';
     return (
       <button
@@ -241,27 +261,40 @@ export const CuttingPlanSidePanel: React.FC = () => {
   return (
     <aside
       className="cutting-side-panel"
-      style={{
-        position: 'fixed',
-        top: '64px',
-        bottom: '16px',
-        left: isDockLeft ? '16px' : undefined,
-        right: !isDockLeft ? '16px' : undefined,
-        width: panelWidth,
-        maxWidth: 'calc(100vw - 32px)',
-        zIndex: 995,
-        background: 'rgba(10, 15, 26, 0.96)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(56, 189, 248, 0.35)',
-        borderRadius: '12px',
-        boxShadow: isDockLeft ? '12px 0 32px rgba(0, 0, 0, 0.6)' : '-12px 0 32px rgba(0, 0, 0, 0.6)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        transition: 'width 0.22s ease-in-out',
-        padding: '12px',
-        gap: '10px'
-      }}
+      style={
+        docked
+          ? {
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              padding: '10px 12px',
+              gap: '10px',
+              background: 'transparent',
+            }
+          : {
+              position: 'fixed',
+              top: '64px',
+              bottom: '16px',
+              left: isDockLeft ? '16px' : undefined,
+              right: !isDockLeft ? '16px' : undefined,
+              width: panelWidth,
+              maxWidth: 'calc(100vw - 32px)',
+              zIndex: 995,
+              background: 'rgba(10, 15, 26, 0.96)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(56, 189, 248, 0.35)',
+              borderRadius: '12px',
+              boxShadow: isDockLeft ? '12px 0 32px rgba(0, 0, 0, 0.6)' : '-12px 0 32px rgba(0, 0, 0, 0.6)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              transition: 'width 0.22s ease-in-out',
+              padding: '12px',
+              gap: '10px',
+            }
+      }
     >
       {/* ─── 1. CABEÇALHO DO PAINEL LATERAL ─── */}
       <div
@@ -334,32 +367,36 @@ export const CuttingPlanSidePanel: React.FC = () => {
             <span>📄 PDF</span>
           </a>
 
-          <button
-            className="btn-compact"
-            onClick={() => setDockPosition((prev) => (prev === 'left' ? 'right' : 'left'))}
-            style={{ fontSize: '11px', padding: '4px 8px' }}
-            title={isDockLeft ? 'Mover painel para a Direita' : 'Mover painel para a Esquerda'}
-          >
-            {isDockLeft ? '➡️ Dock Dir.' : '⬅️ Dock Esq.'}
-          </button>
+          {!docked && (
+            <>
+              <button
+                className="btn-compact"
+                onClick={() => setDockPosition((prev) => (prev === 'left' ? 'right' : 'left'))}
+                style={{ fontSize: '11px', padding: '4px 8px' }}
+                title={isDockLeft ? 'Mover painel para a Direita' : 'Mover painel para a Esquerda'}
+              >
+                {isDockLeft ? '➡️ Dock Dir.' : '⬅️ Dock Esq.'}
+              </button>
 
-          <button
-            className="btn-compact"
-            onClick={() => setIsWide((prev) => !prev)}
-            style={{ fontSize: '11px', padding: '4px 8px' }}
-            title={isWide ? 'Modo Normal (640px)' : 'Modo Expandido Panorâmico (920px)'}
-          >
-            {isWide ? '🗗 640px' : '🗖 920px'}
-          </button>
+              <button
+                className="btn-compact"
+                onClick={() => setIsWide((prev) => !prev)}
+                style={{ fontSize: '11px', padding: '4px 8px' }}
+                title={isWide ? 'Modo Normal (640px)' : 'Modo Expandido Panorâmico (920px)'}
+              >
+                {isWide ? '🗗 640px' : '🗖 920px'}
+              </button>
 
-          <button
-            className="btn-compact"
-            onClick={() => setIsCollapsed(true)}
-            style={{ fontSize: '12px', padding: '4px 8px', color: '#f87171' }}
-            title="Minimizar painel lateral"
-          >
-            ✕
-          </button>
+              <button
+                className="btn-compact"
+                onClick={() => setIsCollapsed(true)}
+                style={{ fontSize: '12px', padding: '4px 8px', color: '#f87171' }}
+                title="Minimizar painel lateral"
+              >
+                ✕
+              </button>
+            </>
+          )}
         </div>
       </div>
 

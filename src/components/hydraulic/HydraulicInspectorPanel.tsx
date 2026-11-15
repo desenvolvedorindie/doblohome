@@ -27,6 +27,8 @@ interface HydraulicInspectorPanelProps {
   onUpdateEdgeData: (edgeId: string, updater: (prev: HydraulicEdgeData) => HydraulicEdgeData) => void;
   onDeleteEdge: (edgeId: string) => void;
   onSelectEdge: (edgeId: string) => void;
+  activeTab?: 'inspector' | 'bom';
+  onTabChange?: (tab: 'inspector' | 'bom') => void;
 }
 
 export const HydraulicInspectorPanel: React.FC<HydraulicInspectorPanelProps> = ({
@@ -38,9 +40,16 @@ export const HydraulicInspectorPanel: React.FC<HydraulicInspectorPanelProps> = (
   onDeleteNode,
   onUpdateEdgeData,
   onDeleteEdge,
-  onSelectEdge
+  onSelectEdge,
+  activeTab: controlledTab,
+  onTabChange,
 }) => {
-  const [activeTab, setActiveTab] = useState<'inspector' | 'bom'>('inspector');
+  const [internalActiveTab, setInternalActiveTab] = useState<'inspector' | 'bom'>('inspector');
+  const activeTab = controlledTab ?? internalActiveTab;
+  const setActiveTab = (tab: 'inspector' | 'bom') => {
+    setInternalActiveTab(tab);
+    onTabChange?.(tab);
+  };
   const [newPortLabel, setNewPortLabel] = useState('');
   const [newPortFluid, setNewPortFluid] = useState<HydraulicFluidType>('cold');
   const [newPortSide, setNewPortSide] = useState<HydraulicPortSide>('right');
@@ -76,17 +85,15 @@ export const HydraulicInspectorPanel: React.FC<HydraulicInspectorPanelProps> = (
 
   return (
     <aside
-      className="glass-panel"
       style={{
-        width: '320px',
+        width: '100%',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        padding: '12px',
+        padding: '10px 12px',
         gap: '10px',
-        background: 'rgba(10, 15, 26, 0.92)',
-        border: '1px solid rgba(56, 189, 248, 0.3)'
+        background: 'transparent',
       }}
     >
       {/* Abas Inspetor / Lista de Compras */}

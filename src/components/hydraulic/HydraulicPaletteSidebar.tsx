@@ -201,17 +201,15 @@ export const HydraulicPaletteSidebar: React.FC<HydraulicPaletteSidebarProps> = (
 
   return (
     <aside
-      className="glass-panel"
       style={{
-        width: '285px',
+        width: '100%',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        padding: '12px',
+        padding: '10px 12px',
         gap: '10px',
-        background: 'rgba(10, 15, 26, 0.92)',
-        border: '1px solid rgba(56, 189, 248, 0.3)'
+        background: 'transparent',
       }}
     >
       <div>

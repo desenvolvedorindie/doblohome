@@ -43,6 +43,8 @@ import { SchematicNode } from './SchematicNode';
 import { WireEdge } from './WireEdge';
 import { ElectricalPaletteSidebar } from './ElectricalPaletteSidebar';
 import { ElectricalInspectorPanel } from './ElectricalInspectorPanel';
+import { PlanarIdeLayout } from '../layout/PlanarIdeLayout';
+import { ZapIcon } from '../layout/IdeIcons';
 
 const STORAGE_KEY_DIAGRAM = 'doblo_electrical_planar_v1';
 const STORAGE_KEY_CUSTOM_TPL = 'doblo_electrical_custom_templates_v1';
@@ -127,7 +129,19 @@ function normalizeUsinaNode(node: Node<ElectricalNodeData>): Node<ElectricalNode
   };
 }
 
-const ElectricalPlanarWorkspace: React.FC = () => {
+export interface PlanarSidebarControlProps {
+  leftSidebarVisible: boolean;
+  rightSidebarVisible: boolean;
+  onToggleLeftSidebar: () => void;
+  onToggleRightSidebar: () => void;
+}
+
+const ElectricalPlanarWorkspace: React.FC<PlanarSidebarControlProps> = ({
+  leftSidebarVisible,
+  rightSidebarVisible,
+  onToggleLeftSidebar,
+  onToggleRightSidebar,
+}) => {
   const {
     energyStats,
     b2bCharger,
@@ -138,6 +152,8 @@ const ElectricalPlanarWorkspace: React.FC = () => {
 
   const { screenToFlowPosition, fitView } = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const [rightTab, setRightTab] = useState<'inspector' | 'bom'>('inspector');
 
   const [nodes, setNodes] = useState<Node<ElectricalNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge<ElectricalEdgeData>[]>([]);
@@ -534,30 +550,49 @@ const ElectricalPlanarWorkspace: React.FC = () => {
   const bomSummary = useMemo(() => calculateElectricalBom(nodes, edges), [nodes, edges]);
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10,
-        padding: '136px 16px 16px 16px',
-        background: 'radial-gradient(circle at 50% 20%, #0f172a 0%, #060a13 100%)',
-        display: 'flex',
-        gap: '12px',
-        overflow: 'hidden'
-      }}
-    >
-      {/* Paleta Esquerda */}
-      <ElectricalPaletteSidebar
-        onAddTemplate={handleAddTemplateClick}
-        placedCatalogIds={placedCatalogIds}
-        customTemplates={customTemplates}
-        onCreateCustomTemplate={(tpl) => setCustomTemplates((prev) => [...prev, tpl])}
-        onRemoveCustomTemplate={(cid) =>
-          setCustomTemplates((prev) => prev.filter((t) => t.catalogId !== cid))
-        }
-      />
-
-      {/* Área Central do ReactFlow */}
+    <PlanarIdeLayout
+      leftSidebarVisible={leftSidebarVisible}
+      rightSidebarVisible={rightSidebarVisible}
+      onToggleLeftSidebar={onToggleLeftSidebar}
+      onToggleRightSidebar={onToggleRightSidebar}
+      leftTitle="CATÁLOGO ELÉTRICO 2D"
+      leftActivityTitle="Catálogo de Componentes Elétricos"
+      leftActivityIcon={<ZapIcon />}
+      leftContent={
+        <ElectricalPaletteSidebar
+          onAddTemplate={handleAddTemplateClick}
+          placedCatalogIds={placedCatalogIds}
+          customTemplates={customTemplates}
+          onCreateCustomTemplate={(tpl) => setCustomTemplates((prev) => [...prev, tpl])}
+          onRemoveCustomTemplate={(cid) =>
+            setCustomTemplates((prev) => prev.filter((t) => t.catalogId !== cid))
+          }
+        />
+      }
+      rightTab={rightTab}
+      onRightTabChange={setRightTab}
+      rightInspectorTitle="INSPETOR ELÉTRICO 2D"
+      rightBomTitle="LISTA DE COMPRAS & CABOS"
+      rightContent={
+        <ElectricalInspectorPanel
+          nodes={nodes}
+          edges={edges}
+          selectedNode={selectedNode}
+          selectedEdge={selectedEdge}
+          onUpdateNodeData={handleUpdateNodeData}
+          onDeleteNode={handleDeleteNode}
+          onUpdateEdgeData={handleUpdateEdgeData}
+          onDeleteEdge={handleDeleteEdge}
+          onSelectEdge={(edgeId) => {
+            setSelectedEdgeId(edgeId);
+            setSelectedNodeId(null);
+            setRightTab('inspector');
+          }}
+          activeTab={rightTab}
+          onTabChange={setRightTab}
+        />
+      }
+      canvasContent={
       <div
         ref={wrapperRef}
         onDragOver={handleDragOver}
@@ -565,12 +600,11 @@ const ElectricalPlanarWorkspace: React.FC = () => {
         style={{
           flex: 1,
           height: '100%',
+          minWidth: 0,
+          minHeight: 0,
           position: 'relative',
-          borderRadius: '14px',
           overflow: 'hidden',
-          border: '1px solid rgba(56, 189, 248, 0.3)',
           background: '#090e1a',
-          boxShadow: 'inset 0 0 30px rgba(0, 0, 0, 0.55)'
         }}
       >
         {/* Barra Superior do Canvas */}
@@ -764,33 +798,18 @@ const ElectricalPlanarWorkspace: React.FC = () => {
           />
         </ReactFlow>
       </div>
-
-      {/* Painel Inspetor & Lista de Compras */}
-      <ElectricalInspectorPanel
-        nodes={nodes}
-        edges={edges}
-        selectedNode={selectedNode}
-        selectedEdge={selectedEdge}
-        onUpdateNodeData={handleUpdateNodeData}
-        onDeleteNode={handleDeleteNode}
-        onUpdateEdgeData={handleUpdateEdgeData}
-        onDeleteEdge={handleDeleteEdge}
-        onSelectEdge={(edgeId) => {
-          setSelectedEdgeId(edgeId);
-          setSelectedNodeId(null);
-        }}
-      />
-    </div>
+      }
+    />
   );
 };
 
-export const ElectricalPlanarView: React.FC = () => {
+export const ElectricalPlanarView: React.FC<PlanarSidebarControlProps> = (props) => {
   const { viewMode } = useSolar();
   if (viewMode !== 'electrical_planar') return null;
 
   return (
     <ReactFlowProvider>
-      <ElectricalPlanarWorkspace />
+      <ElectricalPlanarWorkspace {...props} />
     </ReactFlowProvider>
   );
 };

@@ -39,6 +39,9 @@ import { HydraulicSchematicNode } from './HydraulicSchematicNode';
 import { HydraulicPipeEdge } from './HydraulicPipeEdge';
 import { HydraulicPaletteSidebar } from './HydraulicPaletteSidebar';
 import { HydraulicInspectorPanel } from './HydraulicInspectorPanel';
+import { PlanarIdeLayout } from '../layout/PlanarIdeLayout';
+import { PlanarSidebarControlProps } from '../electrical/ElectricalPlanarView';
+import { DropletIcon } from '../layout/IdeIcons';
 
 const STORAGE_KEY_HYDRAULIC_DIAGRAM = 'doblo_hydraulic_planar_v1';
 const STORAGE_KEY_HYDRAULIC_CUSTOM = 'doblo_hydraulic_custom_templates_v1';
@@ -57,7 +60,12 @@ const edgeTypes = {
   hydraulicPipe: HydraulicPipeEdge
 };
 
-const HydraulicPlanarWorkspace: React.FC = () => {
+const HydraulicPlanarWorkspace: React.FC<PlanarSidebarControlProps> = ({
+  leftSidebarVisible,
+  rightSidebarVisible,
+  onToggleLeftSidebar,
+  onToggleRightSidebar,
+}) => {
   const {
     waterTank,
     appliances,
@@ -67,6 +75,8 @@ const HydraulicPlanarWorkspace: React.FC = () => {
 
   const { screenToFlowPosition, fitView } = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const [rightTab, setRightTab] = useState<'inspector' | 'bom'>('inspector');
 
   const [nodes, setNodes] = useState<Node<HydraulicNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge<HydraulicEdgeData>[]>([]);
@@ -417,28 +427,49 @@ const HydraulicPlanarWorkspace: React.FC = () => {
   const bomSummary = useMemo(() => calculateHydraulicBom(nodes, edges), [nodes, edges]);
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10,
-        padding: '136px 16px 16px 16px',
-        background: 'radial-gradient(circle at 50% 20%, #0f172a 0%, #060a13 100%)',
-        display: 'flex',
-        gap: '12px',
-        overflow: 'hidden'
-      }}
-    >
-      <HydraulicPaletteSidebar
-        onAddTemplate={handleAddTemplateClick}
-        placedCatalogIds={placedCatalogIds}
-        customTemplates={customTemplates}
-        onCreateCustomTemplate={(tpl) => setCustomTemplates((prev) => [...prev, tpl])}
-        onRemoveCustomTemplate={(cid) =>
-          setCustomTemplates((prev) => prev.filter((t) => t.catalogId !== cid))
-        }
-      />
-
+    <PlanarIdeLayout
+      leftSidebarVisible={leftSidebarVisible}
+      rightSidebarVisible={rightSidebarVisible}
+      onToggleLeftSidebar={onToggleLeftSidebar}
+      onToggleRightSidebar={onToggleRightSidebar}
+      leftTitle="CATÁLOGO HIDRÁULICO 2D"
+      leftActivityTitle="Catálogo de Componentes Hidráulicos"
+      leftActivityIcon={<DropletIcon />}
+      leftContent={
+        <HydraulicPaletteSidebar
+          onAddTemplate={handleAddTemplateClick}
+          placedCatalogIds={placedCatalogIds}
+          customTemplates={customTemplates}
+          onCreateCustomTemplate={(tpl) => setCustomTemplates((prev) => [...prev, tpl])}
+          onRemoveCustomTemplate={(cid) =>
+            setCustomTemplates((prev) => prev.filter((t) => t.catalogId !== cid))
+          }
+        />
+      }
+      rightTab={rightTab}
+      onRightTabChange={setRightTab}
+      rightInspectorTitle="INSPETOR HIDRÁULICO 2D"
+      rightBomTitle="LISTA DE COMPRAS & TUBOS"
+      rightContent={
+        <HydraulicInspectorPanel
+          nodes={nodes}
+          edges={edges}
+          selectedNode={selectedNode}
+          selectedEdge={selectedEdge}
+          onUpdateNodeData={handleUpdateNodeData}
+          onDeleteNode={handleDeleteNode}
+          onUpdateEdgeData={handleUpdateEdgeData}
+          onDeleteEdge={handleDeleteEdge}
+          onSelectEdge={(edgeId) => {
+            setSelectedEdgeId(edgeId);
+            setSelectedNodeId(null);
+            setRightTab('inspector');
+          }}
+          activeTab={rightTab}
+          onTabChange={setRightTab}
+        />
+      }
+      canvasContent={
       <div
         ref={wrapperRef}
         onDragOver={handleDragOver}
@@ -446,12 +477,11 @@ const HydraulicPlanarWorkspace: React.FC = () => {
         style={{
           flex: 1,
           height: '100%',
+          minWidth: 0,
+          minHeight: 0,
           position: 'relative',
-          borderRadius: '14px',
           overflow: 'hidden',
-          border: '1px solid rgba(56, 189, 248, 0.3)',
           background: '#090e1a',
-          boxShadow: 'inset 0 0 30px rgba(0, 0, 0, 0.55)'
         }}
       >
         {/* Barra Superior do Canvas */}
@@ -645,32 +675,18 @@ const HydraulicPlanarWorkspace: React.FC = () => {
           />
         </ReactFlow>
       </div>
-
-      <HydraulicInspectorPanel
-        nodes={nodes}
-        edges={edges}
-        selectedNode={selectedNode}
-        selectedEdge={selectedEdge}
-        onUpdateNodeData={handleUpdateNodeData}
-        onDeleteNode={handleDeleteNode}
-        onUpdateEdgeData={handleUpdateEdgeData}
-        onDeleteEdge={handleDeleteEdge}
-        onSelectEdge={(edgeId) => {
-          setSelectedEdgeId(edgeId);
-          setSelectedNodeId(null);
-        }}
-      />
-    </div>
+      }
+    />
   );
 };
 
-export const HydraulicPlanarView: React.FC = () => {
+export const HydraulicPlanarView: React.FC<PlanarSidebarControlProps> = (props) => {
   const { viewMode } = useSolar();
   if (viewMode !== 'hydraulic_planar') return null;
 
   return (
     <ReactFlowProvider>
-      <HydraulicPlanarWorkspace />
+      <HydraulicPlanarWorkspace {...props} />
     </ReactFlowProvider>
   );
 };

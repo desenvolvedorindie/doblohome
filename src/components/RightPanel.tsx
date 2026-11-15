@@ -1,37 +1,227 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSolar } from '../context/SolarContext';
-import { RightPanelModeSwitcher } from './rightpanel/RightPanelModeSwitcher';
 import { RightPanelExpansionSection } from './rightpanel/RightPanelExpansionSection';
 import { RightPanelAccessorySection } from './rightpanel/RightPanelAccessorySection';
 import { RightPanelWeightSection } from './rightpanel/RightPanelWeightSection';
 import { RightPanelEnvironmentSection } from './rightpanel/RightPanelEnvironmentSection';
 import { RightPanelElectricalSection } from './rightpanel/RightPanelElectricalSection';
 import { PlannerBoxPropertiesPanel } from './planner/PlannerBoxPropertiesPanel';
+import { SidebarResizer } from './layout/SidebarResizer';
+import {
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
+  SlidersIcon,
+  Box3DIcon,
+  CompassIcon,
+  LuggageIcon,
+  ScaleIcon,
+  SunIcon,
+  BatteryIcon,
+} from './layout/IdeIcons';
 
-export const RightPanel: React.FC = () => {
+type AssembledRightTab =
+  | 'all'
+  | 'expansion'
+  | 'accessories'
+  | 'weight'
+  | 'environment'
+  | 'electrical';
+
+interface RightPanelProps {
+  isVisible: boolean;
+  onToggleVisible: () => void;
+}
+
+const DEFAULT_WIDTHS: Record<'internal_boxes' | 'assembled' | 'bars_lineup', number> = {
+  internal_boxes: 460,
+  assembled: 370,
+  bars_lineup: 350,
+};
+
+export const RightPanel: React.FC<RightPanelProps> = ({
+  isVisible,
+  onToggleVisible,
+}) => {
   const { viewMode } = useSolar();
+  const [widths, setWidths] = useState(DEFAULT_WIDTHS);
+  const [assembledTab, setAssembledTab] = useState<AssembledRightTab>('all');
+
+  if (viewMode === 'electrical_planar' || viewMode === 'hydraulic_planar') {
+    return null;
+  }
+
+  const modeKey = viewMode as 'internal_boxes' | 'assembled' | 'bars_lineup';
+  const currentWidth = widths[modeKey] ?? 370;
+  const setWidth = (w: number) =>
+    setWidths((prev) => ({
+      ...prev,
+      [modeKey]: w,
+    }));
+
+  const handleAssembledTabClick = (tab: AssembledRightTab) => {
+    if (!isVisible) {
+      setAssembledTab(tab);
+      onToggleVisible();
+    } else if (assembledTab === tab) {
+      onToggleVisible();
+    } else {
+      setAssembledTab(tab);
+    }
+  };
+
+  const renderPanelTitle = () => {
+    if (viewMode === 'internal_boxes') return 'INSPETOR DE CAIXA / MÓDULO';
+    if (viewMode === 'bars_lineup') return 'ENGENHARIA & PESO DO RACK';
+    if (assembledTab === 'expansion') return 'EXPANSÃO & INSPEÇÃO';
+    if (assembledTab === 'accessories') return 'ACESSÓRIOS & INTERNO';
+    if (assembledTab === 'weight') return 'PESO & ALTURA DO RACK';
+    if (assembledTab === 'environment') return 'SOL, CLIMA & CÂMERAS';
+    if (assembledTab === 'electrical') return 'ENERGIA, BATERIA & MPPT';
+    return 'TELEMETRIA, PESO & CLIMA';
+  };
 
   return (
-    <>
-      <RightPanelModeSwitcher />
-      {viewMode === 'assembled' && (
-        <aside className="right-panel glass-panel" id="right-panel">
-          <RightPanelExpansionSection />
-          <RightPanelAccessorySection />
-          <RightPanelWeightSection />
-          <RightPanelEnvironmentSection />
-          <RightPanelElectricalSection />
-        </aside>
-      )}
-      {viewMode === 'internal_boxes' && (
+    <div className="ide-sidebar-shell right">
+      {/* ── Conteúdo Docked Redimensionável ── */}
+      {isVisible && (
         <aside
-          className="right-panel glass-panel"
-          id="right-panel-boxes"
-          style={{ width: '560px', maxWidth: 'calc(100vw - 36px)' }}
+          className="ide-docked-sidebar right"
+          style={{ width: `${currentWidth}px` }}
         >
-          <PlannerBoxPropertiesPanel />
+          <SidebarResizer
+            side="right"
+            width={currentWidth}
+            setWidth={setWidth}
+            minWidth={280}
+            maxWidth={720}
+          />
+
+          <div className="ide-sidebar-header">
+            <span className="ide-sidebar-title">{renderPanelTitle()}</span>
+          </div>
+
+          <div
+            className="ide-sidebar-content right-panel"
+            id={viewMode === 'internal_boxes' ? 'right-panel-boxes' : 'right-panel'}
+          >
+            {viewMode === 'internal_boxes' && <PlannerBoxPropertiesPanel />}
+
+            {viewMode === 'bars_lineup' && (
+              <>
+                <RightPanelWeightSection />
+                <RightPanelEnvironmentSection />
+              </>
+            )}
+
+            {viewMode === 'assembled' && (
+              <>
+                {(assembledTab === 'all' || assembledTab === 'expansion') && (
+                  <RightPanelExpansionSection />
+                )}
+                {(assembledTab === 'all' || assembledTab === 'accessories') && (
+                  <RightPanelAccessorySection />
+                )}
+                {(assembledTab === 'all' || assembledTab === 'weight') && (
+                  <RightPanelWeightSection />
+                )}
+                {(assembledTab === 'all' || assembledTab === 'environment') && (
+                  <RightPanelEnvironmentSection />
+                )}
+                {(assembledTab === 'all' || assembledTab === 'electrical') && (
+                  <RightPanelElectricalSection />
+                )}
+              </>
+            )}
+          </div>
         </aside>
       )}
-    </>
+
+      {/* ── Barra Vertical de Atividades Direita (48px) estilo FlowML ── */}
+      <div className="ide-activity-bar right">
+        <button
+          type="button"
+          onClick={onToggleVisible}
+          className={`ide-activity-collapse-btn ${isVisible ? 'open' : ''}`}
+          title={isVisible ? 'Recolher Painel Direito' : 'Expandir Painel Direito'}
+        >
+          {isVisible ? <ChevronsRightIcon size={14} /> : <ChevronsLeftIcon size={14} />}
+        </button>
+
+        {viewMode === 'internal_boxes' && (
+          <button
+            type="button"
+            onClick={onToggleVisible}
+            className={`ide-activity-btn right ${isVisible ? 'active' : ''}`}
+            title="Propriedades da Caixa Selecionada"
+          >
+            <Box3DIcon />
+          </button>
+        )}
+
+        {viewMode === 'bars_lineup' && (
+          <button
+            type="button"
+            onClick={onToggleVisible}
+            className={`ide-activity-btn right ${isVisible ? 'active' : ''}`}
+            title="Peso & Ambiente"
+          >
+            <ScaleIcon />
+          </button>
+        )}
+
+        {viewMode === 'assembled' && (
+          <>
+            <button
+              type="button"
+              onClick={() => handleAssembledTabClick('all')}
+              className={`ide-activity-btn right ${isVisible && assembledTab === 'all' ? 'active' : ''}`}
+              title="Todos os Painéis"
+            >
+              <SlidersIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAssembledTabClick('expansion')}
+              className={`ide-activity-btn right ${isVisible && assembledTab === 'expansion' ? 'active' : ''}`}
+              title="Expansão & Verificação Estrutural"
+            >
+              <CompassIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAssembledTabClick('accessories')}
+              className={`ide-activity-btn right ${isVisible && assembledTab === 'accessories' ? 'active' : ''}`}
+              title="Acessórios, Tampa do Baú & Caixas"
+            >
+              <LuggageIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAssembledTabClick('weight')}
+              className={`ide-activity-btn right ${isVisible && assembledTab === 'weight' ? 'active' : ''}`}
+              title="Peso & Altura no Teto"
+            >
+              <ScaleIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAssembledTabClick('environment')}
+              className={`ide-activity-btn right ${isVisible && assembledTab === 'environment' ? 'active' : ''}`}
+              title="Sol, Sombras & Presets de Câmera"
+            >
+              <SunIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAssembledTabClick('electrical')}
+              className={`ide-activity-btn right ${isVisible && assembledTab === 'electrical' ? 'active' : ''}`}
+              title="Energia Solar, Bateria & Carregadores"
+            >
+              <BatteryIcon />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 };

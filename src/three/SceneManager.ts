@@ -54,6 +54,7 @@ export class SceneManager {
   onRulerStateChange?: (state: RulerLiveState) => void;
 
   private isDisposed: boolean = false;
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(
     container: HTMLElement,
@@ -110,6 +111,13 @@ export class SceneManager {
 
     this.onWindowResize = this.onWindowResize.bind(this);
     window.addEventListener('resize', this.onWindowResize);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => {
+        this.onWindowResize();
+      });
+      this.resizeObserver.observe(this.container);
+    }
 
     this.initBarHoverEvents();
 
@@ -477,7 +485,7 @@ export class SceneManager {
     const dataURL = this.renderer.domElement.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = dataURL;
-    a.download = `doblo-solar-3d-${Date.now()}.png`;
+    a.download = `doblohome-3d-${Date.now()}.png`;
     a.click();
   }
 
@@ -516,6 +524,8 @@ export class SceneManager {
   dispose() {
     this.isDisposed = true;
     window.removeEventListener('resize', this.onWindowResize);
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     this.cancelCurrentAnimation();
     this.internalBoxesRuler.dispose();
     if (this.renderer && this.renderer.domElement && this.renderer.domElement.parentElement) {
