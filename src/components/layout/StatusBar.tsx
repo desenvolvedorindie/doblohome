@@ -24,6 +24,8 @@ export const StatusBar: React.FC = () => {
     internalBoxes,
     selectedBoxId,
     openModal,
+    activeBatteryPreset,
+    activeB2bPreset,
   } = useSolar();
 
   const { rackWeightStats } = useRackWeightAndHeight();
@@ -54,7 +56,7 @@ export const StatusBar: React.FC = () => {
               display: 'inline-block',
             }}
           />
-          <span>DoblòHome</span>
+          <span>DoblóHome Studio</span>
         </div>
 
         <div className="ide-statusbar-divider" />
@@ -87,12 +89,12 @@ export const StatusBar: React.FC = () => {
           type="button"
           className="ide-statusbar-btn"
           onClick={toggleB2BEngine}
-          title="Alternar Ignição / Alternador Doblò (B2B 30A)"
+          title={`Alternar Ignição / Alternador Doblò (B2B ${activeB2bPreset.chargingAmps}A)`}
           style={{
             color: b2bCharger.isEngineRunning ? '#4ade80' : '#a3a3a3',
           }}
         >
-          <span>{b2bCharger.isEngineRunning ? '🚗⚡ Motor +30A' : '🚗 Motor Off'}</span>
+          <span>{b2bCharger.isEngineRunning ? `🚗⚡ Motor +${activeB2bPreset.chargingAmps}A` : '🚗 Motor Off'}</span>
         </button>
 
         <div className="ide-statusbar-divider" />
@@ -125,10 +127,10 @@ export const StatusBar: React.FC = () => {
           type="button"
           className="ide-statusbar-btn"
           onClick={() => openModal('battery')}
-          title="Abrir Banco de Bateria LiFePO4"
+          title="Abrir Banco de Baterias (Trocar / Cadastrar)"
           style={{ color: '#34d399' }}
         >
-          <span>🔋 560Ah · {batteryPerformance.percent}%</span>
+          <span>🔋 {activeBatteryPreset.capacityAh}Ah · {batteryPerformance.percent}%</span>
         </button>
 
         <div className="ide-statusbar-divider" />

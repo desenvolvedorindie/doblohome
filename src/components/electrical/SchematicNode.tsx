@@ -8,6 +8,7 @@ import {
 } from './schematic/schematicTheme';
 import {
   SchematicBottomPorts,
+  SchematicBusbarPorts,
   SchematicSidePorts,
   SchematicTopPorts
 } from './schematic/SchematicPorts';
@@ -63,7 +64,7 @@ export const SchematicNode: React.FC<NodeProps<SchematicNodeType>> = ({
           borderTopRightRadius: topPorts.length === 0 ? '9px' : 0,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: isBusbar ? 'center' : 'space-between',
           gap: '8px'
         }}
       >
@@ -82,7 +83,7 @@ export const SchematicNode: React.FC<NodeProps<SchematicNodeType>> = ({
             >
               {data.label}
             </div>
-            {data.subtitle && (
+            {data.subtitle && !isBusbar && (
               <div
                 style={{
                   fontSize: '9.5px',
@@ -193,27 +194,27 @@ export const SchematicNode: React.FC<NodeProps<SchematicNodeType>> = ({
         </div>
       )}
 
-      {/* Barra Esquemática Visual para Barramento */}
-      {data.kind === 'busbar' && (
-        <div style={{ padding: '5px 10px 0 10px' }}>
-          <div
-            style={{
-              height: '6px',
-              borderRadius: '3px',
-              background:
-                data.busbarPolarity === 'pos'
-                  ? 'linear-gradient(90deg, #dc2626, #ef4444)'
-                  : data.busbarPolarity === 'neg'
-                    ? 'linear-gradient(90deg, #334155, #64748b)'
-                    : 'linear-gradient(90deg, #f97316, #3b82f6, #22c55e)',
-              border: '1px solid rgba(255,255,255,0.2)'
-            }}
-          />
-        </div>
-      )}
-
       {/* Terminais ESQUERDA e DIREITA */}
-      <SchematicSidePorts leftPorts={leftPorts} rightPorts={rightPorts} />
+      {isBusbar ? (
+        <>
+          <SchematicBusbarPorts ports={leftPorts} />
+          {data.subtitle && (
+            <div
+              style={{
+                textAlign: 'center',
+                fontSize: '9.5px',
+                color: '#94a3b8',
+                padding: '0 10px 6px 10px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {data.subtitle}
+            </div>
+          )}
+        </>
+      ) : (
+        <SchematicSidePorts leftPorts={leftPorts} rightPorts={rightPorts} />
+      )}
 
       {/* Handles na BASE (Bottom) */}
       <SchematicBottomPorts ports={bottomPorts} />

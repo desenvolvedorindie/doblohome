@@ -59,6 +59,23 @@ export function useInternalBoxesManager(
   const [showMattress, setShowMattress] = useState<boolean>(true);
   const [rulerState, setRulerState] = useState<RulerLiveState>(INITIAL_RULER_STATE);
 
+  const toggleCabinetsOpenPreview = (forceState?: boolean) => {
+    setIsCabinetsOpenPreview((prev) => {
+      const allCabinets = internalBoxes.filter((b) => b.upperCabinet);
+      const areAllOpen = allCabinets.length > 0 && allCabinets.every((b) => Boolean(b.isUpperCabinetOpen));
+      const next = forceState !== undefined ? forceState : !areAllOpen;
+
+      setInternalBoxesState((boxes) => {
+        const nextBoxes = boxes.map((b) => (b.upperCabinet ? { ...b, isUpperCabinetOpen: next } : b));
+        if (isDbLoaded) {
+          dbSet('doblo_internal_boxes', nextBoxes);
+        }
+        return nextBoxes;
+      });
+      return next;
+    });
+  };
+
   const setRulerActive = (active: boolean) => {
     if (sceneManager?.internalBoxesRuler) {
       sceneManager.internalBoxesRuler.setActive(active);
@@ -364,6 +381,7 @@ export function useInternalBoxesManager(
     setIsOpenPreview,
     isCabinetsOpenPreview,
     setIsCabinetsOpenPreview,
+    toggleCabinetsOpenPreview,
     isBedOpenPreview,
     setIsBedOpenPreview,
     showMattress,

@@ -19,6 +19,14 @@ export class SolarSimulation {
 
   SOLAR_PEAK_HOURS = 5.5;
 
+  setBatterySpecs(capacityAh: number, voltage: number = 12.8, dod: number = 0.8) {
+    this.BAT_CAPACITY_AH = Math.max(1, capacityAh);
+    this.BAT_VOLTAGE = Math.max(1, voltage);
+    this.BAT_CAPACITY_WH = Math.round(this.BAT_CAPACITY_AH * this.BAT_VOLTAGE);
+    this.BAT_DOD = dod;
+    this.BAT_USABLE_WH = this.BAT_CAPACITY_WH * dod;
+  }
+
   APPLIANCES: ApplianceItem[] = [];
   DAILY_CONSUMPTION_WH: number = 1;
 

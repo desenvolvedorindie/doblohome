@@ -218,6 +218,94 @@ export const SchematicSidePorts: React.FC<{
   );
 };
 
+/**
+ * Terminais do barramento: pontos centralizados horizontalmente no nó
+ * (o barramento liga entrada e saída, então todos os pinos ficam no centro).
+ */
+export const SchematicBusbarPorts: React.FC<{ ports: ElectricalPort[] }> = ({ ports }) => {
+  if (ports.length === 0) return null;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '6px 10px' }}>
+      {ports.map((port) => {
+        const meta = POLARITY_META[port.polarity];
+        return (
+          <div
+            key={port.id}
+            style={{
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '2px'
+            }}
+          >
+            {/* Contêiner do pino central do barramento com handles duplos perfeitamente alinhados */}
+            <div
+              style={{
+                position: 'relative',
+                width: '11px',
+                height: '11px',
+                flexShrink: 0
+              }}
+            >
+              {/* Handle de ENTRADA (Target: recebe fios de fontes/bateria/usina/etc.) */}
+              <Handle
+                id={port.id}
+                type="target"
+                position={Position.Left}
+                style={{
+                  ...renderPortDotStyle(port),
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  transform: 'none',
+                  cursor: 'crosshair',
+                  margin: 0,
+                  zIndex: 2
+                }}
+                title={`${port.label} (Entrada / Target)`}
+              />
+
+              {/* Handle de SAÍDA (Source: envia fios para cargas/inversor/caixa de fusíveis/etc.) */}
+              <Handle
+                id={port.id}
+                type="source"
+                position={Position.Right}
+                style={{
+                  ...renderPortDotStyle(port),
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  transform: 'none',
+                  cursor: 'crosshair',
+                  margin: 0,
+                  zIndex: 3
+                }}
+                title={`${port.label} (Saída / Source)`}
+              />
+            </div>
+
+            <span
+              style={{
+                fontSize: '9.5px',
+                fontWeight: 600,
+                color: port.polarity === 'neg' ? '#cbd5e1' : meta.handleBorder,
+                whiteSpace: 'nowrap',
+                userSelect: 'none',
+                lineHeight: 1.1
+              }}
+            >
+              {port.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 export const SchematicBottomPorts: React.FC<{ ports: ElectricalPort[] }> = ({ ports }) => {
   if (ports.length === 0) return null;
 

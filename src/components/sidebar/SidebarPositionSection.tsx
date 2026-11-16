@@ -84,6 +84,23 @@ export const SidebarPositionSection: React.FC = () => {
           value={offsetY}
           onChange={(e) => setOffsetY(parseFloat(e.target.value))}
         />
+
+        {(Math.abs(offsetZ - (-1.20)) > 0.01 || Math.abs(offsetY - (-0.14)) > 0.01) && (
+          <div style={{ marginTop: '10px' }}>
+            <button
+              type="button"
+              className="btn-compact"
+              style={{ width: '100%', fontSize: '10px', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }}
+              onClick={() => {
+                setOffsetZ(-1.20);
+                setOffsetY(-0.14);
+              }}
+              title="Redefinir rack para o alinhamento padrão (-1.20m traseiro / -0.14m altura)"
+            >
+              🔄 Redefinir Rack no Padrão (-1.20 m / -0.14 m)
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 8. Posição dos Armazenadores & Caixas Internas dentro da Doblò */}

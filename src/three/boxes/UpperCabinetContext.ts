@@ -28,6 +28,8 @@ export interface UpperCabinetContext {
   isSlidingDoors: boolean;
   isDrawer: boolean;
   numShelves: number;
+  shelfDoorDiscountM: number;
+  shelfDoorDiscountMm: number;
   isOpen: boolean;
   isSelected: boolean;
   innerH: number;

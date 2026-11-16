@@ -3,9 +3,12 @@ import { InternalBoxItem } from '../../types';
 import { FLOOR_Y, PLYWOOD_THICKNESS, getBoxThickness } from './BoxGeometryHelpers';
 import { ELECTRONIC_COMPONENTS_CATALOG } from '../../types/electronics';
 import { PowerStorageBuilder } from '../PowerStorage';
+import { loadBatteryPresets, loadActiveBatteryPresetId } from '../../data/batteryPresets';
+import { loadMpptPresets, loadActiveMpptPresetId } from '../../data/mpptPresets';
+import { loadB2bPresets, loadActiveB2bPresetId } from '../../data/b2bPresets';
 
 export class BoxElectronicsBuilder {
-    buildBoxElectronics(
+  buildBoxElectronics(
     container: THREE.Group,
     w: number,
     l: number,
@@ -38,13 +41,48 @@ export class BoxElectronicsBuilder {
       if (!catalogMeta) return;
 
       let mesh: THREE.Group;
-      const compW = catalogMeta.dimensionsMm.width / 1000;
-      const compH = catalogMeta.dimensionsMm.height / 1000;
-      const compD = catalogMeta.dimensionsMm.depth / 1000;
+      let compW = catalogMeta.dimensionsMm.width / 1000;
+      let compH = catalogMeta.dimensionsMm.height / 1000;
+      let compD = catalogMeta.dimensionsMm.depth / 1000;
+
+      if (item.id === 'battery') {
+        const presets = loadBatteryPresets();
+        const activeId = item.presetId || box.batteryPresetId || loadActiveBatteryPresetId();
+        const found = presets.find(p => p.id === activeId) || presets[0];
+        if (found) {
+          compW = found.dimensionsMm.width / 1000;
+          compH = found.dimensionsMm.height / 1000;
+          compD = found.dimensionsMm.depth / 1000;
+        }
+      } else if (item.id === 'mppt') {
+        const presets = loadMpptPresets();
+        const activeId = loadActiveMpptPresetId();
+        const found = presets.find(p => p.id === activeId) || presets[0];
+        if (found) {
+          compW = found.dimensionsMm.width / 1000;
+          compH = found.dimensionsMm.height / 1000;
+          compD = found.dimensionsMm.depth / 1000;
+        }
+      } else if (item.id === 'b2b') {
+        const presets = loadB2bPresets();
+        const activeId = loadActiveB2bPresetId();
+        const found = presets.find(p => p.id === activeId) || presets[0];
+        if (found) {
+          compW = found.dimensionsMm.width / 1000;
+          compH = found.dimensionsMm.height / 1000;
+          compD = found.dimensionsMm.depth / 1000;
+        }
+      }
 
       // Cria a malha do componente correspondente
       if (item.id === 'battery') {
         mesh = PowerStorageBuilder.createBatteryMesh();
+        const scaleX = compW / (270 / 1000);
+        const scaleY = compH / (240 / 1000);
+        const scaleZ = compD / (520 / 1000);
+        if (Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01 || Math.abs(scaleZ - 1) > 0.01) {
+          mesh.scale.set(scaleX, scaleY, scaleZ);
+        }
       } else if (item.id === 'mppt') {
         mesh = PowerStorageBuilder.createMPPTMesh({ includeCables: false });
         // MPPT: gira Math.PI para alinhar o verso (aletas) com -Z e frente LCD com +Z

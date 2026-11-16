@@ -60,7 +60,8 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     sceneManager,
     (updates: any) => cargoAndEquipMgr.setCargoBox(updates),
     cargoAndEquipMgr.cargoBox,
-    appliancesMgr.updateCalculations
+    appliancesMgr.updateCalculations,
+    cargoAndEquipMgr.setB2BCharger
   );
 
   // View, Camera & Inspection Actions
@@ -124,7 +125,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setActivePanelPresetIdState: presetsMgr.setActivePanelPresetIdState,
         setActiveCargoPresetIdState: presetsMgr.setActiveCargoPresetIdState,
         setOffsetZState: structureMgr.setOffsetZState,
-        setOffsetYState: structureMgr.setOffsetZState,
+        setOffsetYState: structureMgr.setOffsetYState,
         setExpansionProgressState: structureMgr.setExpansionProgressState,
         setPanelPresetsState: presetsMgr.setPanelPresetsState,
         setCargoBoxPresetsState: presetsMgr.setCargoBoxPresetsState,
@@ -161,6 +162,22 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         cols: presetsMgr.activePanelPreset.cols,
         rows: presetsMgr.activePanelPreset.rows
       });
+    }
+
+    if (presetsMgr.activeBatteryPreset && sceneManager.solarSim) {
+      sceneManager.solarSim.setBatterySpecs(
+        presetsMgr.activeBatteryPreset.capacityAh,
+        presetsMgr.activeBatteryPreset.voltageNominal
+      );
+    }
+    if (presetsMgr.activeB2bPreset) {
+      cargoAndEquipMgr.setB2BCharger((prev: any) => ({
+        ...prev,
+        chargingAmps: presetsMgr.activeB2bPreset.chargingAmps,
+        voltageIn: presetsMgr.activeB2bPreset.voltageIn,
+        voltageOut: presetsMgr.activeB2bPreset.voltageOut,
+        watts: Math.round(presetsMgr.activeB2bPreset.chargingAmps * presetsMgr.activeB2bPreset.voltageOut)
+      }));
     }
 
     sceneManager.solarSystem.setStackLevels(structureMgr.stackLevels);
@@ -365,6 +382,30 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         updateStovePreset: presetsMgr.updateStovePreset,
         removeStovePreset: presetsMgr.removeStovePreset,
         resetStovePresets: presetsMgr.resetStovePresetsToDefault,
+        batteryPresets: presetsMgr.batteryPresets,
+        activeBatteryPresetId: presetsMgr.activeBatteryPresetId,
+        activeBatteryPreset: presetsMgr.activeBatteryPreset,
+        selectBatteryPreset: presetsMgr.selectBatteryPreset,
+        addBatteryPreset: presetsMgr.addBatteryPreset,
+        updateBatteryPreset: presetsMgr.updateBatteryPreset,
+        removeBatteryPreset: presetsMgr.removeBatteryPreset,
+        resetBatteryPresets: presetsMgr.resetBatteryPresetsToDefault,
+        mpptPresets: presetsMgr.mpptPresets,
+        activeMpptPresetId: presetsMgr.activeMpptPresetId,
+        activeMpptPreset: presetsMgr.activeMpptPreset,
+        selectMpptPreset: presetsMgr.selectMpptPreset,
+        addMpptPreset: presetsMgr.addMpptPreset,
+        updateMpptPreset: presetsMgr.updateMpptPreset,
+        removeMpptPreset: presetsMgr.removeMpptPreset,
+        resetMpptPresets: presetsMgr.resetMpptPresetsToDefault,
+        b2bPresets: presetsMgr.b2bPresets,
+        activeB2bPresetId: presetsMgr.activeB2bPresetId,
+        activeB2bPreset: presetsMgr.activeB2bPreset,
+        selectB2bPreset: presetsMgr.selectB2bPreset,
+        addB2bPreset: presetsMgr.addB2bPreset,
+        updateB2bPreset: presetsMgr.updateB2bPreset,
+        removeB2bPreset: presetsMgr.removeB2bPreset,
+        resetB2bPresets: presetsMgr.resetB2bPresetsToDefault,
         energyStats: appliancesMgr.energyStats,
         batteryPerformance: appliancesMgr.batteryPerformance,
         loadsSummary: appliancesMgr.loadsSummary,
@@ -383,6 +424,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setIsOpenPreview: boxesMgr.setIsOpenPreview,
         isCabinetsOpenPreview: boxesMgr.isCabinetsOpenPreview,
         setIsCabinetsOpenPreview: boxesMgr.setIsCabinetsOpenPreview,
+        toggleCabinetsOpenPreview: boxesMgr.toggleCabinetsOpenPreview,
         isBedOpenPreview: boxesMgr.isBedOpenPreview,
         setIsBedOpenPreview: boxesMgr.setIsBedOpenPreview,
         showMattress: boxesMgr.showMattress,

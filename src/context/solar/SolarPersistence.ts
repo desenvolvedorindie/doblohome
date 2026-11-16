@@ -86,12 +86,24 @@ export class SolarPersistence {
           handlers.setActiveCargoPresetIdState(cfg.cargoBoxPresetId);
         }
         if (cfg.offsetZ !== undefined) {
-          const zVal = cfg.offsetZ > 0.1 ? -cfg.offsetZ : cfg.offsetZ;
+          let zVal = cfg.offsetZ > 0.1 ? -cfg.offsetZ : cfg.offsetZ;
+          // Migra antigo padrão (-0.68) para o novo padrão padrão de posição do rack (-1.20)
+          if (Math.abs(zVal - (-0.68)) < 0.01) {
+            zVal = -1.20;
+          }
           handlers.setOffsetZState(zVal);
+        } else {
+          handlers.setOffsetZState(-1.20);
         }
         if (cfg.offsetY !== undefined) {
-          const safeOffsetY = Math.max(0, cfg.offsetY);
+          let safeOffsetY = Math.max(-0.30, Math.min(0.50, cfg.offsetY));
+          // Migra antigo padrão (0.00) para o novo padrão de altura do rack (-0.14)
+          if (Math.abs(safeOffsetY) < 0.001) {
+            safeOffsetY = -0.14;
+          }
           handlers.setOffsetYState(safeOffsetY);
+        } else {
+          handlers.setOffsetYState(-0.14);
         }
         if (cfg.expansionProgress !== undefined) handlers.setExpansionProgressState(cfg.expansionProgress);
       }

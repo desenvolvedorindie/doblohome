@@ -1,13 +1,13 @@
 import React from 'react';
 import { useSolar } from '../../context/SolarContext';
-import { InternalBoxItem, UpperCabinetClosure, getUpperCabinetClosure } from '../../types';
+import { InternalBoxItem, UpperCabinetClosure, getUpperCabinetClosure, getUpperCabinetShelfDoorDiscountMm } from '../../types';
 
 interface PlannerUpperCabinetProps {
   selectedBox: InternalBoxItem;
 }
 
 export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({ selectedBox }) => {
-  const { updateInternalBox, isCabinetsOpenPreview, setIsCabinetsOpenPreview, internalGrid } = useSolar();
+  const { updateInternalBox, isCabinetsOpenPreview, setIsCabinetsOpenPreview, toggleCabinetsOpenPreview, internalBoxes, internalGrid } = useSolar();
   const rows = Math.max(1, internalGrid.rowsZ);
 
   return (
@@ -60,6 +60,7 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
                 upperCabinet: willEnable,
                 upperCabinetDepthMm: selectedBox.upperCabinetDepthMm || 250,
                 upperCabinetAlign: selectedBox.upperCabinetAlign || 'rear',
+                upperCabinetClosure: selectedBox.upperCabinetClosure || 'sliding_doors',
                 upperCabinetDoors: selectedBox.upperCabinetDoors !== undefined ? selectedBox.upperCabinetDoors : true,
                 upperCabinetShelves: selectedBox.upperCabinetShelves || 1
               });
@@ -120,8 +121,8 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
                   {(selectedBox.upperCabinetBottomGapMm ?? 0) === 0
                     ? '0 mm (Encostado na Base • Recorte Ativo do Colchão)'
                     : (selectedBox.upperCabinetBottomGapMm ?? 0) <= 80
-                    ? `${selectedBox.upperCabinetBottomGapMm} mm (Baixo • Recorte Ativo do Colchão)`
-                    : `${selectedBox.upperCabinetBottomGapMm} mm (Suspenso Alto • Colchão Livre por Baixo)`}
+                      ? `${selectedBox.upperCabinetBottomGapMm} mm (Baixo • Recorte Ativo do Colchão)`
+                      : `${selectedBox.upperCabinetBottomGapMm} mm (Suspenso Alto • Colchão Livre por Baixo)`}
                 </span>
               </div>
               <input
@@ -217,6 +218,44 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
               </div>
             </div>
 
+            {/* Desconto das Portas nas Prateleiras */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                  Desconto / Recuo p/ Portas:
+                </span>
+                <span style={{ fontSize: '9px', color: '#38bdf8', marginLeft: '6px' }}>
+                  {selectedBox.upperCabinetShelfDoorDiscountMm !== undefined
+                    ? `${selectedBox.upperCabinetShelfDoorDiscountMm} mm (manual)`
+                    : `${getUpperCabinetShelfDoorDiscountMm(selectedBox)} mm (automático)`}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                {[
+                  { label: 'Auto', val: undefined },
+                  { label: '20mm', val: 20 },
+                  { label: '25mm', val: 25 },
+                  { label: '30mm', val: 30 }
+                ].map(opt => {
+                  const isActive = opt.val === undefined
+                    ? selectedBox.upperCabinetShelfDoorDiscountMm === undefined
+                    : selectedBox.upperCabinetShelfDoorDiscountMm === opt.val;
+                  return (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      className={`btn-compact ${isActive ? 'active' : ''}`}
+                      onClick={() => updateInternalBox(selectedBox.id, { upperCabinetShelfDoorDiscountMm: opt.val })}
+                      style={{ fontSize: '9px', padding: '2px 6px' }}
+                      title={opt.val === undefined ? 'Recuo automático padrão de marcenaria conforme o tipo de porta' : `Recuo fixo de ${opt.val}mm`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Teste de Abertura das Portas no 3D */}
             {getUpperCabinetClosure(selectedBox) !== 'open' && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(15, 23, 42, 0.4)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
@@ -230,31 +269,50 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
                       : 'Simula o pistão basculante abrindo 75° para cima'}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const isCurrentlyOpen = isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen);
-                    if (isCabinetsOpenPreview) {
-                      setIsCabinetsOpenPreview(false);
-                    }
-                    updateInternalBox(selectedBox.id, { isUpperCabinetOpen: !isCurrentlyOpen });
-                  }}
-                  className="btn-compact"
-                  style={{
-                    fontSize: '10.5px',
-                    fontWeight: 700,
-                    padding: '4px 10px',
-                    background: (isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen))
-                      ? 'linear-gradient(135deg, #10b981, #059669)'
-                      : 'linear-gradient(135deg, #0284c7, #2563eb)',
-                    borderColor: (isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen)) ? '#34d399' : '#38bdf8',
-                    color: '#ffffff'
-                  }}
-                >
-                  {(isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen))
-                    ? (getUpperCabinetClosure(selectedBox) === 'sliding_doors' ? '🔒 Fechar Portas de Correr' : '🔓 Fechar Porta')
-                    : (getUpperCabinetClosure(selectedBox) === 'sliding_doors' ? '🪟 Deslizar Portas (Abrir)' : '🚪 Abrir Porta')}
-                </button>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const isCurrentlyOpen = isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen);
+                      updateInternalBox(selectedBox.id, { isUpperCabinetOpen: !isCurrentlyOpen });
+                    }}
+                    className="btn-compact"
+                    style={{
+                      fontSize: '10.5px',
+                      fontWeight: 700,
+                      padding: '4px 10px',
+                      background: (isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen))
+                        ? 'linear-gradient(135deg, #10b981, #059669)'
+                        : 'linear-gradient(135deg, #0284c7, #2563eb)',
+                      borderColor: (isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen)) ? '#34d399' : '#38bdf8',
+                      color: '#ffffff'
+                    }}
+                    title="Alternar abertura das portas deste armário aéreo"
+                  >
+                    {(isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen))
+                      ? (getUpperCabinetClosure(selectedBox) === 'sliding_doors' ? '🔒 Fechar Portas de Correr' : '🔓 Fechar Porta')
+                      : (getUpperCabinetClosure(selectedBox) === 'sliding_doors' ? '🪟 Deslizar Portas (Abrir)' : '🚪 Abrir Porta')}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleCabinetsOpenPreview()}
+                    className="btn-compact"
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      padding: '4px 8px',
+                      background: 'rgba(30, 41, 59, 0.85)',
+                      border: '1px solid #38bdf8',
+                      color: '#38bdf8'
+                    }}
+                    title="Abrir ou fechar as portas de todos os armários aéreos do veículo simultaneamente"
+                  >
+                    {(isCabinetsOpenPreview || internalBoxes.some((b) => b.upperCabinet && b.isUpperCabinetOpen))
+                      ? '🔒 Fechar Todos'
+                      : '🚪 Abrir Todos'}
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -9,7 +9,11 @@ export const RightPanelChargersCard: React.FC = () => {
     toggleUsinaAC,
     setUsinaModel,
     openModal,
+    activeB2bPreset,
   } = useSolar();
+
+  const b2b = activeB2bPreset;
+  const b2bWatts = Math.round(b2b.chargingAmps * b2b.voltageOut);
 
   return (
     <>
@@ -24,7 +28,7 @@ export const RightPanelChargersCard: React.FC = () => {
               <div className="mppt-meter-header">
                 <div className="mppt-meter-title">
                   <span className="mppt-icon">🔋</span>
-                  <span>Carregador DC-DC B2B1230 (30A)</span>
+                  <span>{b2b.name} ({b2b.chargingAmps}A)</span>
                 </div>
                 <div
                   className="mppt-meter-badge"
@@ -34,7 +38,7 @@ export const RightPanelChargersCard: React.FC = () => {
                     borderColor: b2bCharger.isEngineRunning ? 'rgba(34, 197, 94, 0.4)' : 'rgba(100, 116, 139, 0.3)'
                   }}
                 >
-                  {b2bCharger.isEngineRunning ? '🚗 ALTERNADOR ATIVO (30A)' : '🅿️ MOTOR DESLIGADO'}
+                  {b2bCharger.isEngineRunning ? `🚗 ALTERNADOR ATIVO (${b2b.chargingAmps}A)` : '🅿️ MOTOR DESLIGADO'}
                 </div>
               </div>
 
@@ -119,12 +123,12 @@ export const RightPanelChargersCard: React.FC = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '9.5px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>
                     {b2bCharger.engineHoursPerDay > 0
-                      ? `+${Math.round(b2bCharger.engineHoursPerDay * 30)} Ah/dia injetados`
+                      ? `+${Math.round(b2bCharger.engineHoursPerDay * b2b.chargingAmps)} Ah/dia injetados`
                       : '0 Ah (modo estacionado)'}
                   </span>
                   <span style={{ color: '#fbbf24', fontWeight: 600 }}>
                     {b2bCharger.engineHoursPerDay > 0
-                      ? `+${Math.round(b2bCharger.engineHoursPerDay * 390)} Wh/dia`
+                      ? `+${Math.round(b2bCharger.engineHoursPerDay * b2bWatts)} Wh/dia`
                       : '0 Wh/dia'}
                   </span>
                 </div>
@@ -140,13 +144,13 @@ export const RightPanelChargersCard: React.FC = () => {
                 <div className="mppt-detail-chip">
                   <span className="lbl">Corrente Injetada:</span>
                   <span className="val" style={{ color: b2bCharger.isEngineRunning ? '#4ade80' : '#94a3b8' }}>
-                    {b2bCharger.isEngineRunning ? '+30.0 A' : '0.0 A'}
+                    {b2bCharger.isEngineRunning ? `+${b2b.chargingAmps}.0 A` : '0.0 A'}
                   </span>
                 </div>
                 <div className="mppt-detail-chip">
                   <span className="lbl">Potência Extra:</span>
                   <span className="val" style={{ color: b2bCharger.isEngineRunning ? '#fbbf24' : '#94a3b8' }}>
-                    {b2bCharger.isEngineRunning ? '+390 W' : '0 W'}
+                    {b2bCharger.isEngineRunning ? `+${b2bWatts} W` : '0 W'}
                   </span>
                 </div>
               </div>

@@ -19,6 +19,9 @@ import { CargoBoxPresetsModal } from './components/modals/CargoBoxPresetsModal';
 import { FridgePresetsModal } from './components/modals/FridgePresetsModal';
 import { PortaPottiPresetsModal } from './components/modals/PortaPottiPresetsModal';
 import { StovePresetsModal } from './components/modals/StovePresetsModal';
+import { BatteryPresetsModal } from './components/modals/BatteryPresetsModal';
+import { MpptPresetsModal } from './components/modals/MpptPresetsModal';
+import { B2bPresetsModal } from './components/modals/B2bPresetsModal';
 import { ElectricalPlanarView } from './components/electrical/ElectricalPlanarView';
 import { HydraulicPlanarView } from './components/hydraulic/HydraulicPlanarView';
 
@@ -100,6 +103,9 @@ export const App: React.FC = () => {
       <FridgePresetsModal />
       <PortaPottiPresetsModal />
       <StovePresetsModal />
+      <BatteryPresetsModal />
+      <MpptPresetsModal />
+      <B2bPresetsModal />
     </div>
   );
 };

@@ -167,6 +167,25 @@ export function getUpperCabinetClosure(box: { upperCabinetClosure?: UpperCabinet
 }
 
 /**
+ * Retorna o desconto frontal (em mm) das prateleiras internas do armário aéreo para permitir o
+ * fechamento livre das portas ou o deslize dos trilhos sem colisão.
+ * Padrão marcenaria: 30mm para portas de correr (trilho duplo de alumínio + folga), 25mm para porta basculante (chapa + fecho push-lock), 15mm para friso anti-queda do nicho aberto.
+ */
+export function getUpperCabinetShelfDoorDiscountMm(box: {
+  upperCabinetClosure?: UpperCabinetClosure;
+  upperCabinetDoors?: boolean;
+  upperCabinetShelfDoorDiscountMm?: number;
+}): number {
+  if (box.upperCabinetShelfDoorDiscountMm !== undefined && box.upperCabinetShelfDoorDiscountMm >= 0) {
+    return box.upperCabinetShelfDoorDiscountMm;
+  }
+  const closure = getUpperCabinetClosure(box);
+  if (closure === 'sliding_doors') return 30;
+  if (closure === 'doors') return 25;
+  return 15;
+}
+
+/**
  * Calcula quais direções estão desobstruídas (vazias) para o deslizamento de uma gaveta ou bandeja corrediça.
  * Se houver outro módulo adjacente na direção correspondente, a direção é marcada como bloqueada.
  */
@@ -297,6 +316,7 @@ export interface InternalBoxItem {
   upperCabinetClosure?: UpperCabinetClosure; // Tipo de fechamento: 'sliding_doors' (portas de correr bipartidas 2 folhas), 'doors' (porta basculante), 'open' (nicho aberto)
   isUpperCabinetOpen?: boolean;  // Estado aberto/fechado individual das portas do armário aéreo
   upperCabinetShelves?: number;  // Quantidade de prateleiras internas (1 a 3, padrão 1)
+  upperCabinetShelfDoorDiscountMm?: number; // Desconto/recuo frontal da prateleira para as portas (em mm, padrão automático: 30mm p/ correr, 25mm p/ abrir, 15mm p/ nicho)
   drawerMode?: DrawerMode;       // Alternância entre 'drawer' (gaveteiro alto fechado) ou 'slide_tray' (bandeja corrediça rasa)
   hasCentralTable?: boolean;     // Mesa dinette central removível c/ pedestal náutico
   centralTable?: CentralTableConfig; // Configuração dimensional e de deslocamento da mesa central
@@ -310,6 +330,8 @@ export interface InternalBoxItem {
   stovePresetId?: string;        // ID do preset de fogareiro selecionado (ex: 'ntk-duo-ceramik')
   stovePlacement?: 'inside' | 'top' | 'rear_shelf'; // Local de instalação do fogareiro no módulo
   stoveRotation?: 0 | 90;        // Rotação horizontal do fogareiro (0° ou 90°)
+  hasBattery?: boolean;          // Bateria LiFePO4 instalada no interior do módulo
+  batteryPresetId?: string;      // ID do preset de bateria selecionado
   isOpen?: boolean;
   panels?: BoxPanelsConfig;
   thicknessMm?: number;          // Espessura padrão das chapas de madeira do módulo em mm (padrão: 15mm)

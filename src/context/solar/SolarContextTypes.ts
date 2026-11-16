@@ -20,6 +20,9 @@ import {
   FridgePreset,
   PortaPottiPreset,
   StovePreset,
+  BatteryPreset,
+  MpptPreset,
+  B2bPreset,
   B2BChargerConfig,
   UsinaChargerConfig,
   UsinaModelRating,
@@ -82,7 +85,7 @@ export interface SolarContextType {
 
   hoveredBar: BarMeasurementData | null;
   hoverPos: { x: number; y: number };
-  activeModal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'help' | null;
+  activeModal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'battery-presets' | 'mppt-presets' | 'b2b-presets' | 'help' | null;
   toastMessage: string | null;
 
   panelPresets: SolarPanelPreset[];
@@ -119,6 +122,7 @@ export interface SolarContextType {
   setIsOpenPreview: React.Dispatch<React.SetStateAction<boolean>>;
   isCabinetsOpenPreview: boolean;
   setIsCabinetsOpenPreview: React.Dispatch<React.SetStateAction<boolean>>;
+  toggleCabinetsOpenPreview: (forceState?: boolean) => void;
   isBedOpenPreview: boolean;
   setIsBedOpenPreview: React.Dispatch<React.SetStateAction<boolean>>;
   showMattress: boolean;
@@ -218,7 +222,7 @@ export interface SolarContextType {
   setSunHour: (hour: number) => void;
   takeScreenshot: () => void;
 
-  openModal: (modal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'help' | null) => void;
+  openModal: (modal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'battery-presets' | 'mppt-presets' | 'b2b-presets' | 'help' | null) => void;
   closeModal: () => void;
   flashToast: (msg: string) => void;
 
@@ -251,6 +255,36 @@ export interface SolarContextType {
   updateStovePreset: (id: string, updates: Partial<StovePreset>) => void;
   removeStovePreset: (id: string) => void;
   resetStovePresets: () => void;
+
+  // Presets de Bateria LiFePO4
+  batteryPresets: BatteryPreset[];
+  activeBatteryPresetId: string;
+  activeBatteryPreset: BatteryPreset;
+  selectBatteryPreset: (id: string) => void;
+  addBatteryPreset: (presetData: Omit<BatteryPreset, 'id' | 'isDefault'>) => void;
+  updateBatteryPreset: (id: string, updates: Partial<BatteryPreset>) => void;
+  removeBatteryPreset: (id: string) => void;
+  resetBatteryPresets: () => void;
+
+  // Presets de Controlador MPPT
+  mpptPresets: MpptPreset[];
+  activeMpptPresetId: string;
+  activeMpptPreset: MpptPreset;
+  selectMpptPreset: (id: string) => void;
+  addMpptPreset: (presetData: Omit<MpptPreset, 'id' | 'isDefault'>) => void;
+  updateMpptPreset: (id: string, updates: Partial<MpptPreset>) => void;
+  removeMpptPreset: (id: string) => void;
+  resetMpptPresets: () => void;
+
+  // Presets de Carregador DC-DC B2B
+  b2bPresets: B2bPreset[];
+  activeB2bPresetId: string;
+  activeB2bPreset: B2bPreset;
+  selectB2bPreset: (id: string) => void;
+  addB2bPreset: (presetData: Omit<B2bPreset, 'id' | 'isDefault'>) => void;
+  updateB2bPreset: (id: string, updates: Partial<B2bPreset>) => void;
+  removeB2bPreset: (id: string) => void;
+  resetB2bPresets: () => void;
 
   addAppliance: (name: string, watts: number, hours: number, qty?: number) => void;
   updateAppliance: (id: string, updates: Partial<ApplianceItem>) => void;

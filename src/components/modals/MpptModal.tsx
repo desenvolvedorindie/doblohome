@@ -2,29 +2,55 @@ import React from 'react';
 import { useSolar } from '../../context/SolarContext';
 
 export const MpptModal: React.FC = () => {
-  const { activeModal, closeModal } = useSolar();
+  const { activeModal, closeModal, openModal, activeMpptPreset } = useSolar();
 
   if (activeModal !== 'mppt') return null;
+
+  const mppt = activeMpptPreset;
+  const power12V = Math.round(mppt.maxAmps * 12.8);
+  const power24V = Math.round(mppt.maxAmps * 25.6);
 
   return (
     <div className="modal-overlay open" onClick={closeModal}>
       <div
         className="modal-window glass-panel"
-        style={{ maxWidth: '860px', maxHeight: '88vh', overflowY: 'auto' }}
+        style={{ maxWidth: '880px', maxHeight: '88vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <div className="modal-title">
-            ⚡ Controlador MPPT Kingbo 60A (230Vdc FV · RS485 + WiFi · 12V–96V)
+          <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>⚡</span>
+            <span>{mppt.name} ({mppt.maxAmps}A · Voc máx {mppt.maxPvVoltage}Vdc)</span>
           </div>
-          <button className="modal-close-btn" onClick={closeModal}>
-            &times;
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => openModal('mppt-presets')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(14, 165, 233, 0.16)',
+                border: '1px solid #38bdf8',
+                color: '#38bdf8',
+                padding: '5px 12px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 700
+              }}
+            >
+              ⚙️ Trocar / Cadastrar MPPTs
+            </button>
+            <button className="modal-close-btn" onClick={closeModal}>
+              &times;
+            </button>
+          </div>
         </div>
         <div className="blueprint-grid">
           {/* Coluna esquerda: Imagem e descrição */}
           <div className="blueprint-card">
-            <h4>Kingbo MPPT 60A — Visão Geral</h4>
+            <h4>{mppt.name} — Visão Geral</h4>
             <div
               style={{
                 background: 'rgba(14,165,233,0.08)',
@@ -37,92 +63,67 @@ export const MpptModal: React.FC = () => {
             >
               <div style={{ fontSize: '48px', marginBottom: '8px' }}>⚡</div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#38bdf8' }}>
-                Kingbo MPPT Solar Charge Controller
+                {mppt.brand} · {mppt.model}
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Modelo 60A · 230Vdc FV máx · 96V bateria
+                Modelo {mppt.maxAmps}A · {mppt.maxPvVoltage}Vdc FV máx
               </div>
             </div>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-              Controlador de carga fotovoltaica de alta eficiência com algoritmo MPPT de rastreamento automático.
-              Suporte a baterias de chumbo-ácido, gel, ferro-lítio (LiFePO4) e lítio ternário.
-              Display LCD touch com exibição em português/inglês. Comunicação RS485 (8 pinos) e WiFi para
-              monitoramento remoto em tempo real via smartphone.
+              {mppt.description || 'Controlador de carga solar com algoritmo MPPT ultra-rápido.'}
             </p>
+            {mppt.features && mppt.features.length > 0 && (
+              <div style={{ marginTop: '10px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8', marginBottom: '4px' }}>Destaques:</div>
+                <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '11px', color: '#cbd5e1', lineHeight: 1.5 }}>
+                  {mppt.features.map((f, i) => (
+                    <li key={i}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Coluna direita: Especificações técnicas completas */}
           <div className="blueprint-card">
-            <h4>Especificações Técnicas (Modelo 60A)</h4>
+            <h4>Especificações Técnicas ({mppt.maxAmps}A)</h4>
             <table className="bom-table">
               <tbody>
                 <tr>
+                  <td><strong>Marca / Modelo:</strong></td>
+                  <td>{mppt.brand} · {mppt.model}</td>
+                </tr>
+                <tr>
                   <td><strong>Corrente de carga nominal:</strong></td>
-                  <td>60 A</td>
+                  <td><strong>{mppt.maxAmps} A</strong></td>
                 </tr>
                 <tr>
-                  <td><strong>Potência FV máx (12V):</strong></td>
-                  <td>720 W</td>
+                  <td><strong>Potência FV máx estimada (12V):</strong></td>
+                  <td>~{power12V} W</td>
                 </tr>
                 <tr>
-                  <td><strong>Potência FV máx (24V):</strong></td>
-                  <td>1.400 W</td>
+                  <td><strong>Potência FV máx estimada (24V):</strong></td>
+                  <td>~{power24V} W</td>
                 </tr>
                 <tr>
                   <td><strong>Tensão FV entrada (Voc máx):</strong></td>
-                  <td>0 – 230 Vdc</td>
+                  <td><strong>0 – {mppt.maxPvVoltage} Vdc</strong></td>
                 </tr>
                 <tr>
                   <td><strong>Tensão da bateria:</strong></td>
-                  <td>12V / 24V / 36V / 48V / 72V / 84V / 96V (auto)</td>
+                  <td>12V / 24V (Auto)</td>
                 </tr>
                 <tr>
-                  <td><strong>Modo de carregamento:</strong></td>
-                  <td>MPPT rastreamento + rápido + balanceado + flutuante</td>
-                </tr>
-                <tr>
-                  <td><strong>Tipos de bateria:</strong></td>
-                  <td>Chumbo-ácido · Gel · LiFePO4 · Lítio ternário · Usuário</td>
-                </tr>
-                <tr>
-                  <td><strong>Compatibilidade LiFePO4:</strong></td>
-                  <td>✅ Identificação automática (ideal para Kingbo 560Ah)</td>
-                </tr>
-                <tr>
-                  <td><strong>Saída DC (carga direta):</strong></td>
-                  <td>60 A contínuo</td>
-                </tr>
-                <tr>
-                  <td><strong>Comunicação:</strong></td>
-                  <td>RS485 (8 pinos) + WiFi monitor</td>
-                </tr>
-                <tr>
-                  <td><strong>Eficiência geral:</strong></td>
-                  <td><strong>96,5% – 99%</strong></td>
-                </tr>
-                <tr>
-                  <td><strong>Consumo estático:</strong></td>
-                  <td>2 W</td>
-                </tr>
-                <tr>
-                  <td><strong>Temperatura de operação:</strong></td>
-                  <td>−10°C a +45°C (proteção térmica a 85°C)</td>
-                </tr>
-                <tr>
-                  <td><strong>Proteção mecânica:</strong></td>
-                  <td>IP21</td>
-                </tr>
-                <tr>
-                  <td><strong>Dimensões (60A):</strong></td>
-                  <td>202 × 215 × 100 mm</td>
+                  <td><strong>Dimensões (L × A × P):</strong></td>
+                  <td>{mppt.dimensionsMm.width} × {mppt.dimensionsMm.height} × {mppt.dimensionsMm.depth} mm</td>
                 </tr>
                 <tr>
                   <td><strong>Peso líquido:</strong></td>
-                  <td>1,95 kg</td>
+                  <td>{mppt.weightKg} kg</td>
                 </tr>
                 <tr>
-                  <td><strong>Altitude máxima:</strong></td>
-                  <td>0 – 3.000 m</td>
+                  <td><strong>Eficiência de rastreamento:</strong></td>
+                  <td>≥ 99.5%</td>
                 </tr>
               </tbody>
             </table>
@@ -148,20 +149,16 @@ export const MpptModal: React.FC = () => {
             <table className="bom-table">
               <tbody>
                 <tr>
-                  <td><strong>Painéis conectados:</strong></td>
-                  <td>Até 8× 100W flexível (2× em série = 36,4V · 44,56V Voc)</td>
+                  <td><strong>Corrente máx MPPT:</strong></td>
+                  <td>{mppt.maxAmps}A de injeção direta no barramento principal</td>
                 </tr>
                 <tr>
-                  <td><strong>Configuração recomendada:</strong></td>
-                  <td>2S×4P → Vmp ≈ 36,4V · Isc ≈ 23,2A → <strong>843W</strong></td>
+                  <td><strong>Limite de Tensão FV:</strong></td>
+                  <td>Até {mppt.maxPvVoltage}Vdc (compatível com múltiplos painéis em série)</td>
                 </tr>
                 <tr>
-                  <td><strong>Corrente MPPT no sistema:</strong></td>
-                  <td>≈ 60A @ 12V (saturação plena a 8 painéis)</td>
-                </tr>
-                <tr>
-                  <td><strong>Comunicação RS485:</strong></td>
-                  <td>Conexão direta ao JK-BMS da bateria Kingbo 560Ah</td>
+                  <td><strong>Compatibilidade Química:</strong></td>
+                  <td>LiFePO4, Chumbo-Ácido, AGM, Gel e baterias customizadas</td>
                 </tr>
               </tbody>
             </table>

@@ -31,6 +31,8 @@ export class UpperCabinetTransverseBuilder {
       isSlidingDoors,
       isDrawer,
       numShelves,
+      shelfDoorDiscountM,
+      shelfDoorDiscountMm,
       isOpen,
       isSelected,
       innerH,
@@ -158,25 +160,39 @@ export class UpperCabinetTransverseBuilder {
           cabinetUserData
         );
 
-        // 6. Prateleiras Internas (apenas para armário convencional com porta ou nicho aberto)
+        // 6. Prateleiras Internas (com desconto frontal para as portas/trilhos e encostadas no fundo)
         if (!isDrawer) {
+          const shelfDepthM = Math.max(0.05, innerD - shelfDoorDiscountM);
           const shelfSpacing = innerH / (numShelves + 1);
+          // O fundo do armário (face interna) está em:
+          // side === 'rear' ? (-cabinetDepthM / 2 + t) : (+cabinetDepthM / 2 - t)
+          // A prateleira encosta no fundo e termina recuada da frente por shelfDoorDiscountM.
+          // Centro da prateleira no eixo Z:
+          const shelfZ = (side === 'rear')
+            ? (t - shelfDoorDiscountM) / 2
+            : (-t + shelfDoorDiscountM) / 2;
+
           for (let s = 1; s <= numShelves; s++) {
             const shelfY = interiorBottomY + s * shelfSpacing;
             addPanel(
               upperGroup,
               innerW,
               t,
-              innerD - 0.01,
+              shelfDepthM,
               0,
               shelfY,
-              side === 'rear' ? 0.005 : -0.005,
+              shelfZ,
               cabinetMat,
               edgeMat,
               box.id,
               container,
-              `${box.name} • Armário Aéreo (${side}) Prateleira #${s} (${Math.round(innerW * 1000)}×${Math.round(innerD * 1000)}mm)`,
-              cabinetUserData
+              `${box.name} • Armário Aéreo (${side}) Prateleira #${s} (${Math.round(innerW * 1000)}×${Math.round(shelfDepthM * 1000)}mm)`,
+              {
+                ...cabinetUserData,
+                isUpperCabinetShelf: true,
+                shelfIndex: s,
+                doorDiscountMm: Math.round(shelfDoorDiscountM * 1000)
+              }
             );
           }
         }

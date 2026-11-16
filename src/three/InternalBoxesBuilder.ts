@@ -320,8 +320,23 @@ export class InternalBoxesBuilder {
       }
 
       // --- COMPONENTES ELÉTRICOS & INSTALAÇÃO TÉCNICA (Bateria LiFePO4, MPPT, B2B, Usina) ---
-      if (box.electronics && box.electronics.length > 0) {
-        this.electronicsBuilder.buildBoxElectronics(boxContainer, boxWM, boxLM, boxHM, box, isSelected);
+      if ((box.electronics && box.electronics.length > 0) || box.hasBattery) {
+        const effectiveBox = box.hasBattery && (!box.electronics || !box.electronics.some((e) => e.id === 'battery'))
+          ? {
+              ...box,
+              electronics: [
+                ...(box.electronics || []),
+                {
+                  id: 'battery' as const,
+                  mountFace: 'bottom' as const,
+                  position: 'rear_center' as const,
+                  rotationDeg: 0,
+                  presetId: box.batteryPresetId
+                }
+              ]
+            }
+          : box;
+        this.electronicsBuilder.buildBoxElectronics(boxContainer, boxWM, boxLM, boxHM, effectiveBox, isSelected);
       }
 
       // --- GELADEIRA 12V / 24V EMBARCADA ---

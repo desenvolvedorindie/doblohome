@@ -31,6 +31,8 @@ export class UpperCabinetLongitudinalBuilder {
       isSlidingDoors,
       isDrawer,
       numShelves,
+      shelfDoorDiscountM,
+      shelfDoorDiscountMm,
       isOpen,
       isSelected,
       innerH,
@@ -170,25 +172,39 @@ export class UpperCabinetLongitudinalBuilder {
       cabinetUserData
     );
 
-    // 6. Prateleiras Internas (apenas para armário convencional com porta ou nicho aberto)
+    // 6. Prateleiras Internas (com desconto frontal para as portas/trilhos e encostadas no fundo)
     if (!isDrawer) {
+      const shelfDepthM = Math.max(0.05, innerD - shelfDoorDiscountM);
       const shelfSpacing = innerH / (numShelves + 1);
+      // O fundo do armário (face interna) encostado na lataria lateral está em:
+      // side === 'left' ? (+cabinetDepthM / 2 - t) : (-cabinetDepthM / 2 + t)
+      // A prateleira encosta no fundo e termina recuada da frente (corredor) por shelfDoorDiscountM.
+      // Centro da prateleira no eixo X:
+      const shelfX = (side === 'left')
+        ? (-t + shelfDoorDiscountM) / 2
+        : (t - shelfDoorDiscountM) / 2;
+
       for (let s = 1; s <= numShelves; s++) {
         const shelfY = interiorBottomY + s * shelfSpacing;
         addPanel(
           upperGroup,
-          innerD - 0.01,
+          shelfDepthM,
           t,
           innerL,
-          side === 'left' ? -0.005 : 0.005,
+          shelfX,
           shelfY,
           0,
           cabinetMat,
           edgeMat,
           box.id,
           container,
-          `${box.name} • Armário Aéreo (${side}) Prateleira #${s} (${Math.round(innerD * 1000)}×${Math.round(innerL * 1000)}mm)`,
-          cabinetUserData
+          `${box.name} • Armário Aéreo (${side}) Prateleira #${s} (${Math.round(shelfDepthM * 1000)}×${Math.round(innerL * 1000)}mm)`,
+          {
+            ...cabinetUserData,
+            isUpperCabinetShelf: true,
+            shelfIndex: s,
+            doorDiscountMm: Math.round(shelfDoorDiscountM * 1000)
+          }
         );
       }
     }

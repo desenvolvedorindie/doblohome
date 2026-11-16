@@ -36,7 +36,7 @@ export function useViewAndInspectionActions(
   const [activeCameraPreset, setActiveCameraPreset] = useState<CameraPreset>('iso');
   const [sunHour, setSunHourState] = useState<number>(12.0);
 
-  const [activeModal, setActiveModal] = useState<'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'help' | null>(null);
+  const [activeModal, setActiveModal] = useState<'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'battery-presets' | 'mppt-presets' | 'b2b-presets' | 'help' | null>(null);
   const [hoveredBar, setHoveredBar] = useState<BarMeasurementData | null>(null);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -99,7 +99,7 @@ export function useViewAndInspectionActions(
     if (sceneManager) sceneManager.takeScreenshot();
   };
 
-  const openModal = (modal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'help' | null) => {
+  const openModal = (modal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'battery-presets' | 'mppt-presets' | 'b2b-presets' | 'help' | null) => {
     setActiveModal(modal);
   };
 

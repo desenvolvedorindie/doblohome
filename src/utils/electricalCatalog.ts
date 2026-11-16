@@ -1,4 +1,4 @@
-import { ApplianceItem, B2BChargerConfig, EnergyStats, UsinaChargerConfig } from '../types';
+import { ApplianceItem, B2BChargerConfig, EnergyStats, UsinaChargerConfig, BatteryPreset, MpptPreset, B2bPreset } from '../types';
 import {
   ElectricalCatalogTemplate,
   ElectricalNodeData,
@@ -9,17 +9,32 @@ import {
 export function buildSystemFixedTemplates(
   energyStats: EnergyStats,
   b2bCharger: B2BChargerConfig,
-  usinaCharger: UsinaChargerConfig
+  usinaCharger: UsinaChargerConfig,
+  batteryPreset?: BatteryPreset,
+  mpptPreset?: MpptPreset,
+  b2bPreset?: B2bPreset
 ): ElectricalCatalogTemplate[] {
   const solarWatts = energyStats.nominalPowerW || 400;
   const solarVoc = parseFloat(energyStats.voc || '44.56') || 44.56;
   const solarAmps = +(solarWatts / Math.max(12, solarVoc * 0.82)).toFixed(1);
 
-  const mpptAmps = 60;
+  const mpptAmps = mpptPreset?.maxAmps || 60;
   const usinaAmps = usinaCharger.modelRating || 120;
   const usinaWatts = Math.round(usinaAmps * (usinaCharger.voltageOut || 14.4));
-  const b2bAmps = b2bCharger.chargingAmps || 30;
-  const b2bWatts = b2bCharger.watts || 390;
+  const b2bAmps = b2bPreset?.chargingAmps || b2bCharger.chargingAmps || 30;
+  const b2bWatts = b2bPreset ? Math.round(b2bPreset.chargingAmps * b2bPreset.voltageOut) : (b2bCharger.watts || 390);
+
+  const batLabel = batteryPreset?.name || 'Bateria LiFePO4 560Ah';
+  const batVoltage = batteryPreset?.voltageNominal || 12.8;
+  const batAh = batteryPreset?.capacityAh || 560;
+  const batBms = batteryPreset?.bmsAmps || 200;
+  const batKwh = ((batAh * batVoltage) / 1000).toFixed(2);
+  const batSubtitle = batteryPreset
+    ? `${batteryPreset.brand} ${batVoltage}V · ${batKwh} kWh · BMS ${batBms}A`
+    : 'Kingbo 12.8V · 7.168 kWh · BMS 200A';
+
+  const mpptLabel = mpptPreset?.name || 'MPPT Kingbo 60A';
+  const mpptPvMax = mpptPreset?.maxPvVoltage || 230;
 
   return [
     {
@@ -40,36 +55,36 @@ export function buildSystemFixedTemplates(
     },
     {
       catalogId: 'sys_mppt',
-      label: 'MPPT Kingbo 60A',
-      subtitle: 'Controlador Solar 230Vdc ➔ 12V',
+      label: mpptLabel,
+      subtitle: `Controlador Solar ${mpptPvMax}Vdc ➔ 12V`,
       category: 'system_fixed',
       kind: 'generic',
       icon: '⚡',
       voltage: 12.8,
-      watts: 768,
+      watts: Math.round(mpptAmps * 12.8),
       amps: mpptAmps,
       isSource: true,
       ports: [
-        { id: 'pv_pos', label: '+ PV IN', polarity: 'pos', side: 'bottom', direction: 'in', maxAmps: 40 },
-        { id: 'pv_neg', label: '- PV IN', polarity: 'neg', side: 'bottom', direction: 'in', maxAmps: 40 },
-        { id: 'bat_pos', label: '+ BAT OUT', polarity: 'pos', side: 'top', direction: 'out', maxAmps: 60 },
-        { id: 'bat_neg', label: '- BAT OUT', polarity: 'neg', side: 'top', direction: 'out', maxAmps: 60 }
+        { id: 'pv_pos', label: '+ PV IN', polarity: 'pos', side: 'bottom', direction: 'in', maxAmps: Math.max(40, mpptAmps) },
+        { id: 'pv_neg', label: '- PV IN', polarity: 'neg', side: 'bottom', direction: 'in', maxAmps: Math.max(40, mpptAmps) },
+        { id: 'bat_pos', label: '+ BAT OUT', polarity: 'pos', side: 'top', direction: 'out', maxAmps: mpptAmps },
+        { id: 'bat_neg', label: '- BAT OUT', polarity: 'neg', side: 'top', direction: 'out', maxAmps: mpptAmps }
       ]
     },
     {
       catalogId: 'sys_battery',
-      label: 'Bateria LiFePO4 560Ah',
-      subtitle: 'Kingbo 12.8V · 7.168 kWh · BMS 200A',
+      label: batLabel,
+      subtitle: batSubtitle,
       category: 'system_fixed',
       kind: 'generic',
       icon: '🔋',
-      voltage: 12.8,
-      watts: 2560,
-      amps: 200,
+      voltage: batVoltage,
+      watts: Math.round(batAh * batVoltage),
+      amps: batBms,
       isSource: true,
       ports: [
-        { id: 'bat_pos', label: '+ Borne Positivo', polarity: 'pos', side: 'right', direction: 'bidirectional', maxAmps: 250 },
-        { id: 'bat_neg', label: '- Borne Negativo', polarity: 'neg', side: 'right', direction: 'bidirectional', maxAmps: 250 }
+        { id: 'bat_pos', label: '+ Borne Positivo', polarity: 'pos', side: 'right', direction: 'bidirectional', maxAmps: Math.max(250, batBms + 50) },
+        { id: 'bat_neg', label: '- Borne Negativo', polarity: 'neg', side: 'right', direction: 'bidirectional', maxAmps: Math.max(250, batBms + 50) }
       ]
     },
     {
@@ -91,7 +106,7 @@ export function buildSystemFixedTemplates(
     },
     {
       catalogId: 'sys_b2b',
-      label: `Carregador DC-DC B2B ${b2bAmps}A`,
+      label: b2bPreset?.name || `Carregador DC-DC B2B ${b2bAmps}A`,
       subtitle: `Alternador ➔ LiFePO4 (${b2bWatts}W)`,
       category: 'system_fixed',
       kind: 'generic',
@@ -101,11 +116,11 @@ export function buildSystemFixedTemplates(
       amps: b2bAmps,
       isSource: true,
       ports: [
-        { id: 'in_pos', label: '+ Alt IN', polarity: 'pos', side: 'left', direction: 'in', maxAmps: 45 },
-        { id: 'in_neg', label: '- GND IN', polarity: 'neg', side: 'left', direction: 'in', maxAmps: 45 },
+        { id: 'in_pos', label: '+ Alt IN', polarity: 'pos', side: 'left', direction: 'in', maxAmps: Math.max(45, b2bAmps + 15) },
+        { id: 'in_neg', label: '- GND IN', polarity: 'neg', side: 'left', direction: 'in', maxAmps: Math.max(45, b2bAmps + 15) },
         { id: 'in_dplus', label: 'Sinal D+', polarity: 'signal', side: 'bottom', direction: 'in' },
-        { id: 'out_pos', label: '+ Casa OUT', polarity: 'pos', side: 'right', direction: 'out', maxAmps: 45 },
-        { id: 'out_neg', label: '- Casa OUT', polarity: 'neg', side: 'right', direction: 'out', maxAmps: 45 }
+        { id: 'out_pos', label: '+ Casa OUT', polarity: 'pos', side: 'right', direction: 'out', maxAmps: Math.max(45, b2bAmps + 15) },
+        { id: 'out_neg', label: '- Casa OUT', polarity: 'neg', side: 'right', direction: 'out', maxAmps: Math.max(45, b2bAmps + 15) }
       ]
     },
     {
@@ -122,6 +137,7 @@ export function buildSystemFixedTemplates(
       ports: [
         { id: 'ac_phase', label: 'AC Fase', polarity: 'ac_phase', side: 'top', direction: 'in', maxAmps: 20 },
         { id: 'ac_neutral', label: 'AC Neutro', polarity: 'ac_neutral', side: 'top', direction: 'in', maxAmps: 20 },
+        { id: 'ac_ground', label: 'Terra (PE)', polarity: 'ac_ground', side: 'top', direction: 'in', maxAmps: 20 },
         { id: 'dc_pos', label: '+ DC OUT', polarity: 'pos', side: 'right', direction: 'out', maxAmps: usinaAmps + 30 },
         { id: 'dc_neg', label: '- DC OUT', polarity: 'neg', side: 'right', direction: 'out', maxAmps: usinaAmps + 30 }
       ]

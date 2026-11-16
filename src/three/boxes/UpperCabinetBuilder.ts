@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { InternalBoxItem, UpperCabinetSide, getUpperCabinetClosure, InternalGridConfig } from '../../types';
+import { InternalBoxItem, UpperCabinetSide, getUpperCabinetClosure, getUpperCabinetShelfDoorDiscountMm, InternalGridConfig } from '../../types';
 import { FLOOR_Y, CEILING_Y, getBoxThickness, getWoodMaterialName } from './BoxGeometryHelpers';
 import { UpperCabinetContext } from './UpperCabinetContext';
 import { UpperCabinetTransverseBuilder } from './UpperCabinetTransverseBuilder';
@@ -90,6 +90,8 @@ export class UpperCabinetBuilder {
     const isSlidingDoors = closure === 'sliding_doors';
     const isDrawer = false;
     const numShelves = Math.max(1, Math.min(3, box.upperCabinetShelves ?? 1));
+    const shelfDoorDiscountMm = getUpperCabinetShelfDoorDiscountMm(box);
+    const shelfDoorDiscountM = shelfDoorDiscountMm / 1000;
 
     // Determina quais laterais estão ativas
     const activeSides: UpperCabinetSide[] = (() => {
@@ -136,6 +138,8 @@ export class UpperCabinetBuilder {
         isSlidingDoors,
         isDrawer,
         numShelves,
+        shelfDoorDiscountM,
+        shelfDoorDiscountMm,
         isOpen,
         isSelected,
         innerH,

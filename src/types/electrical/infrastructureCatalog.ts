@@ -62,8 +62,8 @@ export const INFRASTRUCTURE_CATALOG: ElectricalCatalogTemplate[] = [
   },
   {
     catalogId: 'busbar_pos',
-    label: 'Barramento Positivo (+)',
-    subtitle: 'Distribuição Latão 150A/250A',
+    label: 'Barramento (+)',
+    subtitle: '250A',
     category: 'distribution_protection',
     kind: 'busbar',
     icon: '🟥',
@@ -76,8 +76,8 @@ export const INFRASTRUCTURE_CATALOG: ElectricalCatalogTemplate[] = [
   },
   {
     catalogId: 'busbar_neg',
-    label: 'Barramento Negativo (-)',
-    subtitle: 'Retorno Comum Latão 150A/250A',
+    label: 'Barramento (-)',
+    subtitle: '250A',
     category: 'distribution_protection',
     kind: 'busbar',
     icon: '⬛',
@@ -163,10 +163,8 @@ export const INFRASTRUCTURE_CATALOG: ElectricalCatalogTemplate[] = [
     ports: [
       { id: 'in_pos', label: '+ 12V IN', polarity: 'pos', side: 'left', direction: 'in', maxAmps: 45 },
       { id: 'in_neg', label: '- 12V IN', polarity: 'neg', side: 'left', direction: 'in', maxAmps: 45 },
-      { id: 'out_pos_1', label: '+ 19V (1)', polarity: 'pos', side: 'right', direction: 'out', maxAmps: 15 },
-      { id: 'out_neg_1', label: '- 19V (1)', polarity: 'neg', side: 'right', direction: 'out', maxAmps: 15 },
-      { id: 'out_pos_2', label: '+ 19V (2)', polarity: 'pos', side: 'right', direction: 'out', maxAmps: 15 },
-      { id: 'out_neg_2', label: '- 19V (2)', polarity: 'neg', side: 'right', direction: 'out', maxAmps: 15 }
+      { id: 'out_pos_1', label: '+ 19V OUT', polarity: 'pos', side: 'right', direction: 'out', maxAmps: 30 },
+      { id: 'out_neg_1', label: '- 19V OUT', polarity: 'neg', side: 'right', direction: 'out', maxAmps: 30 }
     ]
   },
   {
@@ -204,7 +202,7 @@ export const INFRASTRUCTURE_CATALOG: ElectricalCatalogTemplate[] = [
   },
   {
     catalogId: 'outlet_ac_ext',
-    label: 'Tomada Externa / Interna AC',
+    label: 'Tomada Externa',
     subtitle: 'Shore Power 2P+T 20A',
     category: 'distribution_protection',
     kind: 'generic',

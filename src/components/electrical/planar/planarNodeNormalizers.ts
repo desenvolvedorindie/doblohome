@@ -65,21 +65,49 @@ export function normalizeBusbarNode(
 export function normalizeUsinaNode(
   node: Node<ElectricalNodeData>
 ): Node<ElectricalNodeData> {
+  if (node.data.catalogId === 'outlet_ac_ext') {
+    if (node.data.label === 'Tomada Externa / Interna AC') {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          label: 'Tomada Externa'
+        }
+      };
+    }
+    return node;
+  }
+
   if (node.data.catalogId !== 'sys_usina' && node.data.systemKey !== 'usina') {
     return node;
   }
-  const ports = node.data.ports || [];
-  const needsUpdate = ports.some(
-    (p) => (p.id === 'dc_pos' || p.id === 'dc_neg') && p.side !== 'right'
-  );
-  if (!needsUpdate) return node;
+  let ports = node.data.ports || [];
+  let changed = false;
+
+  // Garante que o pino de Terra AC existe na entrada (lado top)
+  if (!ports.some((p) => p.id === 'ac_ground')) {
+    ports = [
+      ...ports,
+      { id: 'ac_ground', label: 'Terra (PE)', polarity: 'ac_ground', side: 'top', direction: 'in', maxAmps: 20 }
+    ];
+    changed = true;
+  }
+
+  // Garante que saídas DC estejam no lado direito
+  if (ports.some((p) => (p.id === 'dc_pos' || p.id === 'dc_neg') && p.side !== 'right')) {
+    ports = ports.map((p) =>
+      p.id === 'dc_pos' || p.id === 'dc_neg' ? { ...p, side: 'right' } : p
+    );
+    changed = true;
+  }
+
+  if (!changed) return node;
+
   return {
     ...node,
     data: {
       ...node.data,
-      ports: ports.map((p) =>
-        p.id === 'dc_pos' || p.id === 'dc_neg' ? { ...p, side: 'right' } : p
-      )
+      ports
     }
   };
 }

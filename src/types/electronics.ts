@@ -30,6 +30,7 @@ export interface InstalledElectronicItem {
   customOffsetXmm?: number;
   customOffsetYmm?: number;
   customOffsetZmm?: number;
+  presetId?: string;
 }
 
 export interface ElectronicComponentMeta {

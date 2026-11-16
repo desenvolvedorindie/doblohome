@@ -352,6 +352,7 @@ export class SceneManager {
     // Sincroniza componentes elétricos instalados nos módulos para evitar duplicatas flutuantes
     const assigned = new Set<string>();
     boxes.forEach((b) => {
+      if (b.hasBattery) assigned.add('battery');
       b.electronics?.forEach((e) => assigned.add(e.id));
     });
     this.solarSystem.setAssignedElectronics(assigned);

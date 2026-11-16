@@ -25,7 +25,16 @@ export const ElectricalPaletteSidebar: React.FC<ElectricalPaletteSidebarProps> =
   onCreateCustomTemplate,
   onRemoveCustomTemplate
 }) => {
-  const { energyStats, b2bCharger, usinaCharger, appliances, openModal } = useSolar();
+  const {
+    energyStats,
+    b2bCharger,
+    usinaCharger,
+    appliances,
+    openModal,
+    activeBatteryPreset,
+    activeMpptPreset,
+    activeB2bPreset
+  } = useSolar();
   const [search, setSearch] = useState('');
   const [showCustomForm, setShowCustomForm] = useState(false);
 
@@ -35,7 +44,14 @@ export const ElectricalPaletteSidebar: React.FC<ElectricalPaletteSidebarProps> =
   const [customWatts, setCustomWatts] = useState('60');
   const [customIsAc, setCustomIsAc] = useState(false);
 
-  const systemTemplates = buildSystemFixedTemplates(energyStats, b2bCharger, usinaCharger);
+  const systemTemplates = buildSystemFixedTemplates(
+    energyStats,
+    b2bCharger,
+    usinaCharger,
+    activeBatteryPreset,
+    activeMpptPreset,
+    activeB2bPreset
+  );
   const loadTemplates = appliances.map((app) => buildApplianceTemplate(app));
 
   const q = search.trim().toLowerCase();

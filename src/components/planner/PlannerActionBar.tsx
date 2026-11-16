@@ -23,6 +23,7 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
     setIsOpenPreview,
     isCabinetsOpenPreview,
     setIsCabinetsOpenPreview,
+    toggleCabinetsOpenPreview,
     updateInternalBox,
     toggleCeiling3D,
   } = useSolar();
@@ -35,41 +36,46 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
       <div
         style={{
           display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '8px',
-          padding: '10px 12px',
+          flexDirection: 'column',
+          gap: '12px',
+          padding: '12px',
           background: 'rgba(15, 23, 42, 0.75)',
           borderRadius: '10px',
           border: '1px solid rgba(56, 189, 248, 0.25)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
           <span style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase' }}>
             📦 Presets de Layout:
           </span>
-          {INTERNAL_BOXES_PRESETS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => onRequestPreset(p)}
-              className="btn-compact"
-              style={{
-                fontSize: '10.5px',
-                padding: '4px 8px',
-                background: 'rgba(30, 41, 59, 0.85)',
-                border: '1px solid rgba(148, 163, 184, 0.3)',
-                color: '#e2e8f0',
-                borderRadius: '6px'
-              }}
-              title={p.description}
-            >
-              {p.name.split(':')[0]}
-            </button>
-          ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+            {INTERNAL_BOXES_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => onRequestPreset(p)}
+                className="btn-compact"
+                style={{
+                  width: '100%',
+                  fontSize: '11px',
+                  padding: '7px 10px',
+                  background: 'rgba(30, 41, 59, 0.85)',
+                  border: '1px solid rgba(148, 163, 184, 0.3)',
+                  color: '#e2e8f0',
+                  borderRadius: '6px',
+                  textAlign: 'center',
+                  fontWeight: 600
+                }}
+                title={p.description}
+              >
+                {p.name.split(':')[0]}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ height: '1px', background: 'rgba(56, 189, 248, 0.2)' }} />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
           {/* Iluminação em Perfil de LED no Rodapé do Assoalho */}
           <button
             onClick={() => {
@@ -85,9 +91,14 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
             }}
             className="btn-compact"
             style={{
-              fontSize: '11px',
-              padding: '5px 10px',
+              width: '100%',
+              fontSize: '11.5px',
+              padding: '8px 12px',
               fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
               background: (internalGrid.ledBaseboard?.enabled ?? true)
                 ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.35))'
                 : 'rgba(30, 41, 59, 0.6)',
@@ -114,39 +125,117 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
             }}
             className="btn-compact primary"
             style={{
-              fontSize: '11px',
-              padding: '5px 12px',
+              width: '100%',
+              fontSize: '11.5px',
+              padding: '8px 12px',
               fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
               background: isOpenPreview ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #0284c7, #2563eb)'
             }}
           >
             {isOpenPreview ? '🛋️ Modo Sofá / Fechar' : '🛌 Abrir Toda a Cama (100%)'}
           </button>
 
-          {hasUpperCabinets && (
-            <button
-              type="button"
-              onClick={() => setIsCabinetsOpenPreview((prev) => !prev)}
-              className="btn-compact"
-              style={{
-                fontSize: '11px',
-                padding: '5px 12px',
-                fontWeight: 700,
-                background: isCabinetsOpenPreview
-                  ? 'linear-gradient(135deg, #10b981, #059669)'
-                  : 'linear-gradient(135deg, #0284c7, #2563eb)',
-                borderColor: isCabinetsOpenPreview ? '#34d399' : '#38bdf8',
-                color: '#ffffff',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-              title="Abrir ou fechar as portas dos armários aéreos no modelo 3D (sistema basculante náutico)"
-            >
-              <span>{isCabinetsOpenPreview ? '🔓' : '🚪'}</span>
-              <span>{isCabinetsOpenPreview ? 'Aéreos: Abertos (Fechar)' : 'Abrir Armários Aéreos'}</span>
-            </button>
-          )}
+          {(() => {
+            const tableBoxes = internalBoxes.filter((b) => b.rearFoldShelf);
+            if (tableBoxes.length === 0) return null;
+            const allOpen = tableBoxes.every((b) => b.isRearShelfOpen ?? isOpenPreview);
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  tableBoxes.forEach((b) => updateInternalBox(b.id, { isRearShelfOpen: !allOpen }));
+                }}
+                className="btn-compact"
+                style={{
+                  width: '100%',
+                  fontSize: '11.5px',
+                  padding: '8px 12px',
+                  fontWeight: 700,
+                  background: allOpen
+                    ? 'linear-gradient(135deg, #10b981, #059669)'
+                    : 'linear-gradient(135deg, #d97706, #b45309)',
+                  borderColor: allOpen ? '#34d399' : '#fbbf24',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+                title="Levantar ou rebater todas as mesas traseiras"
+              >
+                <span>🪵</span>
+                <span>{allOpen ? 'Mesas: Abertas (Fechar Todas)' : 'Abrir Todas as Mesas'}</span>
+              </button>
+            );
+          })()}
+
+          {(() => {
+            const slideBoxes = internalBoxes.filter((b) => b.type === 'drawer' || b.type === 'slide_tray');
+            if (slideBoxes.length === 0) return null;
+            const allOpen = slideBoxes.every((b) => Boolean(b.isOpen));
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  slideBoxes.forEach((b) => updateInternalBox(b.id, { isOpen: !allOpen }));
+                }}
+                className="btn-compact"
+                style={{
+                  width: '100%',
+                  fontSize: '11.5px',
+                  padding: '8px 12px',
+                  fontWeight: 700,
+                  background: allOpen
+                    ? 'linear-gradient(135deg, #10b981, #059669)'
+                    : 'linear-gradient(135deg, #0284c7, #2563eb)',
+                  borderColor: allOpen ? '#34d399' : '#38bdf8',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+                title="Deslizar ou fechar todas as corrediças (gavetas e bandejas)"
+              >
+                <span>{allOpen ? '🔓' : '🛝'}</span>
+                <span>{allOpen ? 'Corrediças: Abertas (Fechar Todas)' : 'Abrir Todas as Corrediças'}</span>
+              </button>
+            );
+          })()}
+
+          {hasUpperCabinets && (() => {
+            const areCabinetsOpen = isCabinetsOpenPreview || internalBoxes.some((b) => b.upperCabinet && b.isUpperCabinetOpen);
+            return (
+              <button
+                type="button"
+                onClick={() => toggleCabinetsOpenPreview()}
+                className="btn-compact"
+                style={{
+                  width: '100%',
+                  fontSize: '11.5px',
+                  padding: '8px 12px',
+                  fontWeight: 700,
+                  background: areCabinetsOpen
+                    ? 'linear-gradient(135deg, #10b981, #059669)'
+                    : 'linear-gradient(135deg, #0284c7, #2563eb)',
+                  borderColor: areCabinetsOpen ? '#34d399' : '#38bdf8',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+                title="Abrir ou fechar as portas de todos os armários aéreos no modelo 3D"
+              >
+                <span>{areCabinetsOpen ? '🔓' : '🚪'}</span>
+                <span>{areCabinetsOpen ? 'Aéreos: Abertos (Fechar Todos)' : 'Abrir Armários Aéreos'}</span>
+              </button>
+            );
+          })()}
 
           {internalGrid.ceiling?.enabled !== false && (
             <button
@@ -154,8 +243,9 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
               onClick={toggleCeiling3D}
               className="btn-compact"
               style={{
-                fontSize: '11px',
-                padding: '5px 12px',
+                width: '100%',
+                fontSize: '11.5px',
+                padding: '8px 12px',
                 fontWeight: 700,
                 background: internalGrid.ceiling?.visibleIn3D !== false
                   ? 'rgba(15, 23, 42, 0.85)'
@@ -164,9 +254,10 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
                   ? 'rgba(56, 189, 248, 0.4)'
                   : '#fbbf24',
                 color: '#ffffff',
-                display: 'inline-flex',
+                display: 'flex',
                 alignItems: 'center',
-                gap: '5px'
+                justifyContent: 'center',
+                gap: '6px'
               }}
               title={
                 internalGrid.ceiling?.visibleIn3D !== false
@@ -187,10 +278,17 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
             onClick={onRequestClear}
             className="btn-compact"
             style={{
-              fontSize: '11px',
-              padding: '5px 10px',
+              width: '100%',
+              fontSize: '11.5px',
+              padding: '8px 12px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
               color: '#f87171',
-              borderColor: 'rgba(239, 68, 68, 0.3)'
+              borderColor: 'rgba(239, 68, 68, 0.3)',
+              background: 'rgba(239, 68, 68, 0.08)'
             }}
             title="Remover todas as caixas"
           >

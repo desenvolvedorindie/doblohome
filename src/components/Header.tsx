@@ -46,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   const menuBarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    document.title = `DoblòHome — ${WORKSPACE_SUBTITLES[viewMode]}`;
+    document.title = `DoblóHome Studio — ${WORKSPACE_SUBTITLES[viewMode]}`;
   }, [viewMode]);
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header ref={menuBarRef} className="ide-menubar">
       {/* ── Esquerda: Logo SVG + Menus estilo IDE ── */}
       <div className="ide-menubar-left">
-        <div className="ide-logo-mark" title="DoblòHome Studio">
+        <div className="ide-logo-mark" title="DoblóHome Studio">
           <svg
             width="18"
             height="18"
@@ -355,12 +355,12 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* ── Centro: Marca DoblòHome com Gradiente FlowML + Badge ── */}
+      {/* ── Centro: Marca DoblóHome Studio com Gradiente FlowML + Badge ── */}
       <div className="ide-menubar-center">
-        <span className="ide-brand-gradient">DoblòHome</span>
+        <span className="ide-brand-gradient">DoblóHome Studio</span>
         <span className="ide-brand-separator">—</span>
         <span className="ide-brand-subtitle">{WORKSPACE_SUBTITLES[viewMode]}</span>
-        <span className="ide-brand-badge">v2.0</span>
+        <span className="ide-brand-badge">v1.0</span>
       </div>
 
       {/* ── Direita: Ações Rápidas + Layout Toggles (Left/Right) + Fullscreen ── */}

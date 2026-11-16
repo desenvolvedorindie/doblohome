@@ -1,7 +1,7 @@
 {
-  "name": "doblohome",
-  "version": "2.0.0",
-  "description": "DoblòHome — Studio 3D Interativo Motorhome & Energia Solar para Fiat Doblò",
+  "name": "doblohome-studio",
+  "version": "1.0.0",
+  "description": "DoblóHome Studio — 3D Interativo Motorhome & Energia Solar para Fiat Dobló",
   "private": true,
   "type": "module",
   "scripts": {

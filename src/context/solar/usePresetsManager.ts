@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SolarPanelPreset, CargoBoxPreset, FridgePreset, PortaPottiPreset, StovePreset } from '../../types';
+import { SolarPanelPreset, CargoBoxPreset, FridgePreset, PortaPottiPreset, StovePreset, BatteryPreset, MpptPreset, B2bPreset } from '../../types';
 import {
   loadPanelPresets,
   savePanelPresets,
@@ -33,13 +33,35 @@ import {
   saveActiveStovePresetId,
   resetStovePresets
 } from '../../data/stovePresets';
+import {
+  loadBatteryPresets,
+  saveBatteryPresets,
+  loadActiveBatteryPresetId,
+  saveActiveBatteryPresetId,
+  resetBatteryPresets
+} from '../../data/batteryPresets';
+import {
+  loadMpptPresets,
+  saveMpptPresets,
+  loadActiveMpptPresetId,
+  saveActiveMpptPresetId,
+  resetMpptPresets
+} from '../../data/mpptPresets';
+import {
+  loadB2bPresets,
+  saveB2bPresets,
+  loadActiveB2bPresetId,
+  saveActiveB2bPresetId,
+  resetB2bPresets
+} from '../../data/b2bPresets';
 
 export function usePresetsManager(
   flashToast: (msg: string) => void,
   sceneManager: any,
   setCargoBox: (updates: any) => void,
   cargoBox: any,
-  updateCalculations: () => void
+  updateCalculations: () => void,
+  setB2BCharger?: (updater: (prev: any) => any) => void
 ) {
   // Presets de Placas Solares
   const [panelPresets, setPanelPresetsState] = useState<SolarPanelPreset[]>(() => loadPanelPresets());
@@ -65,6 +87,21 @@ export function usePresetsManager(
   const [stovePresets, setStovePresetsState] = useState<StovePreset[]>(() => loadStovePresets());
   const [activeStovePresetId, setActiveStovePresetIdState] = useState<string>(() => loadActiveStovePresetId());
   const activeStovePreset = stovePresets.find(p => p.id === activeStovePresetId) || stovePresets[0];
+
+  // Presets de Bateria LiFePO4
+  const [batteryPresets, setBatteryPresetsState] = useState<BatteryPreset[]>(() => loadBatteryPresets());
+  const [activeBatteryPresetId, setActiveBatteryPresetIdState] = useState<string>(() => loadActiveBatteryPresetId());
+  const activeBatteryPreset = batteryPresets.find(p => p.id === activeBatteryPresetId) || batteryPresets[0];
+
+  // Presets de Controlador MPPT
+  const [mpptPresets, setMpptPresetsState] = useState<MpptPreset[]>(() => loadMpptPresets());
+  const [activeMpptPresetId, setActiveMpptPresetIdState] = useState<string>(() => loadActiveMpptPresetId());
+  const activeMpptPreset = mpptPresets.find(p => p.id === activeMpptPresetId) || mpptPresets[0];
+
+  // Presets de Carregador DC-DC B2B
+  const [b2bPresets, setB2bPresetsState] = useState<B2bPreset[]>(() => loadB2bPresets());
+  const [activeB2bPresetId, setActiveB2bPresetIdState] = useState<string>(() => loadActiveB2bPresetId());
+  const activeB2bPreset = b2bPresets.find(p => p.id === activeB2bPresetId) || b2bPresets[0];
 
   const selectPanelPreset = (id: string) => {
     const found = panelPresets.find(p => p.id === id);
@@ -409,6 +446,200 @@ export function usePresetsManager(
     flashToast('🔄 Presets de fogareiro restaurados para os padrões originais');
   };
 
+  // ─── Bateria LiFePO4 CRUD ───────────────────────────────────────────────────
+
+  const selectBatteryPreset = (id: string) => {
+    const found = batteryPresets.find(p => p.id === id);
+    if (!found) return;
+    setActiveBatteryPresetIdState(id);
+    saveActiveBatteryPresetId(id);
+    if (sceneManager?.solarSim) {
+      sceneManager.solarSim.setBatterySpecs(found.capacityAh, found.voltageNominal);
+      updateCalculations();
+    }
+    flashToast(`🔋 Bateria selecionada: ${found.name} (${found.capacityAh}Ah · ${found.voltageNominal}V)`);
+  };
+
+  const addBatteryPreset = (presetData: Omit<BatteryPreset, 'id' | 'isDefault'>) => {
+    const newPreset: BatteryPreset = {
+      ...presetData,
+      id: `battery_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      isDefault: false
+    };
+    const next = [...batteryPresets, newPreset];
+    setBatteryPresetsState(next);
+    saveBatteryPresets(next);
+    selectBatteryPreset(newPreset.id);
+    flashToast(`✅ Nova bateria cadastrada: ${newPreset.name}`);
+  };
+
+  const updateBatteryPreset = (id: string, updates: Partial<BatteryPreset>) => {
+    const next = batteryPresets.map(p => (p.id === id ? { ...p, ...updates } : p));
+    setBatteryPresetsState(next);
+    saveBatteryPresets(next);
+    if (activeBatteryPresetId === id) {
+      const updated = next.find(p => p.id === id);
+      if (updated && sceneManager?.solarSim) {
+        sceneManager.solarSim.setBatterySpecs(updated.capacityAh, updated.voltageNominal);
+        updateCalculations();
+      }
+    }
+    flashToast('✏️ Preset de bateria atualizado!');
+  };
+
+  const removeBatteryPreset = (id: string) => {
+    const target = batteryPresets.find(p => p.id === id);
+    if (!target || target.isDefault) {
+      flashToast('⚠️ Não é permitido excluir o modelo padrão de fábrica.');
+      return;
+    }
+    const next = batteryPresets.filter(p => p.id !== id);
+    setBatteryPresetsState(next);
+    saveBatteryPresets(next);
+    if (activeBatteryPresetId === id && next.length > 0) {
+      selectBatteryPreset(next[0].id);
+    }
+    flashToast('🗑️ Preset de bateria removido');
+  };
+
+  const resetBatteryPresetsToDefault = () => {
+    const defaults = resetBatteryPresets();
+    setBatteryPresetsState(defaults);
+    selectBatteryPreset(defaults[0].id);
+    flashToast('🔄 Presets de bateria restaurados para os padrões originais');
+  };
+
+  // ─── MPPT CRUD ─────────────────────────────────────────────────────────────
+
+  const selectMpptPreset = (id: string) => {
+    const found = mpptPresets.find(p => p.id === id);
+    if (!found) return;
+    setActiveMpptPresetIdState(id);
+    saveActiveMpptPresetId(id);
+    updateCalculations();
+    flashToast(`⚡ MPPT selecionado: ${found.name} (${found.maxAmps}A · ${found.maxPvVoltage}Vdc FV)`);
+  };
+
+  const addMpptPreset = (presetData: Omit<MpptPreset, 'id' | 'isDefault'>) => {
+    const newPreset: MpptPreset = {
+      ...presetData,
+      id: `mppt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      isDefault: false
+    };
+    const next = [...mpptPresets, newPreset];
+    setMpptPresetsState(next);
+    saveMpptPresets(next);
+    selectMpptPreset(newPreset.id);
+    flashToast(`✅ Novo MPPT cadastrado: ${newPreset.name}`);
+  };
+
+  const updateMpptPreset = (id: string, updates: Partial<MpptPreset>) => {
+    const next = mpptPresets.map(p => (p.id === id ? { ...p, ...updates } : p));
+    setMpptPresetsState(next);
+    saveMpptPresets(next);
+    if (activeMpptPresetId === id) {
+      updateCalculations();
+    }
+    flashToast('✏️ Preset de MPPT atualizado!');
+  };
+
+  const removeMpptPreset = (id: string) => {
+    const target = mpptPresets.find(p => p.id === id);
+    if (!target || target.isDefault) {
+      flashToast('⚠️ Não é permitido excluir o modelo padrão de fábrica.');
+      return;
+    }
+    const next = mpptPresets.filter(p => p.id !== id);
+    setMpptPresetsState(next);
+    saveMpptPresets(next);
+    if (activeMpptPresetId === id && next.length > 0) {
+      selectMpptPreset(next[0].id);
+    }
+    flashToast('🗑️ Preset de MPPT removido');
+  };
+
+  const resetMpptPresetsToDefault = () => {
+    const defaults = resetMpptPresets();
+    setMpptPresetsState(defaults);
+    selectMpptPreset(defaults[0].id);
+    flashToast('🔄 Presets de MPPT restaurados para os padrões originais');
+  };
+
+  // ─── B2B CRUD ──────────────────────────────────────────────────────────────
+
+  const selectB2bPreset = (id: string) => {
+    const found = b2bPresets.find(p => p.id === id);
+    if (!found) return;
+    setActiveB2bPresetIdState(id);
+    saveActiveB2bPresetId(id);
+    if (setB2BCharger) {
+      setB2BCharger((prev: any) => ({
+        ...prev,
+        chargingAmps: found.chargingAmps,
+        voltageIn: found.voltageIn,
+        voltageOut: found.voltageOut,
+        watts: Math.round(found.chargingAmps * found.voltageOut)
+      }));
+      updateCalculations();
+    }
+    flashToast(`🔄 B2B selecionado: ${found.name} (${found.chargingAmps}A · ${found.voltageIn}V→${found.voltageOut}V)`);
+  };
+
+  const addB2bPreset = (presetData: Omit<B2bPreset, 'id' | 'isDefault'>) => {
+    const newPreset: B2bPreset = {
+      ...presetData,
+      id: `b2b_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      isDefault: false
+    };
+    const next = [...b2bPresets, newPreset];
+    setB2bPresetsState(next);
+    saveB2bPresets(next);
+    selectB2bPreset(newPreset.id);
+    flashToast(`✅ Novo B2B cadastrado: ${newPreset.name}`);
+  };
+
+  const updateB2bPreset = (id: string, updates: Partial<B2bPreset>) => {
+    const next = b2bPresets.map(p => (p.id === id ? { ...p, ...updates } : p));
+    setB2bPresetsState(next);
+    saveB2bPresets(next);
+    if (activeB2bPresetId === id) {
+      const updated = next.find(p => p.id === id);
+      if (updated && setB2BCharger) {
+        setB2BCharger((prev: any) => ({
+          ...prev,
+          chargingAmps: updated.chargingAmps,
+          voltageIn: updated.voltageIn,
+          voltageOut: updated.voltageOut,
+          watts: Math.round(updated.chargingAmps * updated.voltageOut)
+        }));
+        updateCalculations();
+      }
+    }
+    flashToast('✏️ Preset de B2B atualizado!');
+  };
+
+  const removeB2bPreset = (id: string) => {
+    const target = b2bPresets.find(p => p.id === id);
+    if (!target || target.isDefault) {
+      flashToast('⚠️ Não é permitido excluir o modelo padrão de fábrica.');
+      return;
+    }
+    const next = b2bPresets.filter(p => p.id !== id);
+    setB2bPresetsState(next);
+    saveB2bPresets(next);
+    if (activeB2bPresetId === id && next.length > 0) {
+      selectB2bPreset(next[0].id);
+    }
+    flashToast('🗑️ Preset de B2B removido');
+  };
+
+  const resetB2bPresetsToDefault = () => {
+    const defaults = resetB2bPresets();
+    setB2bPresetsState(defaults);
+    selectB2bPreset(defaults[0].id);
+    flashToast('🔄 Presets de B2B restaurados para os padrões originais');
+  };
+
   return {
     panelPresets,
     setPanelPresetsState,
@@ -457,6 +688,30 @@ export function usePresetsManager(
     addStovePreset,
     updateStovePreset,
     removeStovePreset,
-    resetStovePresetsToDefault
+    resetStovePresetsToDefault,
+    batteryPresets,
+    activeBatteryPresetId,
+    activeBatteryPreset,
+    selectBatteryPreset,
+    addBatteryPreset,
+    updateBatteryPreset,
+    removeBatteryPreset,
+    resetBatteryPresetsToDefault,
+    mpptPresets,
+    activeMpptPresetId,
+    activeMpptPreset,
+    selectMpptPreset,
+    addMpptPreset,
+    updateMpptPreset,
+    removeMpptPreset,
+    resetMpptPresetsToDefault,
+    b2bPresets,
+    activeB2bPresetId,
+    activeB2bPreset,
+    selectB2bPreset,
+    addB2bPreset,
+    updateB2bPreset,
+    removeB2bPreset,
+    resetB2bPresetsToDefault
   };
 }

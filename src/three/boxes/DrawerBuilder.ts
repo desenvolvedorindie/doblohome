@@ -57,11 +57,16 @@ export class DrawerBuilder {
     const hasRight = slideDir === 'right' ? false : (box.panels?.right ?? true);
 
     // 1. Gabinete / Carcaça externa fixa
-    const cabinetMat = new THREE.MeshStandardMaterial({
-      color: 0x1e293b,
-      roughness: 0.8,
-      metalness: 0.2
-    });
+    // Para bandeja corrediça rasa (slide_tray): a carcaça usa o mesmo material
+    // selecionado pelo usuário (mat), pois não há distinção visual necessária entre
+    // carcaça e bandeja. Para gaveta convencional (drawer): carcaça escura estrutural.
+    const cabinetMat = isSlideTray
+      ? mat
+      : new THREE.MeshStandardMaterial({
+          color: 0x1e293b,
+          roughness: 0.8,
+          metalness: 0.2
+        });
 
     const sideH = Math.max(0.01, h - (hasTop ? tTop : 0) - (hasBottom ? tBottom : 0));
     const sideY = hasBottom ? (-h / 2 + tBottom + sideH / 2) : (hasTop ? -tTop / 2 : 0);

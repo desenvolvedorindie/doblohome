@@ -32,6 +32,20 @@ export const NodeInspectorSection: React.FC<NodeInspectorSectionProps> = ({
   const [newPortSide, setNewPortSide] = useState<ElectricalPortSide>('right');
   const [newPortDir, setNewPortDir] = useState<ElectricalPortDirection>('bidirectional');
 
+  const isBusbar = selectedNode.data.kind === 'busbar';
+
+  const handleMovePort = (portId: string, dir: -1 | 1) => {
+    onUpdateNodeData(selectedNode.id, (prev) => {
+      const idx = prev.ports.findIndex((p) => p.id === portId);
+      if (idx < 0) return prev;
+      const target = idx + dir;
+      if (target < 0 || target >= prev.ports.length) return prev;
+      const next = [...prev.ports];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return { ...prev, ports: next };
+    });
+  };
+
   const handleAddPort = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPortLabel.trim()) return;
@@ -39,8 +53,8 @@ export const NodeInspectorSection: React.FC<NodeInspectorSectionProps> = ({
       id: `port_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       label: newPortLabel.trim(),
       polarity: newPortPolarity,
-      side: newPortSide,
-      direction: newPortDir
+      side: isBusbar ? 'left' : newPortSide,
+      direction: isBusbar ? 'bidirectional' : newPortDir
     };
     onUpdateNodeData(selectedNode.id, (prev) => ({
       ...prev,
@@ -195,7 +209,8 @@ export const NodeInspectorSection: React.FC<NodeInspectorSectionProps> = ({
                 const a = Math.max(0, parseFloat(e.target.value) || 0);
                 onUpdateNodeData(selectedNode.id, (prev) => ({
                   ...prev,
-                  amps: a
+                  amps: a,
+                  watts: prev.voltage > 0 ? +(a * prev.voltage).toFixed(1) : prev.watts
                 }));
               }}
               style={{
@@ -267,27 +282,64 @@ export const NodeInspectorSection: React.FC<NodeInspectorSectionProps> = ({
                       }}
                     />
                     <span style={{ color: '#e2e8f0' }}>{port.label}</span>
-                    <span style={{ color: '#64748b', fontSize: '9px' }}>({port.side})</span>
+                    {!isBusbar && (
+                      <span style={{ color: '#64748b', fontSize: '9px' }}>({port.side})</span>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateNodeData(selectedNode.id, (prev) => ({
-                        ...prev,
-                        ports: prev.ports.filter((p) => p.id !== port.id)
-                      }))
-                    }
-                    title="Remover pino"
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#f87171',
-                      cursor: 'pointer',
-                      fontSize: '11px'
-                    }}
-                  >
-                    ×
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleMovePort(port.id, -1)}
+                      title="Mover para cima"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        padding: '0 2px',
+                        lineHeight: 1
+                      }}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMovePort(port.id, 1)}
+                      title="Mover para baixo"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        padding: '0 2px',
+                        lineHeight: 1
+                      }}
+                    >
+                      ▼
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateNodeData(selectedNode.id, (prev) => ({
+                          ...prev,
+                          ports: prev.ports.filter((p) => p.id !== port.id)
+                        }))
+                      }
+                      title="Remover pino"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#f87171',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        padding: '0 2px'
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -318,7 +370,7 @@ export const NodeInspectorSection: React.FC<NodeInspectorSectionProps> = ({
                 fontSize: '10px'
               }}
             />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isBusbar ? '1fr' : '1fr 1fr 1fr', gap: '4px' }}>
               <select
                 value={newPortPolarity}
                 onChange={(e) => setNewPortPolarity(e.target.value as ElectricalPortPolarity)}
@@ -338,6 +390,7 @@ export const NodeInspectorSection: React.FC<NodeInspectorSectionProps> = ({
                 <option value="ac_ground">Terra PE</option>
                 <option value="signal">Sinal D+</option>
               </select>
+              {!isBusbar && (
               <select
                 value={newPortSide}
                 onChange={(e) => setNewPortSide(e.target.value as ElectricalPortSide)}
@@ -355,6 +408,8 @@ export const NodeInspectorSection: React.FC<NodeInspectorSectionProps> = ({
                 <option value="top">Topo</option>
                 <option value="bottom">Base</option>
               </select>
+              )}
+              {!isBusbar && (
               <select
                 value={newPortDir}
                 onChange={(e) => setNewPortDir(e.target.value as ElectricalPortDirection)}
@@ -371,6 +426,7 @@ export const NodeInspectorSection: React.FC<NodeInspectorSectionProps> = ({
                 <option value="in">IN</option>
                 <option value="out">OUT</option>
               </select>
+              )}
             </div>
             <button
               type="submit"

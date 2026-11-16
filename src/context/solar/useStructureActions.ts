@@ -36,8 +36,8 @@ export function useStructureActions(
   const [metalonWallThickness, setMetalonWallThicknessState] = useState<number>(1.5);
   const [metalonThickness40, setMetalonThickness40State] = useState<number>(2.0);
   const [metalonThickness30, setMetalonThickness30State] = useState<number>(1.5);
-  const [offsetZ, setOffsetZState] = useState<number>(-0.68);
-  const [offsetY, setOffsetYState] = useState<number>(0.00);
+  const [offsetZ, setOffsetZState] = useState<number>(-1.20);
+  const [offsetY, setOffsetYState] = useState<number>(-0.14);
   const [expansionProgress, setExpansionProgressState] = useState<number>(0.0);
 
   const setStackLevels = (levels: StackLevels) => {

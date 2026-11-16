@@ -91,8 +91,8 @@ export class SolarSystem {
   slidingLayers: THREE.Group[];
   rackMeshes: THREE.Mesh[];
   currentTrayDims?: TrayDimensions;
-  groupOffsetZ?: number;
-  groupOffsetY?: number;
+  groupOffsetZ: number = -1.20;
+  groupOffsetY: number = -0.14;
 
   level1Motion?: MotionPlan;
   level2Motion?: MotionPlan;
@@ -101,6 +101,8 @@ export class SolarSystem {
     this.scene = scene;
     this.group = new THREE.Group();
     this.group.name = "SolarSystem";
+    this.group.position.z = -1.20;
+    this.group.position.y = -0.14;
     this.scene.add(this.group);
 
     this.RACK_OFFSET_Z = +0.40;

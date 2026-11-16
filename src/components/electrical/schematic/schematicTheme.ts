@@ -68,6 +68,7 @@ export function getSchematicNodeMinWidth(
   bottomPortsCount: number
 ): number {
   if (data.kind === 'fuse_box') return 260;
-  if (data.kind === 'busbar') return 220;
+  if (data.kind === 'busbar') return 0;
+  if (data.catalogId === 'outlet_ac_ext') return 155;
   return Math.max(185, topPortsCount * 64, bottomPortsCount * 42);
 }

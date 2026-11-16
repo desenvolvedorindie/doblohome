@@ -16,6 +16,10 @@ import { PlannerUpperCabinetSection } from './PlannerUpperCabinetSection';
 import { PlannerFridgeSection } from './PlannerFridgeSection';
 import { PlannerPortaPottiSection } from './PlannerPortaPottiSection';
 import { PlannerStoveSection } from './PlannerStoveSection';
+import { PlannerBatterySection } from './PlannerBatterySection';
+import { PlannerMpptSection } from './PlannerMpptSection';
+import { PlannerB2bSection } from './PlannerB2bSection';
+import { PlannerUsinaSection } from './PlannerUsinaSection';
 
 interface PlannerBoxInspectorProps {
   cols?: number;
@@ -515,6 +519,10 @@ export const PlannerBoxInspector: React.FC<PlannerBoxInspectorProps> = ({ cols: 
       </div>
 
       <PlannerSlatBedSection selectedBox={selectedBox} cols={cols} rows={rows} />
+      <PlannerBatterySection selectedBox={selectedBox} boxWMm={boxWMm} boxLMm={boxLMm} />
+      <PlannerMpptSection selectedBox={selectedBox} boxWMm={boxWMm} boxLMm={boxLMm} />
+      <PlannerB2bSection selectedBox={selectedBox} boxWMm={boxWMm} boxLMm={boxLMm} />
+      <PlannerUsinaSection selectedBox={selectedBox} boxWMm={boxWMm} boxLMm={boxLMm} />
       <PlannerFridgeSection selectedBox={selectedBox} boxWMm={boxWMm} boxLMm={boxLMm} />
       <PlannerPortaPottiSection selectedBox={selectedBox} boxWMm={boxWMm} boxLMm={boxLMm} />
       <PlannerStoveSection selectedBox={selectedBox} boxWMm={boxWMm} boxLMm={boxLMm} />
