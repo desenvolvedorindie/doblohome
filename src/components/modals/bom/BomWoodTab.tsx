@@ -336,7 +336,7 @@ export const BomWoodTab: React.FC<BomWoodTabProps> = ({
                                         whiteSpace: 'nowrap'
                                       }}
                                     >
-                                      🛏️ Espuma D33
+                                      🛏️ {piece.woodMaterial.replace(/\s*\(Colchão\)/i, '') || 'Espuma D33'}
                                     </span>
                                   )}
                                   {piece.hasCabinetCutout && (

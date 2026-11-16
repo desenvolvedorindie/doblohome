@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { InternalBoxItem, UpperCabinetSide, getUpperCabinetClosure } from '../../types';
+import { InternalBoxItem, UpperCabinetSide, getUpperCabinetClosure, InternalGridConfig } from '../../types';
 import { FLOOR_Y, CEILING_Y, getBoxThickness, getWoodMaterialName } from './BoxGeometryHelpers';
 import { UpperCabinetContext } from './UpperCabinetContext';
 import { UpperCabinetTransverseBuilder } from './UpperCabinetTransverseBuilder';
@@ -16,7 +16,8 @@ export class UpperCabinetBuilder {
     boxHM: number,
     box: InternalBoxItem,
     isSelected: boolean,
-    isOpen: boolean
+    isOpen: boolean,
+    grid?: InternalGridConfig
   ) {
     const tConfig = getBoxThickness(box);
     const t = tConfig.cabinet; // Espessura das chapas do armário aéreo
@@ -30,15 +31,22 @@ export class UpperCabinetBuilder {
       material: `${woodMat} ${tMm}mm Impermeabilizado`
     };
     const floorY = FLOOR_Y;
-    const ceilingY = CEILING_Y; // 1.72m
+    const heightOffsetM = (grid?.ceiling?.heightOffsetMm ?? 0) / 1000;
+    const ceilingY = CEILING_Y + heightOffsetM; // Altura do teto da Doblò
+    const isSlatted = (grid?.ceiling?.type || 'slatted') === 'slatted';
+    const ceilingThicknessM = (grid?.ceiling && grid.ceiling.enabled !== false)
+      ? (isSlatted ? (grid.ceiling.slatThicknessMm || 12) / 1000 : (grid.ceiling.thicknessMm || 9) / 1000)
+      : 0;
+    // O armário aéreo termina na face inferior do forro do teto, garantindo que o teto fique acima do armário sem invadir o interior:
+    const cabinetCeilingLimitY = ceilingY - ceilingThicknessM;
     const boxTopY = floorY + boxHM;
 
     // Espaçamento inferior configurável (padrão 0mm)
     const bottomGapMm = Math.max(0, box.upperCabinetBottomGapMm ?? 0);
     const bottomGapM = bottomGapMm / 1000;
 
-    // Altura vai do topo do vão inferior até o teto da Doblò
-    const availableH = ceilingY - (boxTopY + bottomGapM);
+    // Altura vai do topo do vão inferior até a face inferior do forro do teto
+    const availableH = cabinetCeilingLimitY - (boxTopY + bottomGapM);
     const cabinetH = Math.max(0.15, availableH);
 
     // Posição Y relativa ao centro da caixa base (centro da caixa está em boxHM / 2):

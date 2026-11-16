@@ -14,8 +14,16 @@ export function buildStoveApplianceAccessory(
   h: number,
   box: InternalBoxItem,
   _isSelected: boolean,
-  _isOpen: boolean = false
+  _isOpen: boolean = false,
+  isBedOpen: boolean = false
 ) {
+  const placement = box.stovePlacement || 'inside';
+
+  // Quando a cama está aberta, o fogareiro posicionado em cima do móvel ('top') some para dar lugar à cama
+  if (placement === 'top' && isBedOpen) {
+    return;
+  }
+
   const drawerSlide = container.getObjectByName('DrawerSlide') as THREE.Group | undefined;
   const targetParent = drawerSlide || container;
 
@@ -24,7 +32,6 @@ export function buildStoveApplianceAccessory(
     (box.stovePresetId && allPresets.find(p => p.id === box.stovePresetId)) ||
     DEFAULT_STOVE_PRESETS[0];
 
-  const placement = box.stovePlacement || 'inside';
   const isRotated = box.stoveRotation === 90;
 
   const swRaw = preset.width / 1000;
@@ -312,13 +319,12 @@ export function buildStoveApplianceAccessory(
     weightKg: preset.weightKg,
     material: preset.material,
     features: preset.features,
-    purpose: `Fogareiro portátil instalado no módulo '${box.name}' (${
-      placement === 'top'
+    purpose: `Fogareiro portátil instalado no módulo '${box.name}' (${placement === 'top'
         ? 'Sobre o Tampo / Bancada'
         : placement === 'rear_shelf'
           ? 'Sobre a Mesa Traseira Rebatível'
           : 'Interior / Gaveta / Bandeja'
-    }). ${preset.ignitionType}.`
+      }). ${preset.ignitionType}.`
   };
 
   stoveGroup.userData = partData;
@@ -331,7 +337,7 @@ export function buildStoveApplianceAccessory(
     stoveGroup.position.set(0, h / 2 + sh / 2 + 0.001, 0);
     container.add(stoveGroup);
   } else if (placement === 'rear_shelf') {
-    const rearPivot = targetParent.getObjectByName('RearFoldShelfPivot') as THREE.Group | undefined;
+    const rearPivot = container.getObjectByName('RearFoldShelfPivot') as THREE.Group | undefined;
     const isRearShelfOpen = Boolean(rearPivot && Math.abs(rearPivot.rotation.x - Math.PI / 2) < 0.1);
     if (rearPivot && isRearShelfOpen) {
       const shelfTMm = box.panelThickness?.shelf || 18;
@@ -351,8 +357,15 @@ export function buildStoveApplianceAccessory(
       targetParent.add(stoveGroup);
     }
   } else {
-    const bottomY = -h / 2 + sh / 2 + 0.018;
-    stoveGroup.position.set(0, bottomY, 0);
+    if (drawerSlide && drawerSlide.userData?.trayTopY !== undefined) {
+      const posX = drawerSlide.userData.cabCenterX || 0;
+      const posZ = drawerSlide.userData.cabCenterZ || 0;
+      const posY = drawerSlide.userData.trayTopY + sh / 2;
+      stoveGroup.position.set(posX, posY, posZ);
+    } else {
+      const bottomY = -h / 2 + sh / 2 + 0.018;
+      stoveGroup.position.set(0, bottomY, 0);
+    }
     targetParent.add(stoveGroup);
   }
 }

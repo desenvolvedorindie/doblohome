@@ -15,7 +15,9 @@ export function buildRearFoldShelfAccessory(
   isOpen: boolean
 ) {
   const isShelfOpen = box.isRearShelfOpen !== undefined ? box.isRearShelfOpen : isOpen;
-  const targetParent = (container.getObjectByName('DrawerSlide') as THREE.Group) || container;
+  // A prateleira rebatível traseira é sempre fixada na carcaça estrutural fixa do módulo (container),
+  // permanecendo estática na face traseira mesmo quando uma gaveta/bandeja corrediça se abre.
+  const targetParent = container;
 
   // Cálculo da mão francesa comercial ideal pela altura disponível
   const bracketSpec = getFoldingBracketForHeight(Math.round(h * 1000), box.rearShelfBracketInches);

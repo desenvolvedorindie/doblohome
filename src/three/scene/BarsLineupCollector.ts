@@ -66,6 +66,7 @@ export class BarsLineupCollector {
       const isUpholstery = Boolean(obj.userData?.isUpholstery);
       if (!obj.isMesh || !obj.userData || (!isWood && !isUpholstery)) return;
       if (obj.userData.isInternalBoxHitbox) return;
+      if (obj.userData.isFoldedSofaVisual) return;
 
       if (!obj.geometry.boundingBox) obj.geometry.computeBoundingBox();
       const bb = obj.geometry.boundingBox;

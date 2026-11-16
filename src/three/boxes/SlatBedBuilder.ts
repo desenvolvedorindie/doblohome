@@ -426,23 +426,81 @@ export class SlatBedBuilder {
 
 
     if (showMattress) {
-      this.mattressBuilder.buildMattress({
-        container,
-        w,
-        l,
-        h,
-        box,
-        slatT,
-        direction,
-        isExtended,
-        extRatio,
-        cellWM,
-        cellLM,
-        isSelected,
-        showMattress,
-        allBoxes,
-        grid
-      });
+      if (!isExtended) {
+        // Modo fechado (Sofá):
+        // 1. Grupo visual do sofá dobrado/empilhado (visível na cena 3D do veículo)
+        const visualGroup = new THREE.Group();
+        visualGroup.name = 'mattress_visual_sofa';
+        this.mattressBuilder.buildMattress({
+          container: visualGroup,
+          w,
+          l,
+          h,
+          box,
+          slatT,
+          direction,
+          isExtended: false,
+          extRatio,
+          cellWM,
+          cellLM,
+          isSelected,
+          showMattress,
+          allBoxes,
+          grid
+        });
+        visualGroup.traverse((obj: any) => {
+          if (obj.isMesh && obj.userData) {
+            obj.userData.isFoldedSofaVisual = true;
+          }
+        });
+        container.add(visualGroup);
+
+        // 2. Grupo nominal aberto/fabricação (invisível na cena do veículo, usado para Ver Peças / Plano de Corte)
+        const nominalGroup = new THREE.Group();
+        nominalGroup.name = 'mattress_nominal_parts';
+        nominalGroup.visible = false;
+        this.mattressBuilder.buildMattress({
+          container: nominalGroup,
+          w,
+          l,
+          h,
+          box,
+          slatT,
+          direction,
+          isExtended: true,
+          extRatio: 1,
+          cellWM,
+          cellLM,
+          isSelected,
+          showMattress,
+          allBoxes,
+          grid
+        });
+        nominalGroup.traverse((obj: any) => {
+          if (obj.isMesh && obj.userData) {
+            obj.userData.isNominalUpholstery = true;
+          }
+        });
+        container.add(nominalGroup);
+      } else {
+        this.mattressBuilder.buildMattress({
+          container,
+          w,
+          l,
+          h,
+          box,
+          slatT,
+          direction,
+          isExtended: true,
+          extRatio,
+          cellWM,
+          cellLM,
+          isSelected,
+          showMattress,
+          allBoxes,
+          grid
+        });
+      }
     }
   }
 }

@@ -91,9 +91,9 @@ export function getUpperCabinetExclusionZones(
 
   const positionMode = box.upperCabinetPositionMode || 'on_box';
   const transverseMode = box.upperCabinetTransverseMode || 'on_box';
-  if (positionMode === 'behind_box' || transverseMode === 'beside_box') {
-    return [];
-  }
+  const besideSide = box.upperCabinetBesideSide || 'outer';
+  const besideOffsetM = (box.upperCabinetBesideOffsetMm ?? 0) / 1000;
+  const behindOffsetM = (box.upperCabinetBehindOffsetMm ?? 0) / 1000;
 
   const offsetM = (box.upperCabinetOffsetMm ?? 0) / 1000;
   const depthOffsetM = (box.upperCabinetDepthOffsetMm ?? 0) / 1000;
@@ -123,10 +123,19 @@ export function getUpperCabinetExclusionZones(
       const widthMm = Math.max(100, Math.min(maxWMm, box.upperCabinetWidthMm ?? Math.round(boxWM * 1000)));
       const cabinetWidthM = widthMm / 1000;
 
-      const cabinetCenterX = (-boxWM / 2 + cabinetWidthM / 2) + offsetM;
-      const cabinetCenterZ = side === 'rear'
+      let cabinetCenterX = (-boxWM / 2 + cabinetWidthM / 2) + offsetM;
+      let cabinetCenterZ = side === 'rear'
         ? (-boxLM / 2 + cabinetDepthM / 2 + depthOffsetM)
         : (boxLM / 2 - cabinetDepthM / 2 - depthOffsetM);
+
+      if (transverseMode === 'beside_box') {
+        cabinetCenterX = (besideSide === 'outer')
+          ? (-boxWM / 2 - cabinetWidthM / 2 - besideOffsetM)
+          : (boxWM / 2 + cabinetWidthM / 2 + besideOffsetM);
+      }
+      if (positionMode === 'behind_box') {
+        cabinetCenterZ = (-boxLM / 2 - cabinetDepthM / 2) - behindOffsetM;
+      }
 
       const minZ = side === 'rear'
         ? (cabinetCenterZ - cabinetDepthM / 2 - marginM)
@@ -150,10 +159,25 @@ export function getUpperCabinetExclusionZones(
       const lengthMm = Math.max(100, Math.min(maxLMm, box.upperCabinetWidthMm ?? Math.round(boxLM * 1000)));
       const cabinetLengthM = lengthMm / 1000;
 
-      const cabinetCenterX = side === 'left'
+      let cabinetCenterX = side === 'left'
         ? (boxWM / 2 - cabinetDepthM / 2 - depthOffsetM)
         : (-boxWM / 2 + cabinetDepthM / 2 + depthOffsetM);
-      const cabinetCenterZ = (-boxLM / 2 + cabinetLengthM / 2) + offsetM;
+      let cabinetCenterZ = (-boxLM / 2 + cabinetLengthM / 2) + offsetM;
+
+      if (transverseMode === 'beside_box') {
+        if (side === 'left') {
+          cabinetCenterX = (besideSide === 'outer')
+            ? (boxWM / 2 + cabinetDepthM / 2 + besideOffsetM)
+            : (-boxWM / 2 - cabinetDepthM / 2 - besideOffsetM);
+        } else {
+          cabinetCenterX = (besideSide === 'outer')
+            ? (-boxWM / 2 - cabinetDepthM / 2 - besideOffsetM)
+            : (boxWM / 2 + cabinetDepthM / 2 + besideOffsetM);
+        }
+      }
+      if (positionMode === 'behind_box') {
+        cabinetCenterZ = (-boxLM / 2 - cabinetLengthM / 2) - behindOffsetM;
+      }
 
       const minX = side === 'left'
         ? (cabinetCenterX - cabinetDepthM / 2 - doorT - marginM)

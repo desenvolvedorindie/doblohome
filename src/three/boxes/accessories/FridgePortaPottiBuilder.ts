@@ -108,9 +108,22 @@ export function buildFridgeApplianceAccessory(
   handleR.position.set(-fw / 2 - 0.004, fh * 0.15, 0);
   fridgeGroup.add(handleR);
 
-  // Posição no interior do módulo (assentada no fundo)
-  const bottomY = -h / 2 + fh / 2 + 0.018;
-  fridgeGroup.position.set(0, bottomY, 0);
+  // Posição no interior do módulo (assentada no fundo ou na bandeja corrediça deslizante)
+  if (drawerSlide && drawerSlide.userData?.trayTopY !== undefined) {
+    const posX = drawerSlide.userData.cabCenterX || 0;
+    const posZ = drawerSlide.userData.cabCenterZ || 0;
+    const posY = drawerSlide.userData.trayTopY + fh / 2;
+    fridgeGroup.position.set(posX, posY, posZ);
+
+    // Se a bandeja desliza para a esquerda ou direita e a profundidade da geladeira for maior que a largura do módulo, rotaciona 90°
+    const slideDir = drawerSlide.userData.slideDirection;
+    if ((slideDir === 'left' || slideDir === 'right') && preset.depth > preset.width && w > l) {
+      fridgeGroup.rotation.y = Math.PI / 2;
+    }
+  } else {
+    const bottomY = -h / 2 + fh / 2 + 0.018;
+    fridgeGroup.position.set(0, bottomY, 0);
+  }
 
   const partData = {
     isAppliance: true,
@@ -281,9 +294,16 @@ export function buildPortaPottiApplianceAccessory(
     portaPottiGroup.add(indicatorMesh);
   }
 
-  // Posição no interior do módulo (assentado no piso do gavetão ou baú)
-  const bottomY = -h / 2 + ph / 2 + 0.018;
-  portaPottiGroup.position.set(0, bottomY, 0);
+  // Posição no interior do módulo (assentado no piso do gavetão, bandeja corrediça ou baú)
+  if (drawerSlide && drawerSlide.userData?.trayTopY !== undefined) {
+    const posX = drawerSlide.userData.cabCenterX || 0;
+    const posZ = drawerSlide.userData.cabCenterZ || 0;
+    const posY = drawerSlide.userData.trayTopY + ph / 2;
+    portaPottiGroup.position.set(posX, posY, posZ);
+  } else {
+    const bottomY = -h / 2 + ph / 2 + 0.018;
+    portaPottiGroup.position.set(0, bottomY, 0);
+  }
 
   const partData = {
     isAppliance: true,

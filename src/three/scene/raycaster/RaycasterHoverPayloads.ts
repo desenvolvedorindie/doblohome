@@ -34,22 +34,22 @@ export function buildWoodHoverPayload(d: Record<string, any>, fallbackModuleName
   const midDimMm = Math.round(midDimM * 1000);
 
   const modName = d.moduleName || fallbackModuleName || '';
-  const name = extractCleanPartName(d.partLabel, modName)
+  const name = d.name || extractCleanPartName(d.partLabel, modName)
     || `Chapa ${d.woodMaterial || 'Compensado Naval'} ${thickMm}mm`;
   const moduleSuffix = modName ? ` • ${modName}` : '';
   const roleDescription = d.isRearShelf
     ? 'Prateleira/bancada traseira rebatível com acabamento decorativo'
     : (WOOD_PART_PURPOSE[d.partType] || 'Peça estrutural de marcenaria do módulo');
-  const purpose = modName
+  const purpose = d.purpose || (modName
     ? `Peça "${name}" do módulo "${modName}". ${roleDescription}`
-    : roleDescription;
+    : roleDescription);
 
   return {
     name,
-    category: `🪵 Peça de Madeira${moduleSuffix}`,
+    category: d.category || `🪵 Peça de Madeira${moduleSuffix}`,
     barLength: maxDimM > 0 ? maxDimM : undefined,
     barWidth: midDimM > 0 ? midDimM : undefined,
-    barProfile: maxDimMm > 0 ? `${maxDimMm} × ${midDimMm} mm (Espessura: ${thickMm} mm)` : `Espessura: ${thickMm} mm`,
+    barProfile: d.barProfile || (maxDimMm > 0 ? `${maxDimMm} × ${midDimMm} mm (Espessura: ${thickMm} mm)` : `Espessura: ${thickMm} mm`),
     material: d.material || `${d.woodMaterial || 'Compensado Naval'} ${thickMm}mm`,
     purpose
   };
@@ -100,7 +100,7 @@ export function buildTargetHoverPayload(target: THREE.Object3D): BarMeasurementD
       purpose: d.purpose
     };
   }
-  if (d.isInternalFloorPlywood || d.isBasePlywood) {
+  if (d.isInternalFloorPlywood || d.isBasePlywood || d.partType === 'floor') {
     return {
       name: d.name || 'Chapa Base Compensado Naval 15mm',
       category: d.category || '🪵 Assoalho Base Campervan',
@@ -108,6 +108,15 @@ export function buildTargetHoverPayload(target: THREE.Object3D): BarMeasurementD
       capacity: d.capacity || 'Fundo Comum dos Módulos',
       material: d.material || 'Compensado Naval 15mm Impermeabilizado',
       purpose: d.purpose || 'Base estrutural de nivelamento e fixação dos móveis internos da Doblò'
+    };
+  }
+  if (d.isAcousticFelt) {
+    return {
+      name: d.name || 'Fundo Acústico do Teto (Feltro Automotivo 3mm)',
+      category: d.category || '🪵 Teto & Forro Campervan',
+      barProfile: d.barProfile || 'Feltro Automotivo 3mm',
+      material: d.material || 'Feltro Acústico Automotivo Preto 3mm',
+      purpose: d.purpose || 'Isolamento termoacústico e fundo escuro para acabamento do forro da Doblò'
     };
   }
   if (d.isAppliance) {

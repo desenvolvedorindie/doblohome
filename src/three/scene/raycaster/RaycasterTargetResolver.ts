@@ -185,7 +185,17 @@ export function resolveSceneHoverTarget(
       if (!isAncestorVisible(obj)) continue;
 
       if ((obj as any).isSprite || (obj as any).isLine || (obj as any).isLineSegments) continue;
-      if (sceneManager.viewMode === 'internal_boxes' && isCeilingObject(obj, sceneManager)) continue;
+      if (isCeilingObject(obj, sceneManager)) {
+        // Se houver uma caixa ou equipamento interno sob o raio e a câmera estiver acima olhando para baixo, prioriza o módulo interno
+        const hasBoxUnderRay = intersects.some((h) => {
+          const o = h.object;
+          return o.name === '__box_hitbox' || o.userData?.isInternalBoxHitbox || o.userData?.isInternalBox;
+        });
+        const isCameraAbove = (sceneManager.camera?.position?.y ?? 0) >= 1.70;
+        if (hasBoxUnderRay && isCameraAbove) {
+          continue;
+        }
+      }
       if (obj.name === '__roof_collider' || obj.userData?.isRoofCollider) continue;
 
       if (obj.name === '__box_hitbox' || obj.userData?.isInternalBoxHitbox) {
@@ -272,7 +282,12 @@ export function resolveSceneHoverTarget(
         if (target && target.userData?.isInternalBox) break;
       }
 
-      if (obj.userData && (obj.userData.isInternalFloorPlywood || obj.userData.isBasePlywood)) {
+      if (obj.userData && (obj.userData.isInternalFloorPlywood || obj.userData.isBasePlywood || obj.userData.partType === 'floor')) {
+        target = obj;
+        break;
+      }
+
+      if (isCeilingObject(obj, sceneManager)) {
         target = obj;
         break;
       }

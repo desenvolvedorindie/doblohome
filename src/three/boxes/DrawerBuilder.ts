@@ -1,19 +1,16 @@
 import * as THREE from 'three';
-import { InternalBoxItem } from '../../types';
+import { InternalBoxItem, BoxSlideDirection } from '../../types';
 import {
-  PLYWOOD_THICKNESS,
-  FLOOR_Y,
   getBoxThickness,
   getWoodMaterialName,
   getUpperCabinetExclusionZones,
-  createPerforatedGeometry,
   addPerforatedPanel,
   addPanel,
   buildHollowBox
 } from './BoxGeometryHelpers';
 
 export class DrawerBuilder {
-    buildDrawerModule(
+  buildDrawerModule(
     container: THREE.Group,
     w: number,
     l: number,
@@ -47,16 +44,17 @@ export class DrawerBuilder {
     });
 
     const isSlideTray = box.type === 'slide_tray' || box.drawerMode === 'slide_tray';
-    const isDrawer = box.type === 'drawer' || isSlideTray;
+    const slideDir: BoxSlideDirection = box.slideDirection || 'rear';
+    const isTransverse = slideDir === 'left' || slideDir === 'right';
 
     const hasTop = box.panels?.top ?? true;
-    const hasLeft = box.panels?.left ?? true;
-    const hasRight = box.panels?.right ?? true;
-    const hasFront = box.panels?.front ?? true;
-    // O vão traseiro (-Z, virado para o porta-malas) de gavetões e bandejas corrediças
-    // deve ser SEMPRE 100% vazado/aberto para permitir que a bandeja ou gaveta deslize para fora da Doblò.
-    const hasRear = isDrawer ? false : (box.panels?.rear ?? false);
     const hasBottom = box.panels?.bottom ?? false;
+
+    // A face para a qual a gaveta/bandeja desliza fica sempre 100% vazada na carcaça externa
+    const hasRear = slideDir === 'rear' ? false : (box.panels?.rear ?? true);
+    const hasFront = slideDir === 'front' ? false : (box.panels?.front ?? true);
+    const hasLeft = slideDir === 'left' ? false : (box.panels?.left ?? true);
+    const hasRight = slideDir === 'right' ? false : (box.panels?.right ?? true);
 
     // 1. Gabinete / Carcaça externa fixa
     const cabinetMat = new THREE.MeshStandardMaterial({
@@ -85,22 +83,10 @@ export class DrawerBuilder {
         });
       }
     }
-    // Fundo inferior próprio
+    // Fundo inferior próprio da carcaça
     if (hasBottom) {
       addPanel(container, w, tBottom, l, 0, -h / 2 + tBottom / 2, 0, cabinetMat, edgeMat, box.id, container, `${box.name} • Base Carcaça (${tBottomMm}mm)`, {
         thicknessMm: tBottomMm, woodMaterial: woodMat, moduleName: box.name, partType: 'bottom', material: `${woodMat} ${tBottomMm}mm Impermeabilizado`
-      });
-    }
-    // Lateral Esquerda (+X / motorista)
-    if (hasLeft) {
-      addPanel(container, tLeft, sideH, l, w / 2 - tLeft / 2, sideY, 0, cabinetMat, edgeMat, box.id, container, `${box.name} • Lateral Esq. Carcaça (${tLeftMm}mm)`, {
-        thicknessMm: tLeftMm, woodMaterial: woodMat, moduleName: box.name, partType: 'left', material: `${woodMat} ${tLeftMm}mm Impermeabilizado`
-      });
-    }
-    // Lateral Direita (-X / passageiro)
-    if (hasRight) {
-      addPanel(container, tRight, sideH, l, -w / 2 + tRight / 2, sideY, 0, cabinetMat, edgeMat, box.id, container, `${box.name} • Lateral Dir. Carcaça (${tRightMm}mm)`, {
-        thicknessMm: tRightMm, woodMaterial: woodMat, moduleName: box.name, partType: 'right', material: `${woodMat} ${tRightMm}mm Impermeabilizado`
       });
     }
 
@@ -110,43 +96,88 @@ export class DrawerBuilder {
     const cabInnerW = Math.max(0.01, cabXMax - cabXMin);
     const cabCenterX = (cabXMin + cabXMax) / 2;
 
-    // Fundo frontal (+Z, virado para os bancos dianteiros)
+    const cabZMin = hasRear ? (-l / 2 + tRear) : (-l / 2);
+    const cabZMax = hasFront ? (l / 2 - tFront) : (l / 2);
+    const cabInnerL = Math.max(0.01, cabZMax - cabZMin);
+    const cabCenterZ = (cabZMin + cabZMax) / 2;
+
+    // Paredes verticais da carcaça
+    if (hasLeft) {
+      addPanel(container, tLeft, sideH, l, w / 2 - tLeft / 2, sideY, 0, cabinetMat, edgeMat, box.id, container, `${box.name} • Lateral Esq. Carcaça (${tLeftMm}mm)`, {
+        thicknessMm: tLeftMm, woodMaterial: woodMat, moduleName: box.name, partType: 'left', material: `${woodMat} ${tLeftMm}mm Impermeabilizado`
+      });
+    }
+    if (hasRight) {
+      addPanel(container, tRight, sideH, l, -w / 2 + tRight / 2, sideY, 0, cabinetMat, edgeMat, box.id, container, `${box.name} • Lateral Dir. Carcaça (${tRightMm}mm)`, {
+        thicknessMm: tRightMm, woodMaterial: woodMat, moduleName: box.name, partType: 'right', material: `${woodMat} ${tRightMm}mm Impermeabilizado`
+      });
+    }
     if (hasFront) {
       addPanel(container, cabInnerW, sideH, tFront, cabCenterX, sideY, l / 2 - tFront / 2, cabinetMat, edgeMat, box.id, container, `${box.name} • Fundo Frontal Carcaça (${tFrontMm}mm)`, {
         thicknessMm: tFrontMm, woodMaterial: woodMat, moduleName: box.name, partType: 'front', material: `${woodMat} ${tFrontMm}mm Impermeabilizado`
       });
     }
-    // Fechamento traseiro (-Z, virado para o porta-malas) se explicitamente ativado (nunca para gavetão ou bandeja corrediça, que devem ser 100% vazados para deslizamento)
-    if (hasRear && !isDrawer) {
+    if (hasRear) {
       const tRearMm = Math.round(tRear * 1000);
-      addPanel(container, cabInnerW, sideH, tRear, cabCenterX, sideY, -l / 2 + tRear / 2, cabinetMat, edgeMat, box.id, container, `${box.name} • Fechamento Traseiro (${tRearMm}mm)`, {
+      addPanel(container, cabInnerW, sideH, tRear, cabCenterX, sideY, -l / 2 + tRear / 2, cabinetMat, edgeMat, box.id, container, `${box.name} • Fechamento Traseiro Carcaça (${tRearMm}mm)`, {
         thicknessMm: tRearMm, woodMaterial: woodMat, moduleName: box.name, partType: 'rear', material: `${woodMat} ${tRearMm}mm Impermeabilizado`
       });
     }
 
-    // 2. Gaveta interna deslizante (oca, com chapas, topo aberto e fundo móvel para carregar objetos)
+    // 2. Gaveta interna deslizante / Bandeja corrediça
     const drawerGroup = new THREE.Group();
     drawerGroup.name = 'DrawerSlide';
 
-    // Deslocamento para fora quando aberta (desliza para trás, em direção ao porta-malas, eixo -Z)
-    const slideOffsetZ = isOpen ? -l * 0.75 : 0;
-    drawerGroup.position.set(0, 0, slideOffsetZ);
-
-    // Dimensões da gaveta com folga de 6mm de cada lado para as corrediças telescópicas
     const clearance = 0.012;
-    const dW = Math.max(0.05, cabInnerW - clearance);
+    let slideOffsetX = 0;
+    let slideOffsetZ = 0;
+    let dW = 0;
+    let dL = 0;
     const dH = Math.max(0.05, sideH - clearance);
-    const dL = Math.max(0.05, l - (hasFront ? tFront : 0) - 0.01);
-    const drawerCenterZ = tDef / 2;
-    // Caixa / Bandeja móvel deslizante (com fundo pois desliza no ar para fora da Doblò)
+
+    if (slideDir === 'rear') {
+      slideOffsetZ = isOpen ? -l * 0.75 : 0;
+      dW = Math.max(0.05, cabInnerW - clearance);
+      dL = Math.max(0.05, cabInnerL - 0.01);
+    } else if (slideDir === 'front') {
+      slideOffsetZ = isOpen ? l * 0.75 : 0;
+      dW = Math.max(0.05, cabInnerW - clearance);
+      dL = Math.max(0.05, cabInnerL - 0.01);
+    } else if (slideDir === 'left') {
+      slideOffsetX = isOpen ? w * 0.75 : 0;
+      dW = Math.max(0.05, cabInnerW - 0.01);
+      dL = Math.max(0.05, cabInnerL - clearance);
+    } else { // 'right'
+      slideOffsetX = isOpen ? -w * 0.75 : 0;
+      dW = Math.max(0.05, cabInnerW - 0.01);
+      dL = Math.max(0.05, cabInnerL - clearance);
+    }
+
+    drawerGroup.position.set(slideOffsetX, 0, slideOffsetZ);
+
+    const trayY = -dH / 2 + tBottom / 2;
+    drawerGroup.userData = {
+      isDrawerSlide: true,
+      slideDirection: slideDir,
+      cabCenterX,
+      cabCenterZ,
+      trayY,
+      trayTopY: trayY + tBottom / 2,
+      dW,
+      dL,
+      dH,
+      tBottom,
+      isOpen
+    };
+
     const drawerBodyGroup = new THREE.Group();
-    drawerBodyGroup.position.set(cabCenterX, 0, drawerCenterZ);
+    drawerBodyGroup.name = 'DrawerBody';
+    drawerBodyGroup.position.set(cabCenterX, 0, cabCenterZ);
 
     if (isSlideTray) {
       // Bandeja Corrediça Rasa (para Geladeira 12V / Fogão portátil):
       // Fundo plano + 4 abas baixas de contenção (45mm de altura)
       const lipH = 0.045;
-      const trayY = -dH / 2 + tBottom / 2;
 
       // Base plana da bandeja
       addPanel(
@@ -172,18 +203,33 @@ export class DrawerBuilder {
       addPanel(drawerBodyGroup, tRight, lipH, dL, -dW / 2 + tRight / 2, trayY + tBottom / 2 + lipH / 2, 0, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Lateral Dir. (${tRightMm}mm)`, {
         thicknessMm: tRightMm, woodMaterial: woodMat, moduleName: box.name, partType: 'right', material: `${woodMat} ${tRightMm}mm`
       });
-      addPanel(drawerBodyGroup, dW - tLeft - tRight, lipH, tRear, 0, trayY + tBottom / 2 + lipH / 2, dL / 2 - tRear / 2, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Traseira (${Math.round(tRear * 1000)}mm)`, {
+      addPanel(drawerBodyGroup, dW - tLeft - tRight, lipH, tRear, 0, trayY + tBottom / 2 + lipH / 2, -dL / 2 + tRear / 2, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Traseira (${Math.round(tRear * 1000)}mm)`, {
         thicknessMm: Math.round(tRear * 1000), woodMaterial: woodMat, moduleName: box.name, partType: 'rear', material: `${woodMat} ${Math.round(tRear * 1000)}mm`
       });
-      addPanel(drawerBodyGroup, dW - tLeft - tRight, lipH, tFront, 0, trayY + tBottom / 2 + lipH / 2, -dL / 2 + tFront / 2, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Frontal (${tFrontMm}mm)`, {
+      addPanel(drawerBodyGroup, dW - tLeft - tRight, lipH, tFront, 0, trayY + tBottom / 2 + lipH / 2, dL / 2 - tFront / 2, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Frontal (${tFrontMm}mm)`, {
         thicknessMm: tFrontMm, woodMaterial: woodMat, moduleName: box.name, partType: 'front', material: `${woodMat} ${tFrontMm}mm`
       });
 
-      // Puxador rebaixado na aba frontal
-      const handleGeo = new THREE.BoxGeometry(Math.min(0.20, dW * 0.4), 0.020, 0.015);
+      // Puxador embutido na aba frontal de abertura
       const handleMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.2 });
-      const handleMesh = new THREE.Mesh(handleGeo, handleMat);
-      handleMesh.position.set(0, trayY + tBottom / 2 + lipH / 2, -dL / 2 - 0.01);
+      let handleMesh: THREE.Mesh;
+      if (slideDir === 'rear') {
+        const handleGeo = new THREE.BoxGeometry(Math.min(0.20, dW * 0.4), 0.020, 0.015);
+        handleMesh = new THREE.Mesh(handleGeo, handleMat);
+        handleMesh.position.set(0, trayY + tBottom / 2 + lipH / 2, -dL / 2 - 0.01);
+      } else if (slideDir === 'front') {
+        const handleGeo = new THREE.BoxGeometry(Math.min(0.20, dW * 0.4), 0.020, 0.015);
+        handleMesh = new THREE.Mesh(handleGeo, handleMat);
+        handleMesh.position.set(0, trayY + tBottom / 2 + lipH / 2, dL / 2 + 0.01);
+      } else if (slideDir === 'left') {
+        const handleGeo = new THREE.BoxGeometry(0.015, 0.020, Math.min(0.20, dL * 0.4));
+        handleMesh = new THREE.Mesh(handleGeo, handleMat);
+        handleMesh.position.set(dW / 2 + 0.01, trayY + tBottom / 2 + lipH / 2, 0);
+      } else { // 'right'
+        const handleGeo = new THREE.BoxGeometry(0.015, 0.020, Math.min(0.20, dL * 0.4));
+        handleMesh = new THREE.Mesh(handleGeo, handleMat);
+        handleMesh.position.set(-dW / 2 - 0.01, trayY + tBottom / 2 + lipH / 2, 0);
+      }
       handleMesh.userData = {
         isInternalBox: true,
         isHardware: true,
@@ -196,18 +242,33 @@ export class DrawerBuilder {
       drawerBodyGroup.add(handleMesh);
 
       // Par de corrediças telescópicas pesadas com trava de fim de curso
-      [-dW / 2 - 0.005, dW / 2 + 0.005].forEach((railX, idx) => {
-        const railGeo = new THREE.BoxGeometry(0.008, 0.035, dL);
-        const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.3 });
-        const railMesh = new THREE.Mesh(railGeo, railMat);
-        railMesh.position.set(railX, trayY + 0.02, 0);
-        railMesh.userData = {
-          isHardware: true,
-          partLabel: `Par de Corrediças Telescópicas Reforçadas 45kg c/ Trava (${idx === 0 ? 'Esq.' : 'Dir.'})`,
-          category: '🔩 Ferragens de Gaveteiros e Bandejas'
-        };
-        drawerBodyGroup.add(railMesh);
-      });
+      if (!isTransverse) {
+        [-dW / 2 - 0.005, dW / 2 + 0.005].forEach((railX, idx) => {
+          const railGeo = new THREE.BoxGeometry(0.008, 0.035, dL);
+          const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.3 });
+          const railMesh = new THREE.Mesh(railGeo, railMat);
+          railMesh.position.set(railX, trayY + 0.02, 0);
+          railMesh.userData = {
+            isHardware: true,
+            partLabel: `Par de Corrediças Telescópicas Reforçadas 45kg c/ Trava (${idx === 0 ? 'Esq.' : 'Dir.'})`,
+            category: '🔩 Ferragens de Gaveteiros e Bandejas'
+          };
+          drawerBodyGroup.add(railMesh);
+        });
+      } else {
+        [-dL / 2 - 0.005, dL / 2 + 0.005].forEach((railZ, idx) => {
+          const railGeo = new THREE.BoxGeometry(dW, 0.035, 0.008);
+          const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.3 });
+          const railMesh = new THREE.Mesh(railGeo, railMat);
+          railMesh.position.set(0, trayY + 0.02, railZ);
+          railMesh.userData = {
+            isHardware: true,
+            partLabel: `Par de Corrediças Telescópicas Reforçadas 45kg c/ Trava (${idx === 0 ? 'Trás' : 'Frente'})`,
+            category: '🔩 Ferragens de Gaveteiros e Bandejas'
+          };
+          drawerBodyGroup.add(railMesh);
+        });
+      }
     } else {
       // Gaveteiro Alto Fechado Convencional
       buildHollowBox(drawerBodyGroup, dW, dH, dL, tDef, mat, edgeMat, true, box.id, container, undefined, box.name, box);
@@ -232,44 +293,130 @@ export class DrawerBuilder {
         }
       });
 
-      // Frente da gaveta
-      const frontFaceW = w - 0.008;
-      const frontFaceH = h - 0.008;
-      addPanel(
-        drawerGroup,
-        frontFaceW,
-        frontFaceH,
-        tFront,
-        0,
-        0,
-        -l / 2 - tFront / 2,
-        mat,
-        edgeMat,
-        box.id,
-        container,
-        `${box.name} • Frente Externa Gaveta (${tFrontMm}mm)`,
-        { thicknessMm: tFrontMm, woodMaterial: woodMat, moduleName: box.name, partType: 'front', material: `${woodMat} ${tFrontMm}mm` }
-      );
-
-      // Puxador metálico embutido
-      const handleGeo = new THREE.BoxGeometry(Math.min(0.24, dW * 0.5), 0.024, 0.02);
+      // Frente externa da gaveta e puxador na direção correspondente
       const handleMat = new THREE.MeshStandardMaterial({
         color: 0xe2e8f0,
         metalness: 0.9,
         roughness: 0.2
       });
-      const handleMesh = new THREE.Mesh(handleGeo, handleMat);
-      handleMesh.position.set(0, 0, -l / 2 - tFront - 0.01);
-      handleMesh.userData = {
-        isInternalBox: true,
-        isHardware: true,
-        boxId: box.id,
-        boxRoot: container,
-        moduleName: box.name,
-        partLabel: `${box.name} • Puxador Metálico Embutido`,
-        category: '🔩 Ferragens de Gaveteiros e Bandejas'
-      };
-      drawerGroup.add(handleMesh);
+
+      if (slideDir === 'rear') {
+        addPanel(
+          drawerGroup,
+          w - 0.008,
+          h - 0.008,
+          tFront,
+          0,
+          0,
+          -l / 2 - tFront / 2,
+          mat,
+          edgeMat,
+          box.id,
+          container,
+          `${box.name} • Frente Externa Gaveta (${tFrontMm}mm)`,
+          { thicknessMm: tFrontMm, woodMaterial: woodMat, moduleName: box.name, partType: 'front', material: `${woodMat} ${tFrontMm}mm` }
+        );
+        const handleGeo = new THREE.BoxGeometry(Math.min(0.24, dW * 0.5), 0.024, 0.02);
+        const handleMesh = new THREE.Mesh(handleGeo, handleMat);
+        handleMesh.position.set(0, 0, -l / 2 - tFront - 0.01);
+        handleMesh.userData = {
+          isInternalBox: true,
+          isHardware: true,
+          boxId: box.id,
+          boxRoot: container,
+          moduleName: box.name,
+          partLabel: `${box.name} • Puxador Metálico Embutido`,
+          category: '🔩 Ferragens de Gaveteiros e Bandejas'
+        };
+        drawerGroup.add(handleMesh);
+      } else if (slideDir === 'front') {
+        addPanel(
+          drawerGroup,
+          w - 0.008,
+          h - 0.008,
+          tFront,
+          0,
+          0,
+          l / 2 + tFront / 2,
+          mat,
+          edgeMat,
+          box.id,
+          container,
+          `${box.name} • Frente Externa Gaveta (${tFrontMm}mm)`,
+          { thicknessMm: tFrontMm, woodMaterial: woodMat, moduleName: box.name, partType: 'front', material: `${woodMat} ${tFrontMm}mm` }
+        );
+        const handleGeo = new THREE.BoxGeometry(Math.min(0.24, dW * 0.5), 0.024, 0.02);
+        const handleMesh = new THREE.Mesh(handleGeo, handleMat);
+        handleMesh.position.set(0, 0, l / 2 + tFront + 0.01);
+        handleMesh.userData = {
+          isInternalBox: true,
+          isHardware: true,
+          boxId: box.id,
+          boxRoot: container,
+          moduleName: box.name,
+          partLabel: `${box.name} • Puxador Metálico Embutido`,
+          category: '🔩 Ferragens de Gaveteiros e Bandejas'
+        };
+        drawerGroup.add(handleMesh);
+      } else if (slideDir === 'left') {
+        addPanel(
+          drawerGroup,
+          tLeft,
+          h - 0.008,
+          l - 0.008,
+          w / 2 + tLeft / 2,
+          0,
+          0,
+          mat,
+          edgeMat,
+          box.id,
+          container,
+          `${box.name} • Frente Externa Gaveta (${tLeftMm}mm)`,
+          { thicknessMm: tLeftMm, woodMaterial: woodMat, moduleName: box.name, partType: 'left', material: `${woodMat} ${tLeftMm}mm` }
+        );
+        const handleGeo = new THREE.BoxGeometry(0.02, 0.024, Math.min(0.24, dL * 0.5));
+        const handleMesh = new THREE.Mesh(handleGeo, handleMat);
+        handleMesh.position.set(w / 2 + tLeft + 0.01, 0, 0);
+        handleMesh.userData = {
+          isInternalBox: true,
+          isHardware: true,
+          boxId: box.id,
+          boxRoot: container,
+          moduleName: box.name,
+          partLabel: `${box.name} • Puxador Metálico Embutido`,
+          category: '🔩 Ferragens de Gaveteiros e Bandejas'
+        };
+        drawerGroup.add(handleMesh);
+      } else { // 'right'
+        addPanel(
+          drawerGroup,
+          tRight,
+          h - 0.008,
+          l - 0.008,
+          -w / 2 - tRight / 2,
+          0,
+          0,
+          mat,
+          edgeMat,
+          box.id,
+          container,
+          `${box.name} • Frente Externa Gaveta (${tRightMm}mm)`,
+          { thicknessMm: tRightMm, woodMaterial: woodMat, moduleName: box.name, partType: 'right', material: `${woodMat} ${tRightMm}mm` }
+        );
+        const handleGeo = new THREE.BoxGeometry(0.02, 0.024, Math.min(0.24, dL * 0.5));
+        const handleMesh = new THREE.Mesh(handleGeo, handleMat);
+        handleMesh.position.set(-w / 2 - tRight - 0.01, 0, 0);
+        handleMesh.userData = {
+          isInternalBox: true,
+          isHardware: true,
+          boxId: box.id,
+          boxRoot: container,
+          moduleName: box.name,
+          partLabel: `${box.name} • Puxador Metálico Embutido`,
+          category: '🔩 Ferragens de Gaveteiros e Bandejas'
+        };
+        drawerGroup.add(handleMesh);
+      }
     }
 
     drawerGroup.add(drawerBodyGroup);
@@ -283,7 +430,7 @@ export class DrawerBuilder {
     });
     const drawerHitMesh = new THREE.Mesh(drawerHitGeo, drawerHitMat);
     drawerHitMesh.name = '__box_hitbox';
-    drawerHitMesh.position.set(cabCenterX, 0, drawerCenterZ);
+    drawerHitMesh.position.set(cabCenterX, 0, cabCenterZ);
     drawerHitMesh.userData = {
       isInternalBoxHitbox: true,
       isInternalBox: true,
@@ -294,5 +441,4 @@ export class DrawerBuilder {
 
     container.add(drawerGroup);
   }
-
 }

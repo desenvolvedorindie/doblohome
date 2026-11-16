@@ -239,7 +239,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       boxesMgr.internalBoxes,
       boxesMgr.selectedBoxId,
       {
-        openCabinets: boxesMgr.isCabinetsOpenPreview || boxesMgr.isOpenPreview,
+        openCabinets: boxesMgr.isCabinetsOpenPreview,
         openBed: boxesMgr.isBedOpenPreview || boxesMgr.isOpenPreview,
         showMattress: boxesMgr.showMattress
       },

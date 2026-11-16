@@ -21,6 +21,7 @@ export function buildLongitudinalMattress(params: {
   mattressMat: THREE.Material;
   seamMat: THREE.Material;
   cutoutZones: CushionRect[];
+  foamName?: string;
 }) {
   const {
     container,
@@ -36,8 +37,12 @@ export function buildLongitudinalMattress(params: {
     mattressY,
     mattressMat,
     seamMat,
-    cutoutZones
+    cutoutZones,
+    foamName
   } = params;
+
+  const foamLabel = foamName || 'Espuma D33';
+  const upholsteryWoodMat = `${foamLabel} (Colchão)`;
 
   const cushionW = w - 0.016;
   const cushionL = cellL - 0.012; // Cada almofada tem o comprimento de 1 subdivisão longitudinal
@@ -71,8 +76,8 @@ export function buildLongitudinalMattress(params: {
           dimL: curL,
           thicknessMm: Math.round(mattressThickness * 1000),
           partLabel: `Almofada Longitudinal ${i + 1}/${parts} (${partsName})${cRes.labelSuffix}`,
-          material: `Espuma D33 Revestida em Tecido Impermeável ${partsName}`,
-          woodMaterial: 'Espuma D33 (Colchão)',
+          material: `${foamLabel} Revestida em Tecido Impermeável ${partsName}`,
+          woodMaterial: upholsteryWoodMat,
           category: '🛏️ Estofaria Campervan',
           hasCabinetCutout: cRes.isCutout,
           moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
@@ -122,8 +127,8 @@ export function buildLongitudinalMattress(params: {
           dimL: curL,
           thicknessMm: Math.round(mattressThickness * 1000),
           partLabel: `Almofada Longitudinal Inteira Modo Sofá${mRes.labelSuffix}`,
-          material: 'Espuma D33 Revestida em Tecido Impermeável',
-          woodMaterial: 'Espuma D33 (Colchão)',
+          material: `${foamLabel} Revestida em Tecido Impermeável`,
+          woodMaterial: upholsteryWoodMat,
           category: '🛏️ Estofaria Campervan',
           hasCabinetCutout: mRes.isCutout,
           moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
@@ -158,8 +163,8 @@ export function buildLongitudinalMattress(params: {
             dimL: curL,
             thicknessMm: Math.round(layerH * 1000),
             partLabel: `Almofada Longitudinal ${p + 1}/${parts} (${partsName} Modo Sofá)${mRes.labelSuffix}`,
-            material: `Espuma D33 Revestida em Tecido Impermeável ${partsName}`,
-            woodMaterial: 'Espuma D33 (Colchão)',
+            material: `${foamLabel} Revestida em Tecido Impermeável ${partsName}`,
+            woodMaterial: upholsteryWoodMat,
             category: '🛏️ Estofaria Campervan',
             hasCabinetCutout: mRes.isCutout,
             moduleName: '🛏️ Cama Retrátil / Sofá-Cama',

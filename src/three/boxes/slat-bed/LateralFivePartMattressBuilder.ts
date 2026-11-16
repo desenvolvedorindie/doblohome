@@ -20,6 +20,7 @@ export function buildLateralFivePartMattress(params: {
   mattressMat: THREE.Material;
   seamMat: THREE.Material;
   cutoutZones: CushionRect[];
+  foamName?: string;
 }) {
   const {
     container,
@@ -34,8 +35,13 @@ export function buildLateralFivePartMattress(params: {
     mattressY,
     mattressMat,
     seamMat,
-    cutoutZones
+    cutoutZones,
+    foamName
   } = params;
+
+  const foamLabel = foamName || 'Espuma D33';
+  const upholsteryMat = `${foamLabel} Revestida em Tecido Impermeável`;
+  const upholsteryWoodMat = `${foamLabel} (Colchão)`;
 
   // --- 5 PARTES: 3 COLUNAS CENTRAIS + 2 ABAS DE CAIXA DE RODA ESQ/DIR ---
   const archW = 0.142; // ~142mm para cada caixa de roda
@@ -63,8 +69,8 @@ export function buildLateralFivePartMattress(params: {
         dimL: curL,
         thicknessMm: Math.round(mattressThickness * 1000),
         partLabel: `Almofada Aba Caixa de Roda${baseArchRes.labelSuffix}`,
-        material: 'Espuma D33 Revestida em Tecido Impermeável',
-        woodMaterial: 'Espuma D33 (Colchão)',
+        material: upholsteryMat,
+        woodMaterial: upholsteryWoodMat,
         category: '🛏️ Estofaria Campervan',
         hasCabinetCutout: baseArchRes.isCutout,
         moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
@@ -102,8 +108,8 @@ export function buildLateralFivePartMattress(params: {
           dimL: curL,
           thicknessMm: Math.round(mattressThickness * 1000),
           partLabel: `Almofada Central ${i + 1}/3${cRes.labelSuffix}`,
-          material: 'Espuma D33 Revestida em Tecido Impermeável',
-          woodMaterial: 'Espuma D33 (Colchão)',
+          material: upholsteryMat,
+          woodMaterial: upholsteryWoodMat,
           category: '🛏️ Estofaria Campervan',
           hasCabinetCutout: cRes.isCutout,
           moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
@@ -169,8 +175,8 @@ export function buildLateralFivePartMattress(params: {
         dimL: curL,
         thicknessMm: Math.round(mattressThickness * 1000),
         partLabel: `Almofada Aba Oposta Caixa de Roda${farArchRes.labelSuffix}`,
-        material: 'Espuma D33 Revestida em Tecido Impermeável',
-        woodMaterial: 'Espuma D33 (Colchão)',
+        material: upholsteryMat,
+        woodMaterial: upholsteryWoodMat,
         category: '🛏️ Estofaria Campervan',
         hasCabinetCutout: farArchRes.isCutout,
         moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
@@ -216,8 +222,8 @@ export function buildLateralFivePartMattress(params: {
           dimL: curL,
           thicknessMm: Math.round(layerH * 1000),
           partLabel: `Almofada Central ${p + 1}/3 (Empilhada Sofá)${mRes.labelSuffix}`,
-          material: 'Espuma D33 Revestida em Tecido Impermeável',
-          woodMaterial: 'Espuma D33 (Colchão)',
+          material: upholsteryMat,
+          woodMaterial: upholsteryWoodMat,
           category: '🛏️ Estofaria Campervan',
           hasCabinetCutout: mRes.isCutout,
           moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
@@ -253,8 +259,8 @@ export function buildLateralFivePartMattress(params: {
           dimL: curL,
           thicknessMm: Math.round(layerH * 1000),
           partLabel: `Almofada Aba Caixa de Roda Dobrada #${p + 1}${fRes.labelSuffix}`,
-          material: 'Espuma D33 Revestida em Tecido Impermeável',
-          woodMaterial: 'Espuma D33 (Colchão)',
+          material: upholsteryMat,
+          woodMaterial: upholsteryWoodMat,
           category: '🛏️ Estofaria Campervan',
           hasCabinetCutout: fRes.isCutout,
           moduleName: '🛏️ Cama Retrátil / Sofá-Cama',

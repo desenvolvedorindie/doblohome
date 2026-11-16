@@ -131,11 +131,12 @@ describe('Upper Cabinets / Armários Aéreos Opening System', () => {
     const door2Open = builder.boxesGroup.getObjectByName(`UpperCabinetSlidingDoor2_${box.id}_rear`);
     expect(door2Open).toBeDefined();
 
-    // 3. Plano de corte de madeira inclui as 2 folhas da porta de correr
+    // 3. Plano de corte de madeira inclui as 2 folhas da porta de correr com espessura de 6mm
     const woodStats = extractWoodCutGroups({ internalBoxesBuilder: builder });
     const slidingPart = woodStats.cutGroups.find((g) => g.label.includes('Porta de Correr'));
     expect(slidingPart).toBeDefined();
     expect(slidingPart?.qty).toBe(2);
+    expect(slidingPart?.thicknessMm).toBe(6);
   });
 
   it('builds longitudinal upper cabinet with sliding doors moving along Z axis', () => {
@@ -172,5 +173,6 @@ describe('Upper Cabinets / Armários Aéreos Opening System', () => {
     const slidingPart = woodStats.cutGroups.find((g) => g.label.includes('Porta de Correr') && g.moduleName === box.name);
     expect(slidingPart).toBeDefined();
     expect(slidingPart?.qty).toBe(2);
+    expect(slidingPart?.thicknessMm).toBe(6);
   });
 });

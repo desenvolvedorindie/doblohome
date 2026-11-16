@@ -64,8 +64,8 @@ export function sanitizeUpholsteryLabel(raw: string): string {
     .replace(/^[\s\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]+/u, '')
     .trim();
 
-  // Se houver separador " • " e o lado esquerdo for nome de caixa/gavetão/módulo, descarta o lado esquerdo
-  if (cleaned.includes('•')) {
+  // Se houver separador " • " e o lado esquerdo for nome de caixa/gavetão/módulo (não começa com "Almofada"), descarta o lado esquerdo
+  if (cleaned.includes('•') && !cleaned.toLowerCase().startsWith('almofada')) {
     const parts = cleaned.split('•');
     if (parts.length >= 2) {
       cleaned = parts.slice(1).join('•').trim();
@@ -128,6 +128,7 @@ export function extractWoodCutGroups(sceneManager: any): {
       const isUpholstery = Boolean(obj.userData?.isUpholstery);
       if (!obj.isMesh || !obj.userData || (!isWood && !isUpholstery)) return;
       if (obj.userData.isInternalBoxHitbox) return;
+      if (obj.userData.isFoldedSofaVisual) return;
 
       if (!obj.geometry.boundingBox) obj.geometry.computeBoundingBox();
       const bb = obj.geometry.boundingBox;

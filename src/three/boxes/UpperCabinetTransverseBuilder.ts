@@ -192,9 +192,15 @@ export class UpperCabinetTransverseBuilder {
           const overlap = 0.030;
           const leafW = (innerW + overlap) / 2;
           const leafH = Math.max(0.08, innerH - 0.008);
-          const doorT = Math.min(t, 0.015);
+          const doorT = 0.006; // 6mm compensado/acrílico/MDF leve para porta de correr
           const corridorDir = side === 'rear' ? 1 : -1;
           const centerY = interiorBottomY + innerH / 2;
+
+          const doorUserData = {
+            ...cabinetUserData,
+            thicknessMm: 6,
+            material: `${woodMat} 6mm Impermeabilizado`
+          };
 
           // Posições no eixo transversal X quando fechado:
           // Folha 1 (Esquerda, -X): cobre de -innerW / 2 até +overlap / 2
@@ -202,9 +208,11 @@ export class UpperCabinetTransverseBuilder {
           // Folha 2 (Direita, +X): cobre de -overlap / 2 até +innerW / 2
           const leaf2ClosedX = innerW / 4 - overlap / 4;
 
-          // Posições no eixo Z dos trilhos paralelos (trilho interno e trilho externo):
-          const leaf1Z = frontZ - corridorDir * (doorT / 2 + 0.002);
-          const leaf2Z = frontZ + corridorDir * (doorT / 2 + 0.002);
+          // Posições no eixo Z dos trilhos paralelos (folha 2 externa rente à face do armário, folha 1 interna deslizando por trás):
+          // A folha 2 (externa) tem sua face externa exatamente no plano frontZ (rente ao armário):
+          const leaf2Z = frontZ - corridorDir * (doorT / 2);
+          // A folha 1 (interna) fica recuada para dentro do armário com folga de 2mm para correr livre:
+          const leaf1Z = frontZ - corridorDir * (doorT * 1.5 + 0.002);
 
           // Deslocamento de abertura no trilho:
           // A Folha 2 corre sobre a Folha 1 ao longo da largura (eixo X), liberando a metade direita do armário
@@ -227,18 +235,18 @@ export class UpperCabinetTransverseBuilder {
             box.id,
             container,
             `${box.name} • Armário Aéreo (${side}) Porta de Correr (#1) (${Math.round(leafW * 1000)}×${Math.round(leafH * 1000)}mm)`,
-            cabinetUserData
+            doorUserData
           );
 
           // Puxador concha embutido náutico Folha 1
-          const pullGeo = new THREE.CylinderGeometry(0.016, 0.016, 0.006, 24);
+          const pullGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.002, 24);
           pullGeo.rotateX(Math.PI / 2);
           const pullMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.2 });
           const pull1Mesh = new THREE.Mesh(pullGeo, pullMat);
           pull1Mesh.position.set(
             leaf1ClosedX - leafW / 2 + 0.05,
             centerY,
-            leaf1Z + corridorDir * (doorT / 2 + 0.001)
+            leaf1Z + corridorDir * (doorT / 2 + 0.0005)
           );
           pull1Mesh.userData = {
             isHardware: true,
@@ -264,7 +272,7 @@ export class UpperCabinetTransverseBuilder {
             box.id,
             container,
             `${box.name} • Armário Aéreo (${side}) Porta de Correr (#2) (${Math.round(leafW * 1000)}×${Math.round(leafH * 1000)}mm)`,
-            cabinetUserData
+            doorUserData
           );
 
           // Puxador concha embutido náutico Folha 2
@@ -272,7 +280,7 @@ export class UpperCabinetTransverseBuilder {
           pull2Mesh.position.set(
             leaf2X + leafW / 2 - 0.05,
             centerY,
-            leaf2Z + corridorDir * (doorT / 2 + 0.001)
+            leaf2Z + corridorDir * (doorT / 2 + 0.0005)
           );
           pull2Mesh.userData = {
             isHardware: true,
@@ -282,13 +290,13 @@ export class UpperCabinetTransverseBuilder {
           leaf2Group.add(pull2Mesh);
 
           // Trava Náutica Trava-Porta de Correr
-          const lockGeo = new THREE.BoxGeometry(0.020, 0.024, 0.012);
+          const lockGeo = new THREE.BoxGeometry(0.016, 0.020, 0.008);
           const lockMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.2 });
           const lockMesh = new THREE.Mesh(lockGeo, lockMat);
           lockMesh.position.set(
             leaf2X - leafW / 2 + 0.02,
             centerY - leafH / 2 + 0.03,
-            leaf2Z + corridorDir * (doorT / 2 + 0.005)
+            leaf2Z + corridorDir * (doorT / 2 + 0.004)
           );
           lockMesh.userData = {
             isHardware: true,
@@ -301,12 +309,12 @@ export class UpperCabinetTransverseBuilder {
           // Trilho Duplo Superior e Inferior em Alumínio Anodizado
           const trackMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.25 });
           const trackThickness = 0.008;
-          const trackDepth = doorT * 2 + 0.008;
+          const trackDepth = doorT * 2 + 0.004;
           [-1, 1].forEach((dirY) => {
             const trackY = dirY === 1 ? (cabinetH / 2 - t - trackThickness / 2) : (interiorBottomY + trackThickness / 2);
             const trackGeo = new THREE.BoxGeometry(innerW, trackThickness, trackDepth);
             const trackMesh = new THREE.Mesh(trackGeo, trackMat);
-            trackMesh.position.set(0, trackY, frontZ);
+            trackMesh.position.set(0, trackY, frontZ - corridorDir * (trackDepth / 2));
             trackMesh.userData = {
               isHardware: true,
               partLabel: `Trilho Duplo Alumínio para Portas de Correr (${dirY === 1 ? 'Superior' : 'Inferior'})`,

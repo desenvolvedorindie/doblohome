@@ -6,6 +6,8 @@ import {
   InternalBoxMaterial,
   InternalBoxType,
   ChestHingeDirection,
+  BoxSlideDirection,
+  getAvailableSlideDirections,
   BoxPanelsConfig
 } from '../../types';
 import { PlannerSlatBedSection } from './PlannerSlatBedSection';
@@ -383,6 +385,76 @@ export const PlannerBoxInspector: React.FC<PlannerBoxInspectorProps> = ({ cols: 
             </div>
           </div>
         )}
+
+        {/* Direção da Corrediça (Abertura para Direções Vazias) */}
+        {(selectedBox.type === 'drawer' || selectedBox.type === 'slide_tray') && (() => {
+          const slideDirs = getAvailableSlideDirections(selectedBox, internalBoxes);
+          const currentDir = selectedBox.slideDirection || (slideDirs.find(d => d.isAvailable)?.direction || 'rear');
+          return (
+            <div style={{ gridColumn: '1 / -1', background: 'rgba(15, 23, 42, 0.45)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '10.5px', color: '#38bdf8', fontWeight: 700, margin: 0 }}>
+                  🛝 Direção de Abertura da Corrediça:
+                </label>
+                <button
+                  type="button"
+                  className="btn-compact"
+                  onClick={() => updateInternalBox(selectedBox.id, { isOpen: !selectedBox.isOpen })}
+                  style={{
+                    fontSize: '10.5px',
+                    padding: '4px 10px',
+                    fontWeight: 700,
+                    background: selectedBox.isOpen
+                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                      : 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+                    borderColor: selectedBox.isOpen ? '#34d399' : '#38bdf8',
+                    color: '#ffffff',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Testar deslizamento da corrediça no modelo 3D (leva a geladeira/fogareiro junto)"
+                >
+                  <span>{selectedBox.isOpen ? '🔓' : '🛝'}</span>
+                  <span>{selectedBox.isOpen ? 'Deslizada (Fechar)' : 'Deslizar Corrediça'}</span>
+                </button>
+              </div>
+
+              <select
+                value={currentDir}
+                onChange={(e) => {
+                  const newDir = e.target.value as BoxSlideDirection;
+                  updateInternalBox(selectedBox.id, { slideDirection: newDir });
+                }}
+                style={{
+                  width: '100%',
+                  background: 'rgba(30, 41, 59, 0.9)',
+                  border: '1px solid rgba(56, 189, 248, 0.45)',
+                  color: '#ffffff',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600
+                }}
+              >
+                {slideDirs.map((d) => (
+                  <option
+                    key={d.direction}
+                    value={d.direction}
+                    disabled={!d.isAvailable}
+                    style={{ color: d.isAvailable ? '#ffffff' : '#94a3b8' }}
+                  >
+                    {d.icon} {d.label} {d.isAvailable ? '• [LIVRE]' : `• [BLOQUEADA por ${d.blockedBy}]`}
+                  </option>
+                ))}
+              </select>
+
+              <div style={{ fontSize: '9.5px', color: '#94a3b8', marginTop: '5px' }}>
+                💡 Apenas direções desobstruídas (vazias) podem ser selecionadas. A geladeira ou fogão acompanha a corrediça na abertura.
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Direção da Dobradiça (Exclusivo para Baú) */}
         {selectedBox.type === 'chest' && (

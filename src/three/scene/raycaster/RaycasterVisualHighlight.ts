@@ -28,9 +28,12 @@ export function highlightRaycasterObject(sceneManager: any, target: THREE.Object
       emissiveColor = 0xf59e0b;
       emissiveIntensity = 0.80;
     }
-  } else if (d.isInternalFloorPlywood || d.isBasePlywood) {
+  } else if (d.isInternalFloorPlywood || d.isBasePlywood || d.partType === 'floor') {
     emissiveColor = 0xd97706;
     emissiveIntensity = 0.50;
+  } else if (d.partType === 'ceiling' || d.isAcousticFelt) {
+    emissiveColor = 0x38bdf8;
+    emissiveIntensity = 0.55;
   } else if (d.isAppliance) {
     emissiveColor = d.isStove ? 0xf97316 : d.isFridge ? 0x38bdf8 : 0x0284c7;
     emissiveIntensity = 0.45;

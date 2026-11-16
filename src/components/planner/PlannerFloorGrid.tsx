@@ -380,7 +380,9 @@ export const PlannerFloorGrid: React.FC<PlannerFloorGridProps> = ({
                     <span>{boxWMm / 10} × {boxLMm / 10} × {(box.heightMm || internalGrid.heightMm) / 10} cm</span>
                     <span style={{ fontStyle: 'italic', opacity: 0.85 }}>
                       {box.type === 'drawer'
-                        ? `Gaveta${box.topPerforated ? ' • Vazada' : ''}`
+                        ? `Gaveta (${box.slideDirection === 'front' ? '▲ Frente' : box.slideDirection === 'left' ? '◀ Esq' : box.slideDirection === 'right' ? '▶ Dir' : '▼ Trás'})${box.topPerforated ? ' • Vazada' : ''}`
+                        : box.type === 'slide_tray'
+                        ? `Bandeja (${box.slideDirection === 'front' ? '▲ Frente' : box.slideDirection === 'left' ? '◀ Esq' : box.slideDirection === 'right' ? '▶ Dir' : '▼ Trás'})${box.topPerforated ? ' • Vazada' : ''}`
                         : box.type === 'open'
                         ? `Nicho${box.topPerforated ? ' • Vazado' : ''}`
                         : box.type === 'slat_bed'

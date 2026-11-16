@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import { InternalBoxesBuilder } from '../src/three/InternalBoxesBuilder';
 import { SceneRaycaster } from '../src/three/scene/SceneRaycaster';
-import { DEFAULT_INTERNAL_GRID, INTERNAL_BOXES_PRESETS } from '../src/data/internalBoxesPresets';
+import { DEFAULT_INTERNAL_GRID, DEFAULT_CEILING_CONFIG, INTERNAL_BOXES_PRESETS } from '../src/data/internalBoxesPresets';
 
 function projectWorldToScreen(
   worldPos: THREE.Vector3,
@@ -286,5 +286,53 @@ describe('Module Focus & Wood-Part Exclusive Hover', () => {
     // Clicar no vazio fora dos módulos quando não está com isolatedBoxId travado limpa a seleção
     SceneRaycaster.handleCanvasClick(sm, 5, 5);
     expect(sm.onBoxSelect).toHaveBeenCalledWith(null);
+  });
+
+  it('triggers hover on floor (chão / assoalho) and ceiling (teto) with metadata and visual highlight', () => {
+    const builder = new InternalBoxesBuilder();
+    const grid = {
+      ...DEFAULT_INTERNAL_GRID,
+      ceiling: { ...DEFAULT_CEILING_CONFIG, enabled: true, visibleIn3D: true, type: 'slatted' as const }
+    };
+    builder.update(grid, [], null, false, null);
+
+    const camera = new THREE.PerspectiveCamera(42, 800 / 600, 0.1, 100);
+    camera.position.set(0, 1.2, 1.8);
+    camera.lookAt(0, 0.48, -0.85);
+    camera.updateMatrixWorld(true);
+
+    const sm = createMockSceneManager(builder, camera);
+
+    // 1. Hover no piso/assoalho naval (chão)
+    const floorMesh = builder.floorMesh!;
+    expect(floorMesh).toBeDefined();
+    const floorPos = new THREE.Vector3(0, 0.48, -0.85);
+    const { screenX: floorX, screenY: floorY } = projectWorldToScreen(floorPos, camera);
+
+    SceneRaycaster.updateBarHover(sm, floorX, floorY);
+    expect(sm.hoveredObject).toBe(floorMesh);
+    expect(sm.onBarHoverChange).toHaveBeenCalled();
+    const floorPayload = sm.onBarHoverChange.mock.calls.at(-1)![0];
+    expect(floorPayload.category).toContain('🪵 Assoalho Base Campervan');
+    expect(floorPayload.material).toContain('Compensado Naval');
+
+    // 2. Hover no forro de teto (ripas)
+    sm.onBarHoverChange.mockClear();
+    camera.position.set(0, 1.2, -0.85);
+    camera.lookAt(0, 1.74, -0.85); // Olha para cima no teto
+    camera.updateMatrixWorld(true);
+
+    const ceilingSlat = builder.ceilingGroup.children.find((c) => c.name.startsWith('CeilingSlat_')) as THREE.Mesh;
+    expect(ceilingSlat).toBeDefined();
+    const slatPos = new THREE.Vector3();
+    ceilingSlat.getWorldPosition(slatPos);
+    const { screenX: slatX, screenY: slatY } = projectWorldToScreen(slatPos, camera);
+
+    SceneRaycaster.updateBarHover(sm, slatX, slatY);
+    expect(sm.hoveredObject).toBe(ceilingSlat);
+    expect(sm.onBarHoverChange).toHaveBeenCalled();
+    const ceilingPayload = sm.onBarHoverChange.mock.calls.at(-1)![0];
+    expect(ceilingPayload.category).toContain('🪵 Teto & Forro Campervan');
+    expect(ceilingPayload.name).toContain('Ripa de Teto');
   });
 });

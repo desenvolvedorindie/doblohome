@@ -147,6 +147,15 @@ export class BarsLineupBuilder {
           } else if (isMetalonOrTube) {
             const tMm = item.profileSpec?.includes('40') ? (solarSystem.metalonThickness40 || 2.0) : (solarSystem.metalonThickness30 || 1.5);
             geo = MetalonTubeFactory.getTubeGeometry(item.length, item.width, item.thickness, tMm / 1000, 'z');
+          } else if (item.sourceMesh?.geometry && (item.hasCabinetCutout || item.type === 'upholstery')) {
+            // Preserva recortes de armário aéreo, cantos em L e geometrias personalizadas de almofadas e madeiras
+            geo = item.sourceMesh.geometry.clone();
+            geo.computeBoundingBox();
+            if (geo.boundingBox) {
+              const center = new THREE.Vector3();
+              geo.boundingBox.getCenter(center);
+              geo.translate(-center.x, -center.y, -center.z);
+            }
           } else {
             geo = new THREE.BoxGeometry(item.width, item.thickness, item.length);
           }
@@ -204,7 +213,7 @@ export class BarsLineupBuilder {
               ? 'Conexão 90° de alta resistência com bolsas para fusão soldável a frio na tubulação de água limpa'
               : 'Vedação estanque final traseira com ponto rosqueado para inspeção/dreno de fundo')
             : item.type === 'upholstery'
-              ? `Espuma D33 Estofaria${item.hasCabinetCutout ? ' (com Recorte Especial para Armário Aéreo)' : ''} | Área: ${item.area.toFixed(2)} m² (${Math.round(item.width * 1000)} × ${Math.round(item.length * 1000)} × ${item.thicknessMm} mm)`
+              ? `${item.woodMaterial || 'Espuma D33 (Colchão)'}${item.hasCabinetCutout ? ' (com Recorte Especial para Armário Aéreo)' : ''} | Área: ${item.area.toFixed(2)} m² (${Math.round(item.width * 1000)} × ${Math.round(item.length * 1000)} × ${item.thicknessMm} mm)`
               : `${item.isPerforated ? (item.hasCabinetExclusion ? '🍃 Vazado CNC c/ Apoio Maciço p/ Armário Aéreo | ' : '🍃 Vazado CNC (-35% peso / Aeração) | ') : ''}Área: ${item.area >= 0.1 ? item.area.toFixed(2) + ' m²' : Math.round(item.area * 10000) + ' cm²'} (${Math.round(item.width * 1000)} × ${Math.round(item.length * 1000)} mm)`
         };
 

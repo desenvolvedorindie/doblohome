@@ -110,6 +110,7 @@ export class InternalBoxesBuilder {
 
     // 1. Piso Campervan & Mesa Central
     this.floorAndGridBuilder.buildFloor(grid, widthM, lengthM, floorY);
+    this.floorMesh = this.floorAndGridBuilder.floorMesh;
 
     // 2. Grid subdividido no piso
     this.floorAndGridBuilder.buildGrid(grid, widthM, lengthM, floorY);
@@ -208,6 +209,8 @@ export class InternalBoxesBuilder {
       return 0;
     });
 
+    const isAnyBedOpen = globalBedOpen || boxes.some((b) => b.type === 'slat_bed' && Boolean(b.isOpen));
+
     sortedBoxes.forEach((box) => {
       const colStart = Math.min(cols - 1, Math.max(0, box.colStart));
       const colSpan = Math.min(cols - colStart, Math.max(1, box.colSpan));
@@ -228,11 +231,11 @@ export class InternalBoxesBuilder {
       const isGhost = activeFocusBoxId ? box.id !== activeFocusBoxId : false;
       const isSelected = isTargetModule ? false : false;
 
-      const isDrawerOpen = globalCabinetsOpen || Boolean(box.isOpen);
-      const isChestOpen = globalCabinetsOpen || Boolean(box.isOpen);
-      const isUpperCabinetOpen = globalCabinetsOpen || Boolean(box.isOpen);
-      const isBedOpen = globalBedOpen || Boolean(box.isOpen);
-      const isShelfOpen = box.isRearShelfOpen !== undefined ? box.isRearShelfOpen : globalCabinetsOpen;
+      const isDrawerOpen = (box.type === 'drawer' || box.type === 'slide_tray') && Boolean(box.isOpen);
+      const isChestOpen = box.type === 'chest' && Boolean(box.isOpen);
+      const isUpperCabinetOpen = globalCabinetsOpen || Boolean(box.isUpperCabinetOpen);
+      const isBedOpen = globalBedOpen || (box.type === 'slat_bed' && Boolean(box.isOpen));
+      const isShelfOpen = box.isRearShelfOpen !== undefined ? box.isRearShelfOpen : false;
 
       const boxContainer = new THREE.Group();
       boxContainer.name = `BoxContainer_${box.id}`;
@@ -308,7 +311,7 @@ export class InternalBoxesBuilder {
 
       // --- ARMÁRIO AÉREO SUPERIOR DE QUINA ATÉ O TETO DA DOBLÒ ---
       if (box.upperCabinet) {
-        this.upperCabinetBuilder.buildUpperCabinet(boxContainer, boxWM, boxLM, boxHM, box, isSelected, isUpperCabinetOpen);
+        this.upperCabinetBuilder.buildUpperCabinet(boxContainer, boxWM, boxLM, boxHM, box, isSelected, isUpperCabinetOpen, grid);
       }
 
       // --- PERFIL DE QUINA LED NA PARTE DE BAIXO DO MÓDULO ---
@@ -333,7 +336,16 @@ export class InternalBoxesBuilder {
 
       // --- FOGAREIRO PORTÁTIL (NTK DUO CERAMIK) EMBARCADO ---
       if (box.hasStove) {
-        this.accessoriesBuilder.buildStoveAppliance(boxContainer, boxWM, boxLM, boxHM, box, isSelected, isDrawerOpen || isChestOpen);
+        this.accessoriesBuilder.buildStoveAppliance(
+          boxContainer,
+          boxWM,
+          boxLM,
+          boxHM,
+          box,
+          isSelected,
+          isDrawerOpen || isChestOpen,
+          isAnyBedOpen
+        );
       }
 
       // Se estiver em modo de módulo ativo (activeFocusBoxId):

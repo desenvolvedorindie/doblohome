@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { InternalBoxItem, InternalGridConfig, SlatBedDirection } from '../../types';
+import { InternalBoxItem, InternalGridConfig, SlatBedDirection, getMattressFoamName } from '../../types';
 import { collectMattressCutoutZones } from './slat-bed/MattressCushionGeometry';
 import { buildLateralFivePartMattress } from './slat-bed/LateralFivePartMattressBuilder';
 import { buildLateralStandardMattress } from './slat-bed/LateralStandardMattressBuilder';
@@ -57,7 +57,8 @@ export class SlatBedMattressBuilder {
           : parts === 4
             ? 'Quadripartido'
             : 'Bipartido';
-    const mattressThickness = 0.08; // Espuma D33 de 80mm
+    const mattressThickness = (box.mattressThicknessMm ?? 80) / 1000;
+    const foamName = getMattressFoamName(box.mattressFoam);
     const mattressY = topOfSlatsY + mattressThickness / 2;
 
     const mattressMat = new THREE.MeshStandardMaterial({
@@ -86,7 +87,8 @@ export class SlatBedMattressBuilder {
           mattressY,
           mattressMat,
           seamMat,
-          cutoutZones
+          cutoutZones,
+          foamName
         });
       } else {
         buildLateralStandardMattress({
@@ -104,7 +106,8 @@ export class SlatBedMattressBuilder {
           mattressY,
           mattressMat,
           seamMat,
-          cutoutZones
+          cutoutZones,
+          foamName
         });
       }
     } else {
@@ -123,7 +126,8 @@ export class SlatBedMattressBuilder {
         mattressY,
         mattressMat,
         seamMat,
-        cutoutZones
+        cutoutZones,
+        foamName
       });
     }
   }

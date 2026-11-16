@@ -240,4 +240,229 @@ describe('SlatBedMattressBuilder - Floating and Cutout Tests', () => {
     expect(central1).toBeDefined();
     expect((central1.userData as any).hasCabinetCutout).toBe(false);
   });
+
+  it('cuts wheel arch cushion and adjacent cushion when longitudinal cabinet sits at bottom (gap 0mm)', () => {
+    const builder = new SlatBedMattressBuilder();
+    const container = new THREE.Group();
+
+    const boxBed: InternalBoxItem = {
+      id: 'box_slat_bed_wheelarch_test',
+      name: 'Sofá-Cama Ripas',
+      type: 'slat_bed',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 4,
+      heightMm: 400,
+      color: '#d97706',
+      material: 'plywood',
+      slatBedDirection: 'left',
+      slatExtensionPercent: 100,
+      mattressParts: 5,
+      upperCabinet: true,
+      upperCabinetAlign: 'right',
+      upperCabinetDepthMm: 250,
+      upperCabinetWidthMm: 800, // 800mm de comprimento sobre a caixa de roda traseira
+      upperCabinetOffsetMm: 0,
+      upperCabinetBottomGapMm: 0, // Inicia embaixo encostando no baú / caixa de roda
+    };
+
+    builder.buildMattress({
+      container,
+      w: 0.4,
+      l: 1.7,
+      h: 0.4,
+      box: boxBed,
+      slatT,
+      direction: 'left',
+      isExtended: true,
+      extRatio: 1,
+      cellWM,
+      cellLM,
+      allBoxes: [boxBed],
+      grid,
+      isSelected: false
+    });
+
+    // 1. Aba Caixa de Roda Direita deve existir e ter o recorte do armário aéreo que desce até embaixo
+    const baseArch = container.children.find(c =>
+      (c.userData as any).partLabel?.includes('Almofada Aba Caixa de Roda')
+    ) as THREE.Mesh;
+    expect(baseArch).toBeDefined();
+    expect((baseArch.userData as any).hasCabinetCutout).toBe(true);
+
+    // 2. Almofada Central 1/3 deve ter o recorte da quina/lateral onde o armário se estende para dentro
+    const central1 = container.children.find(c =>
+      (c.userData as any).partLabel?.includes('Almofada Central 1/3')
+    ) as THREE.Mesh;
+    expect(central1).toBeDefined();
+    expect((central1.userData as any).hasCabinetCutout).toBe(true);
+  });
+
+  it('does NOT cut mattress when upper cabinet is suspended high (gap > 80mm)', () => {
+    const builder = new SlatBedMattressBuilder();
+    const container = new THREE.Group();
+
+    const boxBed: InternalBoxItem = {
+      id: 'box_slat_bed_high_cabinet',
+      name: 'Sofá-Cama Ripas',
+      type: 'slat_bed',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 4,
+      heightMm: 400,
+      color: '#d97706',
+      material: 'plywood',
+      slatBedDirection: 'left',
+      slatExtensionPercent: 100,
+      mattressParts: 5,
+      upperCabinet: true,
+      upperCabinetAlign: 'right',
+      upperCabinetDepthMm: 250,
+      upperCabinetBottomGapMm: 400, // Suspenso alto a 400mm do baú
+    };
+
+    builder.buildMattress({
+      container,
+      w: 0.4,
+      l: 1.7,
+      h: 0.4,
+      box: boxBed,
+      slatT,
+      direction: 'left',
+      isExtended: true,
+      extRatio: 1,
+      cellWM,
+      cellLM,
+      allBoxes: [boxBed],
+      grid,
+      isSelected: false
+    });
+
+    // Almofadas NÃO devem ter recorte quando o armário é suspenso alto
+    const baseArch = container.children.find(c =>
+      (c.userData as any).partLabel?.includes('Almofada Aba Caixa de Roda')
+    ) as THREE.Mesh;
+    expect(baseArch).toBeDefined();
+    expect((baseArch.userData as any).hasCabinetCutout).toBe(false);
+
+    const central1 = container.children.find(c =>
+      (c.userData as any).partLabel?.includes('Almofada Central 1/3')
+    ) as THREE.Mesh;
+    expect(central1).toBeDefined();
+    expect((central1.userData as any).hasCabinetCutout).toBe(false);
+  });
+
+  it('reflects custom foam density and cuts wheel arch cushion in parts list and userData', () => {
+    const builder = new SlatBedMattressBuilder();
+    const container = new THREE.Group();
+
+    const boxBed: InternalBoxItem = {
+      id: 'box_custom_foam_test',
+      name: 'Sofá-Cama Ripas',
+      type: 'slat_bed',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 4,
+      heightMm: 400,
+      color: '#d97706',
+      material: 'plywood',
+      slatBedDirection: 'left',
+      slatExtensionPercent: 100,
+      mattressParts: 5,
+      mattressFoam: 'D45',
+      mattressThicknessMm: 100,
+      upperCabinet: true,
+      upperCabinetAlign: 'front',
+      upperCabinetDepthMm: 250,
+      upperCabinetBottomGapMm: 0,
+    };
+
+    builder.buildMattress({
+      container,
+      w: 0.4,
+      l: 1.7,
+      h: 0.4,
+      box: boxBed,
+      slatT,
+      direction: 'left',
+      isExtended: true,
+      extRatio: 1,
+      cellWM,
+      cellLM,
+      allBoxes: [boxBed],
+      grid,
+      isSelected: false
+    });
+
+    const baseArch = container.children.find(c =>
+      (c.userData as any).partLabel?.includes('Almofada Aba Caixa de Roda')
+    ) as THREE.Mesh;
+    expect(baseArch).toBeDefined();
+    expect((baseArch.userData as any).hasCabinetCutout).toBe(true);
+    expect((baseArch.userData as any).woodMaterial).toBe('Espuma D45 (Colchão)');
+    expect((baseArch.userData as any).thicknessMm).toBe(100);
+    expect((baseArch.userData as any).dimL).toBeCloseTo(1.423, 2);
+  });
+
+  it('verifies parts lineup and collection retain nominal thickness and cabinet cutouts even when bed is closed', async () => {
+    const { InternalBoxesBuilder } = await import('../src/three/InternalBoxesBuilder');
+    const { BarsLineupCollector } = await import('../src/three/scene/BarsLineupCollector');
+    const { BarsLineupBuilder } = await import('../src/three/scene/BarsLineupBuilder');
+
+    const builder = new InternalBoxesBuilder();
+    const boxBed: InternalBoxItem = {
+      id: 'box_slat_bed_main',
+      name: 'Sofá-Cama Ripas',
+      type: 'slat_bed',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 4,
+      heightMm: 400,
+      color: '#d97706',
+      material: 'plywood',
+      slatBedDirection: 'left',
+      slatExtensionPercent: 100,
+      mattressParts: 5,
+      mattressFoam: 'D33',
+      mattressThicknessMm: 80,
+      upperCabinet: true,
+      upperCabinetAlign: 'front',
+      upperCabinetDepthMm: 250,
+      upperCabinetBottomGapMm: 0,
+    };
+
+    // Update with bed closed (sofa mode)
+    builder.update(grid, [boxBed], null, { openBed: false });
+
+    const dummySolar: any = { cargoBoxConfig: { enabled: false }, group: new THREE.Group() };
+    const collected = BarsLineupCollector.collect(dummySolar, builder);
+
+    // In closed bed mode, we must collect 5 nominal cushions (not visual sofa slices of 40mm)
+    expect(collected.upholsteryItems.length).toBe(5);
+    collected.upholsteryItems.forEach((it: any) => {
+      expect(it.thicknessMm).toBe(80);
+    });
+
+    const cutItems = collected.upholsteryItems.filter((it: any) => it.hasCabinetCutout);
+    expect(cutItems.length).toBeGreaterThanOrEqual(2); // Central 1/3 and Base Arch
+
+    // Verify 3D Lineup Builder preserves geometry and cutouts
+    const lineupGroup = new THREE.Group();
+    BarsLineupBuilder.build(lineupGroup, dummySolar, builder, 'upholstery');
+
+    const lineupUpholsteryMeshes: THREE.Mesh[] = [];
+    lineupGroup.traverse((obj: any) => {
+      if (obj.isMesh && obj.userData?.isUpholstery) {
+        lineupUpholsteryMeshes.push(obj);
+      }
+    });
+
+    expect(lineupUpholsteryMeshes.length).toBe(5);
+    const cutLineupMeshes = lineupUpholsteryMeshes.filter(m => m.userData.hasCabinetCutout);
+    expect(cutLineupMeshes.length).toBeGreaterThanOrEqual(2);
+  });
 });

@@ -6,6 +6,15 @@ export type InternalBoxMaterial = 'plywood' | 'dark_wood' | 'white_mdf' | 'alumi
 export type RearShelfFinish = 'pine_block' | 'teak' | 'dark_wood' | 'plywood';
 export type ChestHingeDirection = 'front' | 'rear' | 'left' | 'right';
 export type SlatBedDirection = 'left' | 'right' | 'front' | 'rear';
+export type BoxSlideDirection = 'rear' | 'front' | 'left' | 'right';
+
+export interface BoxSlideDirectionOption {
+  direction: BoxSlideDirection;
+  label: string;
+  icon: string;
+  isAvailable: boolean;
+  blockedBy?: string;
+}
 
 export interface LedBaseboardConfig {
   enabled: boolean;          // Perfil de LED no rodapé do assoalho
@@ -153,7 +162,96 @@ export function getUpperCabinetClosure(box: { upperCabinetClosure?: UpperCabinet
     return box.upperCabinetClosure;
   }
   if (box.upperCabinetDoors === false) return 'open';
-  return 'doors';
+  if (box.upperCabinetDoors === true) return 'doors';
+  return 'sliding_doors';
+}
+
+/**
+ * Calcula quais direções estão desobstruídas (vazias) para o deslizamento de uma gaveta ou bandeja corrediça.
+ * Se houver outro módulo adjacente na direção correspondente, a direção é marcada como bloqueada.
+ */
+export function getAvailableSlideDirections(
+  box: InternalBoxItem,
+  allBoxes: InternalBoxItem[]
+): BoxSlideDirectionOption[] {
+  const otherBoxes = allBoxes.filter((b) => b.id !== box.id);
+
+  // 1. Traseira (rear): desce no grid (row > box.rowStart + box.rowSpan - 1)
+  const rearBlocker = otherBoxes.find(
+    (b) =>
+      b.rowStart === box.rowStart + box.rowSpan &&
+      Math.max(b.colStart, box.colStart) < Math.min(b.colStart + b.colSpan, box.colStart + box.colSpan)
+  );
+
+  // 2. Frente (front): sobe no grid (row < box.rowStart)
+  const frontBlocker = otherBoxes.find(
+    (b) =>
+      b.rowStart + b.rowSpan === box.rowStart &&
+      Math.max(b.colStart, box.colStart) < Math.min(b.colStart + b.colSpan, box.colStart + box.colSpan)
+  );
+
+  // 3. Lateral Esquerda (left): col < box.colStart
+  const leftBlocker = otherBoxes.find(
+    (b) =>
+      b.colStart + b.colSpan === box.colStart &&
+      Math.max(b.rowStart, box.rowStart) < Math.min(b.rowStart + b.rowSpan, box.rowStart + box.rowSpan)
+  );
+
+  // 4. Lateral Direita (right): col > box.colStart + box.colSpan - 1
+  const rightBlocker = otherBoxes.find(
+    (b) =>
+      b.colStart === box.colStart + box.colSpan &&
+      Math.max(b.rowStart, box.rowStart) < Math.min(b.rowStart + b.rowSpan, box.rowStart + box.rowSpan)
+  );
+
+  return [
+    {
+      direction: 'rear',
+      label: 'Traseira (Porta-Malas)',
+      icon: '▼',
+      isAvailable: !rearBlocker,
+      blockedBy: rearBlocker?.name
+    },
+    {
+      direction: 'front',
+      label: 'Frente (Cabine / Corredor)',
+      icon: '▲',
+      isAvailable: !frontBlocker,
+      blockedBy: frontBlocker?.name
+    },
+    {
+      direction: 'left',
+      label: 'Lateral Esquerda (Motorista)',
+      icon: '◀',
+      isAvailable: !leftBlocker,
+      blockedBy: leftBlocker?.name
+    },
+    {
+      direction: 'right',
+      label: 'Lateral Direita (Passageiro)',
+      icon: '▶',
+      isAvailable: !rightBlocker,
+      blockedBy: rightBlocker?.name
+    }
+  ];
+}
+
+export type MattressFoamDensity = 'D28' | 'D33' | 'D45' | 'AG80' | 'D33_SOFT';
+
+export function getMattressFoamName(foam?: MattressFoamDensity): string {
+  switch (foam) {
+    case 'D28':
+      return 'Espuma D28';
+    case 'D45':
+      return 'Espuma D45';
+    case 'AG80':
+      return 'Espuma AG80';
+    case 'D33_SOFT':
+      return 'Espuma D33 Soft';
+    case 'D33':
+    default:
+      return 'Espuma D33';
+  }
 }
 
 export interface InternalBoxItem {
@@ -169,9 +267,12 @@ export interface InternalBoxItem {
   material: InternalBoxMaterial;
   chestHingeDirection?: ChestHingeDirection;
   slatBedDirection?: SlatBedDirection;
+  slideDirection?: BoxSlideDirection; // Direção de deslizamento da gaveta ou bandeja corrediça ('rear', 'front', 'left', 'right')
   slatExtensionPercent?: number; // Porcentagem de extensão ao abrir (50% a 100%, padrão 85%)
   slatWidthMm?: number;          // Largura nominal de cada ripa em mm (padrão ~70mm)
   mattressParts?: 1 | 2 | 3 | 4 | 5; // Divisão do colchão/estofado (1 = Inteiro, 2 = Bipartido, 3 = Tripartido, 5 = Total c/ Caixas de Roda)
+  mattressFoam?: MattressFoamDensity; // Densidade/tipo da espuma do colchão ('D28', 'D33', 'D45', 'AG80', 'D33_SOFT')
+  mattressThicknessMm?: number;       // Espessura da espuma em mm (50mm a 120mm, padrão 80mm)
   topPerforated?: boolean;       // Tampo/Tampa superior vazado para alívio de peso e aeração do colchão
   perforationHoleDiameterMm?: number; // Diâmetro dos furos passantes CNC em mm (ex: 15mm a 80mm, padrão ~40mm)
   perforationSpacingMm?: number;      // Espaçamento entre centros dos furos em mm (ex: 50mm a 150mm, padrão ~85mm)
@@ -194,6 +295,7 @@ export interface InternalBoxItem {
   upperCabinetSides?: UpperCabinetSide[]; // Lista de lados com armário aéreo ativo ('rear' | 'front' | 'left' | 'right')
   upperCabinetDoors?: boolean;   // Porta fechada com puxador (padrão true) ou nicho aéreo aberto (legado)
   upperCabinetClosure?: UpperCabinetClosure; // Tipo de fechamento: 'sliding_doors' (portas de correr bipartidas 2 folhas), 'doors' (porta basculante), 'open' (nicho aberto)
+  isUpperCabinetOpen?: boolean;  // Estado aberto/fechado individual das portas do armário aéreo
   upperCabinetShelves?: number;  // Quantidade de prateleiras internas (1 a 3, padrão 1)
   drawerMode?: DrawerMode;       // Alternância entre 'drawer' (gaveteiro alto fechado) ou 'slide_tray' (bandeja corrediça rasa)
   hasCentralTable?: boolean;     // Mesa dinette central removível c/ pedestal náutico

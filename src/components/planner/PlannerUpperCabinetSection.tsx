@@ -233,25 +233,25 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const isCurrentlyOpen = isCabinetsOpenPreview || Boolean(selectedBox.isOpen);
+                    const isCurrentlyOpen = isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen);
                     if (isCabinetsOpenPreview) {
                       setIsCabinetsOpenPreview(false);
                     }
-                    updateInternalBox(selectedBox.id, { isOpen: !isCurrentlyOpen });
+                    updateInternalBox(selectedBox.id, { isUpperCabinetOpen: !isCurrentlyOpen });
                   }}
                   className="btn-compact"
                   style={{
                     fontSize: '10.5px',
                     fontWeight: 700,
                     padding: '4px 10px',
-                    background: (isCabinetsOpenPreview || Boolean(selectedBox.isOpen))
+                    background: (isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen))
                       ? 'linear-gradient(135deg, #10b981, #059669)'
                       : 'linear-gradient(135deg, #0284c7, #2563eb)',
-                    borderColor: (isCabinetsOpenPreview || Boolean(selectedBox.isOpen)) ? '#34d399' : '#38bdf8',
+                    borderColor: (isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen)) ? '#34d399' : '#38bdf8',
                     color: '#ffffff'
                   }}
                 >
-                  {(isCabinetsOpenPreview || Boolean(selectedBox.isOpen))
+                  {(isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen))
                     ? (getUpperCabinetClosure(selectedBox) === 'sliding_doors' ? '🔒 Fechar Portas de Correr' : '🔓 Fechar Porta')
                     : (getUpperCabinetClosure(selectedBox) === 'sliding_doors' ? '🪟 Deslizar Portas (Abrir)' : '🚪 Abrir Porta')}
                 </button>

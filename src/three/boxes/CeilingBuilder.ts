@@ -166,6 +166,17 @@ export class CeilingBuilder {
         const feltMesh = new THREE.Mesh(feltGeo, feltMat);
         feltMesh.position.set(0, 0, centerZ - l / 2);
         feltMesh.name = 'CeilingAcousticBacking';
+        feltMesh.userData = {
+          isAcousticFelt: true,
+          partType: 'ceiling',
+          name: 'Fundo Acústico do Teto (Feltro Automotivo 3mm)',
+          category: '🪵 Teto & Forro Campervan',
+          barProfile: `${Math.round(w * 1000)} × ${Math.round(l * 1000)} × 3 mm`,
+          material: 'Feltro Acústico Automotivo Preto 3mm',
+          woodMaterial: 'Feltro Acústico',
+          moduleName: 'Forro de Teto',
+          purpose: 'Isolamento termoacústico e fundo preto fosco para destaque das ripas de madeira'
+        };
         feltMesh.receiveShadow = true;
         this.ceilingGroup.add(feltMesh);
       } else {
@@ -173,6 +184,17 @@ export class CeilingBuilder {
         const feltMesh = new THREE.Mesh(feltGeo, feltMat);
         feltMesh.position.set(0, ceilingY + feltThick / 2, centerZ);
         feltMesh.name = 'CeilingAcousticBacking';
+        feltMesh.userData = {
+          isAcousticFelt: true,
+          partType: 'ceiling',
+          name: 'Fundo Acústico do Teto (Feltro Automotivo 3mm)',
+          category: '🪵 Teto & Forro Campervan',
+          barProfile: `${Math.round(w * 1000)} × ${Math.round(l * 1000)} × 3 mm`,
+          material: 'Feltro Acústico Automotivo Preto 3mm',
+          woodMaterial: 'Feltro Acústico',
+          moduleName: 'Forro de Teto',
+          purpose: 'Isolamento termoacústico e fundo preto fosco para destaque das ripas de madeira'
+        };
         feltMesh.receiveShadow = true;
         this.ceilingGroup.add(feltMesh);
       }

@@ -61,8 +61,9 @@ export class BoxAccessoriesBuilder {
     h: number,
     box: InternalBoxItem,
     isSelected: boolean,
-    isOpen: boolean = false
+    isOpen: boolean = false,
+    isBedOpen: boolean = false
   ) {
-    buildStoveApplianceAccessory(container, w, l, h, box, isSelected, isOpen);
+    buildStoveApplianceAccessory(container, w, l, h, box, isSelected, isOpen, isBedOpen);
   }
 }

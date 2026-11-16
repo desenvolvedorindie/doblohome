@@ -75,7 +75,7 @@ export const CuttingPieceInspector: React.FC<CuttingPieceInspectorProps> = ({
                   marginLeft: '6px'
                 }}
               >
-                🛏️ Espuma D33
+                🛏️ {selectedPiece.woodMaterial?.replace(/\s*\(Colchão\)/i, '') || 'Espuma D33'}
               </span>
             )}
             {selectedPiece.hasCabinetCutout && (
