@@ -146,7 +146,7 @@ export function parseProfileThickness(profileSpec: string, barLabel: string = ''
       thicknessMm,
       gaugeLabel: gauge,
       sectionCategory: '40x40',
-      groupTitle: `📐 TUBOS 40×40 MM • ESPESSURA ${thicknessMm.toFixed(1)} MM (${gauge})`,
+      groupTitle: `📐 TUBOS DO RACK 40×40 MM • ESPESSURA ${thicknessMm.toFixed(1)} MM (${gauge})`,
       groupSubtitle: `Estrutura primária de alta rigidez: Longarinas do Rack Base da Doblò e Subchassi do Baú`
     };
   }
@@ -155,7 +155,7 @@ export function parseProfileThickness(profileSpec: string, barLabel: string = ''
     thicknessMm,
     gaugeLabel: gauge,
     sectionCategory: '30x30',
-    groupTitle: `📐 TUBOS 30×30 MM • ESPESSURA ${thicknessMm.toFixed(1)} MM (${gauge})`,
+    groupTitle: `📐 TUBOS DO RACK 30×30 MM • ESPESSURA ${thicknessMm.toFixed(1)} MM (${gauge})`,
     groupSubtitle: `Estrutura secundária retrátil: Quadros das Bandejas Solares deslizantes e divisórias internas`
   };
 }
@@ -344,7 +344,7 @@ export function calculateWeldedJoints(
   // - 1 disco flap acabamento (grão 80/120) a cada ~20 quinas
   const flapDiscsFinishing = Math.max(1, Math.ceil(totalJoints / 20));
   // - ~35g de arame MIG por junta (cordão nas 4 faces do metalon)
-  const migWireKg = +( (totalJoints * 0.035) ).toFixed(2);
+  const migWireKg = +((totalJoints * 0.035)).toFixed(2);
   // - ~15 litros de gás de proteção por nó soldado
   const co2ArgonLiters = Math.round(totalJoints * 15);
 

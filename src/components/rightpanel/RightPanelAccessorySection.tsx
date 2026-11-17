@@ -334,7 +334,7 @@ export const RightPanelAccessorySection: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
                   <button
                     className={`btn-compact ${awning.type === 'rear' ? 'active' : ''}`}
-                    onClick={() => setAwning({ type: 'rear' })}
+                    onClick={() => setAwning({ type: 'rear', lengthMm: 1400, extensionMm: 2000 })}
                     style={{
                       fontSize: '10px',
                       padding: '6px 4px',
@@ -345,7 +345,7 @@ export const RightPanelAccessorySection: React.FC = () => {
                   </button>
                   <button
                     className={`btn-compact ${awning.type === 'batwing_270' ? 'active accent-amber' : ''}`}
-                    onClick={() => setAwning({ type: 'batwing_270' })}
+                    onClick={() => setAwning({ type: 'batwing_270', lengthMm: 2000, extensionMm: 2200 })}
                     style={{
                       fontSize: '10px',
                       padding: '6px 4px',

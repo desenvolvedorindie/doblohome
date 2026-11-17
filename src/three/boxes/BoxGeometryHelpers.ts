@@ -435,16 +435,35 @@ export function buildHollowBox(
   const tRear = tConfig.rear;
   const woodMat = getWoodMaterialName(box?.material);
 
-  const wallH = hasBottom ? Math.max(0.01, h - tBottom) : h;
-  const wallY = hasBottom ? (-h / 2 + tBottom + wallH / 2) : 0;
+  const jointStyle = box?.boxJointStyle || 'top_bottom_cap';
+  const backCoverMode = box?.boxBackCoverMode || (jointStyle === 'back_over_all' ? 'overlay_all' : 'inset');
+  const isBackOverlay = hasRear && (backCoverMode === 'overlay_all' || jointStyle === 'back_over_all');
+  const isSidesOutside = jointStyle === 'sides_outside';
+
+  // Se o fundo (rear) for sobreposto cobrindo tudo (5 partes), todas as paredes laterais, fundo base e tampo descontam tRear na traseira (-Z)
+  const zBackDiscount = isBackOverlay ? tRear : 0;
+  const usableL = Math.max(0.01, l - zBackDiscount);
+  const zCenterOffset = zBackDiscount / 2; // Desloca o corpo +tRear/2 para frente para deixar o espaço da chapa traseira inteiriça
+
+  // Se laterais forem externas passantes ('sides_outside'), as laterais vão até o piso (-h/2 a +h/2) e o fundo base fica embutido entre as laterais.
+  // Se 'top_bottom_cap' (padrão), o fundo base tem largura total w e as paredes apoiam sobre ele.
+  const wallH = (hasBottom && !isSidesOutside) ? Math.max(0.01, h - tBottom) : h;
+  const wallY = (hasBottom && !isSidesOutside) ? (-h / 2 + tBottom + wallH / 2) : 0;
   const prefix = boxName ? `${boxName} • ` : '';
+
+  const xMin = hasRight ? (-w / 2 + tRight) : (-w / 2);
+  const xMax = hasLeft ? (w / 2 - tLeft) : (w / 2);
+  const innerW = Math.max(0.01, xMax - xMin);
+  const centerInnerX = (xMin + xMax) / 2;
 
   // Fundo: APENAS se hasBottom for true
   if (hasBottom) {
     const tBMm = Math.round(tBottom * 1000);
+    const bottomW = isSidesOutside ? innerW : w;
+    const bottomX = isSidesOutside ? centerInnerX : 0;
     addPanel(
-      parent, w, tBottom, l, 0, -h / 2 + tBottom / 2, 0, mat, edgeMat, boxId, boxRoot,
-      `${prefix}Fundo Base (${tBMm}mm)`,
+      parent, bottomW, tBottom, usableL, bottomX, -h / 2 + tBottom / 2, zCenterOffset, mat, edgeMat, boxId, boxRoot,
+      `${prefix}Fundo Base (${Math.round(bottomW * 1000)}×${Math.round(usableL * 1000)}×${tBMm}mm)`,
       { thicknessMm: tBMm, woodMaterial: woodMat, moduleName: boxName, partType: 'bottom', material: `${woodMat} ${tBMm}mm Impermeabilizado` }
     );
   }
@@ -453,8 +472,8 @@ export function buildHollowBox(
   if (hasLeft) {
     const tLMm = Math.round(tLeft * 1000);
     addPanel(
-      parent, tLeft, wallH, l, w / 2 - tLeft / 2, wallY, 0, mat, edgeMat, boxId, boxRoot,
-      `${prefix}Lateral Esquerda (${tLMm}mm)`,
+      parent, tLeft, wallH, usableL, w / 2 - tLeft / 2, wallY, zCenterOffset, mat, edgeMat, boxId, boxRoot,
+      `${prefix}Lateral Esquerda (${Math.round(usableL * 1000)}×${Math.round(wallH * 1000)}×${tLMm}mm)`,
       { thicknessMm: tLMm, woodMaterial: woodMat, moduleName: boxName, partType: 'left', material: `${woodMat} ${tLMm}mm Impermeabilizado` }
     );
   }
@@ -463,34 +482,39 @@ export function buildHollowBox(
   if (hasRight) {
     const tRMm = Math.round(tRight * 1000);
     addPanel(
-      parent, tRight, wallH, l, -w / 2 + tRight / 2, wallY, 0, mat, edgeMat, boxId, boxRoot,
-      `${prefix}Lateral Direita (${tRMm}mm)`,
+      parent, tRight, wallH, usableL, -w / 2 + tRight / 2, wallY, zCenterOffset, mat, edgeMat, boxId, boxRoot,
+      `${prefix}Lateral Direita (${Math.round(usableL * 1000)}×${Math.round(wallH * 1000)}×${tRMm}mm)`,
       { thicknessMm: tRMm, woodMaterial: woodMat, moduleName: boxName, partType: 'right', material: `${woodMat} ${tRMm}mm Impermeabilizado` }
     );
   }
 
-  // Cálculo exato da largura e centro interno das paredes frontal e traseira
-  const xMin = hasRight ? (-w / 2 + tRight) : (-w / 2);
-  const xMax = hasLeft ? (w / 2 - tLeft) : (w / 2);
-  const innerW = Math.max(0.01, xMax - xMin);
-  const centerInnerX = (xMin + xMax) / 2;
+  // Altura e Y da parede frontal e do fundo embutido (descontando a base mesmo quando isSidesOutside)
+  const frontRearH = hasBottom ? Math.max(0.01, h - tBottom) : h;
+  const frontRearY = hasBottom ? (-h / 2 + tBottom + frontRearH / 2) : 0;
 
   // Parede Frontal (+Z, em direção aos bancos dianteiros)
   if (hasFront) {
     const tFMm = Math.round(tFront * 1000);
     addPanel(
-      parent, innerW, wallH, tFront, centerInnerX, wallY, l / 2 - tFront / 2, mat, edgeMat, boxId, boxRoot,
-      `${prefix}Parede Frontal (${tFMm}mm)`,
+      parent, innerW, frontRearH, tFront, centerInnerX, frontRearY, l / 2 - tFront / 2, mat, edgeMat, boxId, boxRoot,
+      `${prefix}Parede Frontal (${Math.round(innerW * 1000)}×${Math.round(frontRearH * 1000)}×${tFMm}mm)`,
       { thicknessMm: tFMm, woodMaterial: woodMat, moduleName: boxName, partType: 'front', material: `${woodMat} ${tFMm}mm Impermeabilizado` }
     );
   }
 
-  // Parede Traseira (-Z, em direção ao porta-malas)
+  // Parede Traseira / Tampo de Fundo (-Z, em direção ao porta-malas)
   if (hasRear) {
     const tRMm = Math.round(tRear * 1000);
+    const rearW = isBackOverlay ? w : innerW;
+    const rearH = isBackOverlay ? h : frontRearH;
+    const rearX = isBackOverlay ? 0 : centerInnerX;
+    const rearY = isBackOverlay ? 0 : frontRearY;
+    const rearLabel = isBackOverlay
+      ? `${prefix}Tampo Traseiro Total (Fecha 5 Partes • ${Math.round(rearW * 1000)}×${Math.round(rearH * 1000)}×${tRMm}mm)`
+      : `${prefix}Fundo Traseiro Embutido (4 Partes em Volta • ${Math.round(rearW * 1000)}×${Math.round(rearH * 1000)}×${tRMm}mm)`;
     addPanel(
-      parent, innerW, wallH, tRear, centerInnerX, wallY, -l / 2 + tRear / 2, mat, edgeMat, boxId, boxRoot,
-      `${prefix}Parede Traseira (${tRMm}mm)`,
+      parent, rearW, rearH, tRear, rearX, rearY, -l / 2 + tRear / 2, mat, edgeMat, boxId, boxRoot,
+      rearLabel,
       { thicknessMm: tRMm, woodMaterial: woodMat, moduleName: boxName, partType: 'rear', material: `${woodMat} ${tRMm}mm Impermeabilizado` }
     );
   }

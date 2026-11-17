@@ -28,6 +28,11 @@ const WORKSPACES: Array<{ id: ViewMode; label: string; title: string }> = [
     label: '5. Hidráulica 2D',
     title: 'Esquemático Hidráulico Planar 2D (Água Fria, Quente, Cinza)',
   },
+  {
+    id: 'weights',
+    label: '6. Pesos & Cargas',
+    title: 'Balanço de Peso Total e Distribuição de Carga da Fiat Doblò',
+  },
 ];
 
 export const WorkspaceSwitcher: React.FC = () => {

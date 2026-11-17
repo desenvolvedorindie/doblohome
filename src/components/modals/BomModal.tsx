@@ -10,6 +10,8 @@ import {
 import { BomWoodTab } from './bom/BomWoodTab';
 import { BomMetalTab } from './bom/BomMetalTab';
 import { BomPvcTab } from './bom/BomPvcTab';
+import { BomAwningTab } from './bom/BomAwningTab';
+import { extractAwningHardwareStats } from '../../utils/awningHardwareUtils';
 
 export const BomModal: React.FC = () => {
   const {
@@ -30,10 +32,11 @@ export const BomModal: React.FC = () => {
     internalBoxes,
     internalGrid,
     setPartsFilter,
-    waterTank
+    waterTank,
+    awning
   } = useSolar();
 
-  const [mainViewMode, setMainViewMode] = useState<'wood_cutting' | 'upholstery' | 'metal' | 'pvc'>('wood_cutting');
+  const [mainViewMode, setMainViewMode] = useState<'wood_cutting' | 'upholstery' | 'metal' | 'pvc' | 'awning'>('wood_cutting');
   const [pvcBarStandard, setPvcBarStandard] = useState<'6m' | '3m'>('6m');
   const [selectedPieceKey, setSelectedPieceKey] = useState<string | null>(null);
   const [activeGroupKey, setActiveGroupKey] = useState<string>('');
@@ -42,6 +45,10 @@ export const BomModal: React.FC = () => {
   const pvcStats = useMemo(() => {
     return extractPvcCutStats(waterTank);
   }, [waterTank]);
+
+  const awningStats = useMemo(() => {
+    return extractAwningHardwareStats(awning);
+  }, [awning]);
 
   // Totalizador de Ferragens e Perfis Metálicos (Alumínio T-Slot / Metalon Soldado)
   const barStats = useMemo(() => {
@@ -185,7 +192,7 @@ export const BomModal: React.FC = () => {
                   color: mainViewMode === 'metal' ? '#38bdf8' : '#94a3b8'
                 }}
               >
-                🔩 Perfis ({barStats.totalPieces})
+                🔩 Rack ({barStats.totalPieces})
               </button>
               <button
                 className={`btn-compact ${mainViewMode === 'pvc' ? 'active' : ''}`}
@@ -201,6 +208,20 @@ export const BomModal: React.FC = () => {
               >
                 💧 Canos PVC ({waterTank.enabled ? pvcStats.totalPieces : 0})
               </button>
+              <button
+                className={`btn-compact ${mainViewMode === 'awning' ? 'active' : ''}`}
+                onClick={() => setMainViewMode('awning')}
+                style={{
+                  padding: '5px 8px',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  background: mainViewMode === 'awning' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.7)',
+                  borderColor: mainViewMode === 'awning' ? '#f59e0b' : 'rgba(148, 163, 184, 0.3)',
+                  color: mainViewMode === 'awning' ? '#fbbf24' : '#94a3b8'
+                }}
+              >
+                ⛺ Toldo ({awning.enabled ? awningStats.totalProfilePieces : 0})
+              </button>
             </div>
             <button
               className="btn-compact primary"
@@ -215,7 +236,9 @@ export const BomModal: React.FC = () => {
                         ? 'metal'
                         : mainViewMode === 'pvc'
                           ? 'pvc'
-                          : 'all'
+                          : mainViewMode === 'awning'
+                            ? 'awning'
+                            : 'all'
                 );
                 setViewMode('bars_lineup');
               }}
@@ -268,11 +291,16 @@ export const BomModal: React.FC = () => {
             internalBoxes={internalBoxes}
             internalGrid={internalGrid}
           />
-        ) : (
+        ) : mainViewMode === 'pvc' ? (
           <BomPvcTab
             pvcStats={pvcStats}
             pvcBarStandard={pvcBarStandard}
             setPvcBarStandard={setPvcBarStandard}
+          />
+        ) : (
+          <BomAwningTab
+            awningStats={awningStats}
+            awning={awning}
           />
         )}
       </div>

@@ -2,13 +2,13 @@
   "project": {
     "title": "Plano de Corte Executivo & Desenho Técnico dos Cortes",
     "vehicle": "Fiat Doblò Campervan",
-    "date": "15/11/2026",
+    "date": "16/11/2026",
     "presetName": "Sofá-Cama c/ Armário Alto Lateral (Padrão Doblò)",
     "presetDescription": "Layout clássico campervan Doblò: Coluna 1 com Armário Alto de cozinha (75cm) + Sofá-Cama nas Colunas 2 e 3 extensível para 2 colunas (80cm) ou largura total (120cm) + Mesa Dinette central."
   },
   "wood": {
-    "totalPieces": 47,
-    "totalAreaM2": 11.205829999999985,
+    "totalPieces": 48,
+    "totalAreaM2": 11.194533999999985,
     "standardSheets": 4,
     "categories": [
       {
@@ -71,8 +71,8 @@
         "key": "Compensado Naval__15",
         "woodMaterial": "Compensado Naval",
         "thicknessMm": 15,
-        "totalPieces": 43,
-        "totalAreaM2": 9.473345999999985,
+        "totalPieces": 42,
+        "totalAreaM2": 9.275249999999986,
         "estimatedSheets": 4,
         "pieces": [
           {
@@ -99,8 +99,8 @@
             "hasCabinetCutout": false
           },
           {
-            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Direita (15mm)__735x1700",
-            "label": "🍳 Armário Alto Lateral & Cozinha • Lateral Direita (15mm)",
+            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Direita (1700×735×15mm)__735x1700",
+            "label": "🍳 Armário Alto Lateral & Cozinha • Lateral Direita (1700×735×15mm)",
             "lengthMm": 1700,
             "widthMm": 735,
             "thicknessMm": 15,
@@ -122,8 +122,8 @@
             "hasCabinetCutout": false
           },
           {
-            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Esquerda (15mm)__735x1700",
-            "label": "🍳 Armário Alto Lateral & Cozinha • Lateral Esquerda (15mm)",
+            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Esquerda (1700×735×15mm)__735x1700",
+            "label": "🍳 Armário Alto Lateral & Cozinha • Lateral Esquerda (1700×735×15mm)",
             "lengthMm": 1700,
             "widthMm": 735,
             "thicknessMm": 15,
@@ -191,8 +191,8 @@
             "hasCabinetCutout": false
           },
           {
-            "key": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Direita (15mm)__385x1700",
-            "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Direita (15mm)",
+            "key": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Direita (1700×385×15mm)__385x1700",
+            "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Direita (1700×385×15mm)",
             "lengthMm": 1700,
             "widthMm": 385,
             "thicknessMm": 15,
@@ -214,8 +214,8 @@
             "hasCabinetCutout": false
           },
           {
-            "key": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Esquerda (15mm)__385x1700",
-            "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Esquerda (15mm)",
+            "key": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Esquerda (1700×385×15mm)__385x1700",
+            "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Esquerda (1700×385×15mm)",
             "lengthMm": 1700,
             "widthMm": 385,
             "thicknessMm": 15,
@@ -237,31 +237,8 @@
             "hasCabinetCutout": false
           },
           {
-            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Parede Frontal (15mm)__370x735",
-            "label": "🍳 Armário Alto Lateral & Cozinha • Parede Frontal (15mm)",
-            "lengthMm": 735,
-            "widthMm": 370,
-            "thicknessMm": 15,
-            "lengthM": 0.735,
-            "widthM": 0.37,
-            "areaM2": 0.27194999999999997,
-            "qty": 1,
-            "totalAreaM2": 0.27194999999999997,
-            "material": "Compensado Naval 15mm Impermeabilizado",
-            "woodMaterial": "Compensado Naval",
-            "moduleName": "🍳 Armário Alto Lateral & Cozinha",
-            "partType": "front",
-            "isPerforated": false,
-            "holeDiameterMm": 40,
-            "spacingMm": 85,
-            "hasCabinetExclusion": false,
-            "isRearShelf": false,
-            "isUpholstery": false,
-            "hasCabinetCutout": false
-          },
-          {
-            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Parede Traseira (15mm)__370x735",
-            "label": "🍳 Armário Alto Lateral & Cozinha • Parede Traseira (15mm)",
+            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Fundo Traseiro Embutido (4 Partes em Volta • 370×735×15mm)__370x735",
+            "label": "🍳 Armário Alto Lateral & Cozinha • Fundo Traseiro Embutido (4 Partes em Volta • 370×735×15mm)",
             "lengthMm": 735,
             "widthMm": 370,
             "thicknessMm": 15,
@@ -283,20 +260,20 @@
             "hasCabinetCutout": false
           },
           {
-            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta c/ Trava (394×484mm)__394x484",
-            "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta c/ Trava (394×484mm)",
-            "lengthMm": 484,
-            "widthMm": 394,
+            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Parede Frontal (370×735×15mm)__370x735",
+            "label": "🍳 Armário Alto Lateral & Cozinha • Parede Frontal (370×735×15mm)",
+            "lengthMm": 735,
+            "widthMm": 370,
             "thicknessMm": 15,
-            "lengthM": 0.484,
-            "widthM": 0.394,
-            "areaM2": 0.190696,
+            "lengthM": 0.735,
+            "widthM": 0.37,
+            "areaM2": 0.27194999999999997,
             "qty": 1,
-            "totalAreaM2": 0.190696,
+            "totalAreaM2": 0.27194999999999997,
             "material": "Compensado Naval 15mm Impermeabilizado",
             "woodMaterial": "Compensado Naval",
             "moduleName": "🍳 Armário Alto Lateral & Cozinha",
-            "partType": "cabinet",
+            "partType": "front",
             "isPerforated": false,
             "holeDiameterMm": 40,
             "spacingMm": 85,
@@ -306,8 +283,8 @@
             "hasCabinetCutout": false
           },
           {
-            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Fundo (370×475mm)__370x475",
-            "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Fundo (370×475mm)",
+            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Fundo Embutido (370×475mm)__370x475",
+            "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Fundo Embutido (370×475mm)",
             "lengthMm": 475,
             "widthMm": 370,
             "thicknessMm": 15,
@@ -329,31 +306,8 @@
             "hasCabinetCutout": false
           },
           {
-            "key": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Frontal (15mm)__370x385",
-            "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Frontal (15mm)",
-            "lengthMm": 385,
-            "widthMm": 370,
-            "thicknessMm": 15,
-            "lengthM": 0.385,
-            "widthM": 0.37,
-            "areaM2": 0.14245,
-            "qty": 1,
-            "totalAreaM2": 0.14245,
-            "material": "Compensado Naval 15mm Impermeabilizado",
-            "woodMaterial": "Compensado Naval",
-            "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-            "partType": "front",
-            "isPerforated": false,
-            "holeDiameterMm": 40,
-            "spacingMm": 85,
-            "hasCabinetExclusion": false,
-            "isRearShelf": false,
-            "isUpholstery": false,
-            "hasCabinetCutout": false
-          },
-          {
-            "key": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Traseira (15mm)__370x385",
-            "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Traseira (15mm)",
+            "key": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Fundo Traseiro Embutido (4 Partes em Volta • 370×385×15mm)__370x385",
+            "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Fundo Traseiro Embutido (4 Partes em Volta • 370×385×15mm)",
             "lengthMm": 385,
             "widthMm": 370,
             "thicknessMm": 15,
@@ -366,6 +320,29 @@
             "woodMaterial": "Compensado Naval",
             "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
             "partType": "rear",
+            "isPerforated": false,
+            "holeDiameterMm": 40,
+            "spacingMm": 85,
+            "hasCabinetExclusion": false,
+            "isRearShelf": false,
+            "isUpholstery": false,
+            "hasCabinetCutout": false
+          },
+          {
+            "key": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Frontal (370×385×15mm)__370x385",
+            "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Frontal (370×385×15mm)",
+            "lengthMm": 385,
+            "widthMm": 370,
+            "thicknessMm": 15,
+            "lengthM": 0.385,
+            "widthM": 0.37,
+            "areaM2": 0.14245,
+            "qty": 1,
+            "totalAreaM2": 0.14245,
+            "material": "Compensado Naval 15mm Impermeabilizado",
+            "woodMaterial": "Compensado Naval",
+            "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
+            "partType": "front",
             "isPerforated": false,
             "holeDiameterMm": 40,
             "spacingMm": 85,
@@ -444,16 +421,16 @@
             "hasCabinetCutout": false
           },
           {
-            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Prateleira #1 (370×235mm)__225x370",
-            "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Prateleira #1 (370×235mm)",
+            "key": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Prateleira #1 (370×205mm)__205x370",
+            "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Prateleira #1 (370×205mm)",
             "lengthMm": 370,
-            "widthMm": 225,
+            "widthMm": 205,
             "thicknessMm": 15,
             "lengthM": 0.37,
-            "widthM": 0.22499999999999998,
-            "areaM2": 0.08324999999999999,
+            "widthM": 0.205,
+            "areaM2": 0.07585,
             "qty": 1,
-            "totalAreaM2": 0.08324999999999999,
+            "totalAreaM2": 0.07585,
             "material": "Compensado Naval 15mm Impermeabilizado",
             "woodMaterial": "Compensado Naval",
             "moduleName": "🍳 Armário Alto Lateral & Cozinha",
@@ -1067,19 +1044,52 @@
         ]
       },
       {
-        "key": "Espuma D33 (Colchão)__60",
+        "key": "Compensado Naval__6",
+        "woodMaterial": "Compensado Naval",
+        "thicknessMm": 6,
+        "totalPieces": 2,
+        "totalAreaM2": 0.1868,
+        "estimatedSheets": 1,
+        "pieces": [
+          {
+            "key": "Compensado Naval__6__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta de Correr (200×467mm)__200x467",
+            "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta de Correr (200×467mm)",
+            "lengthMm": 467,
+            "widthMm": 200,
+            "thicknessMm": 6,
+            "lengthM": 0.46699999999999997,
+            "widthM": 0.2,
+            "areaM2": 0.0934,
+            "qty": 2,
+            "totalAreaM2": 0.1868,
+            "material": "Compensado Naval 6mm Impermeabilizado",
+            "woodMaterial": "Compensado Naval",
+            "moduleName": "🍳 Armário Alto Lateral & Cozinha",
+            "partType": "cabinet",
+            "isPerforated": false,
+            "holeDiameterMm": 40,
+            "spacingMm": 85,
+            "hasCabinetExclusion": false,
+            "isRearShelf": false,
+            "isUpholstery": false,
+            "hasCabinetCutout": false
+          }
+        ]
+      },
+      {
+        "key": "Espuma D33 (Colchão)__80",
         "woodMaterial": "Espuma D33 (Colchão)",
-        "thicknessMm": 60,
+        "thicknessMm": 80,
         "totalPieces": 2,
         "totalAreaM2": 1.3067839999999997,
         "estimatedSheets": 1,
         "pieces": [
           {
-            "key": "Espuma D33 (Colchão)__60__Almofada 1/2 (Bipartido Modo Sofá)__388x1684",
-            "label": "Almofada 1/2 (Bipartido Modo Sofá)",
+            "key": "Espuma D33 (Colchão)__80__Almofada 1/2 (Bipartido)__388x1684",
+            "label": "Almofada 1/2 (Bipartido)",
             "lengthMm": 1684,
             "widthMm": 388,
-            "thicknessMm": 60,
+            "thicknessMm": 80,
             "lengthM": 1.684,
             "widthM": 0.38799999999999996,
             "areaM2": 0.6533919999999999,
@@ -1098,13 +1108,13 @@
             "hasCabinetCutout": false
           },
           {
-            "key": "Espuma D33 (Colchão)__60__Almofada 2/2 (Bipartido Modo Sofá)__388x1684",
-            "label": "Almofada 2/2 (Bipartido Modo Sofá)",
+            "key": "Espuma D33 (Colchão)__80__Almofada 2/2 (Bipartido)__388x1684",
+            "label": "Almofada 2/2 (Bipartido)",
             "lengthMm": 1684,
             "widthMm": 388,
-            "thicknessMm": 60,
+            "thicknessMm": 80,
             "lengthM": 1.684,
-            "widthM": 0.38799999999999996,
+            "widthM": 0.3879999999999999,
             "areaM2": 0.6533919999999999,
             "qty": 1,
             "totalAreaM2": 0.6533919999999999,
@@ -1141,7 +1151,7 @@
             "kerfMm": 3,
             "placedPieces": [
               {
-                "id": "p-Compensado Naval__18__Tampo de Mesa Dinette Central (450×650×18mm)__450x650_0-33t2p",
+                "id": "p-Compensado Naval__18__Tampo de Mesa Dinette Central (450×650×18mm)__450x650_0-pu2b6",
                 "pieceId": "Compensado Naval__18__Tampo de Mesa Dinette Central (450×650×18mm)__450x650_0",
                 "label": "Tampo de Mesa Dinette Central (450×650×18mm)",
                 "moduleName": "Mesa Dinette Central",
@@ -1163,7 +1173,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__18__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Prateleira Rebatível Traseira [Pinus Finger-Joint 18mm]__360x370__shelf_0-rdw9f",
+                "id": "p-Compensado Naval__18__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Prateleira Rebatível Traseira [Pinus Finger-Joint 18mm]__360x370__shelf_0-8s45f",
                 "pieceId": "Compensado Naval__18__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Prateleira Rebatível Traseira [Pinus Finger-Joint 18mm]__360x370__shelf_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Prateleira Rebatível Traseira [Pinus Finger-Joint 18mm]",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
@@ -1214,7 +1224,7 @@
             "kerfMm": 3,
             "placedPieces": [
               {
-                "id": "p-Compensado Naval__15__Chapa Base do Assoalho Doblò (Compensado Naval 15mm)__1200x1700_0-lrj2d",
+                "id": "p-Compensado Naval__15__Chapa Base do Assoalho Doblò (Compensado Naval 15mm)__1200x1700_0-n2nkf",
                 "pieceId": "Compensado Naval__15__Chapa Base do Assoalho Doblò (Compensado Naval 15mm)__1200x1700_0",
                 "label": "Chapa Base do Assoalho Doblò (Compensado Naval 15mm)",
                 "moduleName": "Assoalho Base",
@@ -1236,9 +1246,9 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Parede Frontal (15mm)__370x735_0-wzv2y",
-                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Parede Frontal (15mm)__370x735_0",
-                "label": "🍳 Armário Alto Lateral & Cozinha • Parede Frontal (15mm)",
+                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Fundo Traseiro Embutido (4 Partes em Volta • 370×735×15mm)__370x735_0-qicgo",
+                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Fundo Traseiro Embutido (4 Partes em Volta • 370×735×15mm)__370x735_0",
+                "label": "🍳 Armário Alto Lateral & Cozinha • Fundo Traseiro Embutido (4 Partes em Volta • 370×735×15mm)",
                 "moduleName": "🍳 Armário Alto Lateral & Cozinha",
                 "x": 1713,
                 "y": 10,
@@ -1253,14 +1263,14 @@
                 "isPerforated": false,
                 "holeDiameterMm": 40,
                 "spacingMm": 85,
-                "partType": "front",
+                "partType": "rear",
                 "isUpholstery": false,
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Frontal (15mm)__370x385_0-1gh9w",
-                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Frontal (15mm)__370x385_0",
-                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Frontal (15mm)",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Fundo Traseiro Embutido (4 Partes em Volta • 370×385×15mm)__370x385_0-b83wh",
+                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Fundo Traseiro Embutido (4 Partes em Volta • 370×385×15mm)__370x385_0",
+                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Fundo Traseiro Embutido (4 Partes em Volta • 370×385×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
                 "x": 1713,
                 "y": 748,
@@ -1275,12 +1285,12 @@
                 "isPerforated": false,
                 "holeDiameterMm": 40,
                 "spacingMm": 85,
-                "partType": "front",
+                "partType": "rear",
                 "isUpholstery": false,
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Lateral Dir. (250×490mm)__250x490_0-1g3r0",
+                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Lateral Dir. (250×490mm)__250x490_0-xu5ra",
                 "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Lateral Dir. (250×490mm)__250x490_0",
                 "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Lateral Dir. (250×490mm)",
                 "moduleName": "🍳 Armário Alto Lateral & Cozinha",
@@ -1302,7 +1312,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Lateral Esq. (250×490mm)__250x490_0-l8va7",
+                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Lateral Esq. (250×490mm)__250x490_0-jxnv5",
                 "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Lateral Esq. (250×490mm)__250x490_0",
                 "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Lateral Esq. (250×490mm)",
                 "moduleName": "🍳 Armário Alto Lateral & Cozinha",
@@ -1324,7 +1334,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #1 (400×65×15mm)__65x400_0-myzr7",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #1 (400×65×15mm)__65x400_0-l3p4y",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #1 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #1 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
@@ -1346,7 +1356,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #10 (400×65×15mm)__65x400_0-p0eej",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #10 (400×65×15mm)__65x400_0-07tsd",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #10 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #10 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
@@ -1368,7 +1378,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Pé de Apoio Dianteiro (15mm)__35x385_0-wqs6n",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Pé de Apoio Dianteiro (15mm)__35x385_0-rxr2f",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Pé de Apoio Dianteiro (15mm)__35x385_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Pé de Apoio Dianteiro (15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
@@ -1406,9 +1416,9 @@
             "kerfMm": 3,
             "placedPieces": [
               {
-                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Direita (15mm)__735x1700_0-87xuv",
-                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Direita (15mm)__735x1700_0",
-                "label": "🍳 Armário Alto Lateral & Cozinha • Lateral Direita (15mm)",
+                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Direita (1700×735×15mm)__735x1700_0-58wh2",
+                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Direita (1700×735×15mm)__735x1700_0",
+                "label": "🍳 Armário Alto Lateral & Cozinha • Lateral Direita (1700×735×15mm)",
                 "moduleName": "🍳 Armário Alto Lateral & Cozinha",
                 "x": 10,
                 "y": 10,
@@ -1428,7 +1438,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Tampa Basculante (15mm)__400x1700_0-8nloh",
+                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Tampa Basculante (15mm)__400x1700_0-g4xry",
                 "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Tampa Basculante (15mm)__400x1700_0",
                 "label": "🍳 Armário Alto Lateral & Cozinha • Tampa Basculante (15mm)",
                 "moduleName": "🍳 Armário Alto Lateral & Cozinha",
@@ -1450,9 +1460,9 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Parede Traseira (15mm)__370x735_0-hndnh",
-                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Parede Traseira (15mm)__370x735_0",
-                "label": "🍳 Armário Alto Lateral & Cozinha • Parede Traseira (15mm)",
+                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Parede Frontal (370×735×15mm)__370x735_0-eueby",
+                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Parede Frontal (370×735×15mm)__370x735_0",
+                "label": "🍳 Armário Alto Lateral & Cozinha • Parede Frontal (370×735×15mm)",
                 "moduleName": "🍳 Armário Alto Lateral & Cozinha",
                 "x": 1713,
                 "y": 10,
@@ -1467,14 +1477,14 @@
                 "isPerforated": false,
                 "holeDiameterMm": 40,
                 "spacingMm": 85,
-                "partType": "rear",
+                "partType": "front",
                 "isUpholstery": false,
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Traseira (15mm)__370x385_0-92u62",
-                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Traseira (15mm)__370x385_0",
-                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Traseira (15mm)",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Frontal (370×385×15mm)__370x385_0-x91jn",
+                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Frontal (370×385×15mm)__370x385_0",
+                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Parede Frontal (370×385×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
                 "x": 1713,
                 "y": 748,
@@ -1489,12 +1499,12 @@
                 "isPerforated": false,
                 "holeDiameterMm": 40,
                 "spacingMm": 85,
-                "partType": "rear",
+                "partType": "front",
                 "isUpholstery": false,
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Tampo Teto (370×250mm)__250x370_0-f2f02",
+                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Tampo Teto (370×250mm)__250x370_0-ubhme",
                 "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Tampo Teto (370×250mm)__250x370_0",
                 "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Tampo Teto (370×250mm)",
                 "moduleName": "🍳 Armário Alto Lateral & Cozinha",
@@ -1516,16 +1526,16 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Prateleira #1 (370×235mm)__225x370_0-3p1fg",
-                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Prateleira #1 (370×235mm)__225x370_0",
-                "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Prateleira #1 (370×235mm)",
+                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Prateleira #1 (370×205mm)__205x370_0-8n5ti",
+                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Prateleira #1 (370×205mm)__205x370_0",
+                "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Prateleira #1 (370×205mm)",
                 "moduleName": "🍳 Armário Alto Lateral & Cozinha",
                 "x": 2086,
                 "y": 383,
-                "w": 225,
+                "w": 205,
                 "h": 370,
                 "originalLength": 370,
-                "originalWidth": 225,
+                "originalWidth": 205,
                 "thicknessMm": 15,
                 "rotated": true,
                 "material": "Compensado Naval 15mm Impermeabilizado",
@@ -1538,7 +1548,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #11 (400×65×15mm)__65x400_0-85ftr",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #11 (400×65×15mm)__65x400_0-y022i",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #11 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #11 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
@@ -1560,7 +1570,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #12 (400×65×15mm)__65x400_0-g64sx",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #12 (400×65×15mm)__65x400_0-wrz3m",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #12 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #12 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
@@ -1582,7 +1592,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #2 (400×65×15mm)__65x400_0-q4gy3",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #2 (400×65×15mm)__65x400_0-ekje8",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #2 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #2 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
@@ -1604,7 +1614,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #3 (400×65×15mm)__65x400_0-hwvck",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #3 (400×65×15mm)__65x400_0-n96ck",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #3 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #3 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
@@ -1626,7 +1636,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #4 (400×65×15mm)__65x400_0-ikos3",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #4 (400×65×15mm)__65x400_0-v7z9r",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #4 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #4 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
@@ -1648,7 +1658,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Pé de Apoio Traseiro (15mm)__35x385_0-tsj9w",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Pé de Apoio Traseiro (15mm)__35x385_0-xkkeg",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Pé de Apoio Traseiro (15mm)__35x385_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Pé de Apoio Traseiro (15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
@@ -1670,10 +1680,10 @@
                 "hasCabinetCutout": false
               }
             ],
-            "usedAreaM2": 2.663,
+            "usedAreaM2": 2.656,
             "totalAreaM2": 2.9768,
-            "efficiencyPct": 89.5,
-            "wastePct": 10.5
+            "efficiencyPct": 89.2,
+            "wastePct": 10.8
           },
           {
             "sheetIndex": 3,
@@ -1686,9 +1696,9 @@
             "kerfMm": 3,
             "placedPieces": [
               {
-                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Esquerda (15mm)__735x1700_0-11miq",
-                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Esquerda (15mm)__735x1700_0",
-                "label": "🍳 Armário Alto Lateral & Cozinha • Lateral Esquerda (15mm)",
+                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Esquerda (1700×735×15mm)__735x1700_0-ou92s",
+                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Lateral Esquerda (1700×735×15mm)__735x1700_0",
+                "label": "🍳 Armário Alto Lateral & Cozinha • Lateral Esquerda (1700×735×15mm)",
                 "moduleName": "🍳 Armário Alto Lateral & Cozinha",
                 "x": 10,
                 "y": 10,
@@ -1708,7 +1718,7 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Longarina Lateral Móvel (1700×400×15mm)__400x1700_0-5agx1",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Longarina Lateral Móvel (1700×400×15mm)__400x1700_0-52vu3",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Longarina Lateral Móvel (1700×400×15mm)__400x1700_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Longarina Lateral Móvel (1700×400×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
@@ -1730,34 +1740,12 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta c/ Trava (394×484mm)__394x484_0-6j3vt",
-                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta c/ Trava (394×484mm)__394x484_0",
-                "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta c/ Trava (394×484mm)",
+                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Fundo Embutido (370×475mm)__370x475_0-5arlu",
+                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Fundo Embutido (370×475mm)__370x475_0",
+                "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Fundo Embutido (370×475mm)",
                 "moduleName": "🍳 Armário Alto Lateral & Cozinha",
                 "x": 1713,
                 "y": 10,
-                "w": 484,
-                "h": 394,
-                "originalLength": 484,
-                "originalWidth": 394,
-                "thicknessMm": 15,
-                "rotated": false,
-                "material": "Compensado Naval 15mm Impermeabilizado",
-                "woodMaterial": "Compensado Naval",
-                "isPerforated": false,
-                "holeDiameterMm": 40,
-                "spacingMm": 85,
-                "partType": "cabinet",
-                "isUpholstery": false,
-                "hasCabinetCutout": false
-              },
-              {
-                "id": "p-Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Fundo (370×475mm)__370x475_0-ved8l",
-                "pieceId": "Compensado Naval__15__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Fundo (370×475mm)__370x475_0",
-                "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Fundo (370×475mm)",
-                "moduleName": "🍳 Armário Alto Lateral & Cozinha",
-                "x": 1713,
-                "y": 407,
                 "w": 475,
                 "h": 370,
                 "originalLength": 475,
@@ -1774,34 +1762,12 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #5 (400×65×15mm)__65x400_0-ap7nf",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #5 (400×65×15mm)__65x400_0-sj3g2",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #5 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #5 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 1713,
-                "y": 780,
-                "w": 400,
-                "h": 65,
-                "originalLength": 400,
-                "originalWidth": 65,
-                "thicknessMm": 15,
-                "rotated": false,
-                "material": "Compensado Naval 15mm",
-                "woodMaterial": "Compensado Naval",
-                "isPerforated": false,
-                "holeDiameterMm": 40,
-                "spacingMm": 85,
-                "partType": "slat",
-                "isUpholstery": false,
-                "hasCabinetCutout": false
-              },
-              {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #6 (400×65×15mm)__65x400_0-5wn4s",
-                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #6 (400×65×15mm)__65x400_0",
-                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #6 (400×65×15mm)",
-                "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 2116,
-                "y": 780,
+                "x": 2191,
+                "y": 10,
                 "w": 65,
                 "h": 400,
                 "originalLength": 400,
@@ -1818,18 +1784,40 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #7 (400×65×15mm)__65x400_0-fhhww",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #6 (400×65×15mm)__65x400_0-ggyyf",
+                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #6 (400×65×15mm)__65x400_0",
+                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #6 (400×65×15mm)",
+                "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
+                "x": 2191,
+                "y": 413,
+                "w": 65,
+                "h": 400,
+                "originalLength": 400,
+                "originalWidth": 65,
+                "thicknessMm": 15,
+                "rotated": true,
+                "material": "Compensado Naval 15mm",
+                "woodMaterial": "Compensado Naval",
+                "isPerforated": false,
+                "holeDiameterMm": 40,
+                "spacingMm": 85,
+                "partType": "slat",
+                "isUpholstery": false,
+                "hasCabinetCutout": false
+              },
+              {
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #7 (400×65×15mm)__65x400_0-hjbc5",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #7 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #7 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 1713,
-                "y": 848,
-                "w": 400,
-                "h": 65,
+                "x": 2259,
+                "y": 10,
+                "w": 65,
+                "h": 400,
                 "originalLength": 400,
                 "originalWidth": 65,
                 "thicknessMm": 15,
-                "rotated": false,
+                "rotated": true,
                 "material": "Compensado Naval 15mm",
                 "woodMaterial": "Compensado Naval",
                 "isPerforated": false,
@@ -1840,18 +1828,18 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #8 (400×65×15mm)__65x400_0-ooj3z",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #8 (400×65×15mm)__65x400_0-i9s7l",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #8 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #8 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 1713,
-                "y": 916,
-                "w": 400,
-                "h": 65,
+                "x": 2259,
+                "y": 413,
+                "w": 65,
+                "h": 400,
                 "originalLength": 400,
                 "originalWidth": 65,
                 "thicknessMm": 15,
-                "rotated": false,
+                "rotated": true,
                 "material": "Compensado Naval 15mm",
                 "woodMaterial": "Compensado Naval",
                 "isPerforated": false,
@@ -1862,18 +1850,18 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #9 (400×65×15mm)__65x400_0-vn78m",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #9 (400×65×15mm)__65x400_0-wpnaf",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #9 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Fixa #9 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 1713,
-                "y": 984,
-                "w": 400,
-                "h": 65,
+                "x": 2327,
+                "y": 10,
+                "w": 65,
+                "h": 400,
                 "originalLength": 400,
                 "originalWidth": 65,
                 "thicknessMm": 15,
-                "rotated": false,
+                "rotated": true,
                 "material": "Compensado Naval 15mm",
                 "woodMaterial": "Compensado Naval",
                 "isPerforated": false,
@@ -1884,18 +1872,18 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #1 (400×65×15mm)__65x400_0-6nbxp",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #1 (400×65×15mm)__65x400_0-zsh9i",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #1 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #1 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 1713,
-                "y": 1052,
-                "w": 400,
-                "h": 65,
+                "x": 2327,
+                "y": 413,
+                "w": 65,
+                "h": 400,
                 "originalLength": 400,
                 "originalWidth": 65,
                 "thicknessMm": 15,
-                "rotated": false,
+                "rotated": true,
                 "material": "Compensado Naval 15mm",
                 "woodMaterial": "Compensado Naval",
                 "isPerforated": false,
@@ -1906,12 +1894,12 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #10 (400×65×15mm)__65x400_0-fd4ku",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #10 (400×65×15mm)__65x400_0-qn2o1",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #10 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #10 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
                 "x": 1713,
-                "y": 1120,
+                "y": 383,
                 "w": 400,
                 "h": 65,
                 "originalLength": 400,
@@ -1928,12 +1916,12 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #11 (400×65×15mm)__65x400_0-9063u",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #11 (400×65×15mm)__65x400_0-f42bw",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #11 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #11 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 2200,
-                "y": 10,
+                "x": 2116,
+                "y": 383,
                 "w": 65,
                 "h": 400,
                 "originalLength": 400,
@@ -1950,12 +1938,12 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #12 (400×65×15mm)__65x400_0-95bcg",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #12 (400×65×15mm)__65x400_0-y8mue",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #12 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #12 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 2200,
-                "y": 413,
+                "x": 2116,
+                "y": 786,
                 "w": 65,
                 "h": 400,
                 "originalLength": 400,
@@ -1972,18 +1960,18 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #2 (400×65×15mm)__65x400_0-b6mt7",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #2 (400×65×15mm)__65x400_0-dmu89",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #2 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #2 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 2268,
-                "y": 10,
-                "w": 65,
-                "h": 400,
+                "x": 1713,
+                "y": 451,
+                "w": 400,
+                "h": 65,
                 "originalLength": 400,
                 "originalWidth": 65,
                 "thicknessMm": 15,
-                "rotated": true,
+                "rotated": false,
                 "material": "Compensado Naval 15mm",
                 "woodMaterial": "Compensado Naval",
                 "isPerforated": false,
@@ -1994,18 +1982,18 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #3 (400×65×15mm)__65x400_0-ky2mk",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #3 (400×65×15mm)__65x400_0-b3c83",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #3 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #3 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 2268,
-                "y": 413,
-                "w": 65,
-                "h": 400,
+                "x": 1713,
+                "y": 519,
+                "w": 400,
+                "h": 65,
                 "originalLength": 400,
                 "originalWidth": 65,
                 "thicknessMm": 15,
-                "rotated": true,
+                "rotated": false,
                 "material": "Compensado Naval 15mm",
                 "woodMaterial": "Compensado Naval",
                 "isPerforated": false,
@@ -2016,18 +2004,18 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #4 (400×65×15mm)__65x400_0-ogspz",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #4 (400×65×15mm)__65x400_0-zxvyv",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #4 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #4 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 2336,
-                "y": 10,
-                "w": 65,
-                "h": 400,
+                "x": 1713,
+                "y": 587,
+                "w": 400,
+                "h": 65,
                 "originalLength": 400,
                 "originalWidth": 65,
                 "thicknessMm": 15,
-                "rotated": true,
+                "rotated": false,
                 "material": "Compensado Naval 15mm",
                 "woodMaterial": "Compensado Naval",
                 "isPerforated": false,
@@ -2038,18 +2026,106 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #5 (400×65×15mm)__65x400_0-vbbet",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #5 (400×65×15mm)__65x400_0-vesnl",
                 "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #5 (400×65×15mm)__65x400_0",
                 "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #5 (400×65×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 2336,
-                "y": 413,
-                "w": 65,
-                "h": 400,
+                "x": 1713,
+                "y": 655,
+                "w": 400,
+                "h": 65,
                 "originalLength": 400,
                 "originalWidth": 65,
                 "thicknessMm": 15,
-                "rotated": true,
+                "rotated": false,
+                "material": "Compensado Naval 15mm",
+                "woodMaterial": "Compensado Naval",
+                "isPerforated": false,
+                "holeDiameterMm": 40,
+                "spacingMm": 85,
+                "partType": "slat",
+                "isUpholstery": false,
+                "hasCabinetCutout": false
+              },
+              {
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #6 (400×65×15mm)__65x400_0-vbt3c",
+                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #6 (400×65×15mm)__65x400_0",
+                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #6 (400×65×15mm)",
+                "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
+                "x": 1713,
+                "y": 723,
+                "w": 400,
+                "h": 65,
+                "originalLength": 400,
+                "originalWidth": 65,
+                "thicknessMm": 15,
+                "rotated": false,
+                "material": "Compensado Naval 15mm",
+                "woodMaterial": "Compensado Naval",
+                "isPerforated": false,
+                "holeDiameterMm": 40,
+                "spacingMm": 85,
+                "partType": "slat",
+                "isUpholstery": false,
+                "hasCabinetCutout": false
+              },
+              {
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #7 (400×65×15mm)__65x400_0-u0nid",
+                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #7 (400×65×15mm)__65x400_0",
+                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #7 (400×65×15mm)",
+                "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
+                "x": 1713,
+                "y": 791,
+                "w": 400,
+                "h": 65,
+                "originalLength": 400,
+                "originalWidth": 65,
+                "thicknessMm": 15,
+                "rotated": false,
+                "material": "Compensado Naval 15mm",
+                "woodMaterial": "Compensado Naval",
+                "isPerforated": false,
+                "holeDiameterMm": 40,
+                "spacingMm": 85,
+                "partType": "slat",
+                "isUpholstery": false,
+                "hasCabinetCutout": false
+              },
+              {
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #8 (400×65×15mm)__65x400_0-53yuj",
+                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #8 (400×65×15mm)__65x400_0",
+                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #8 (400×65×15mm)",
+                "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
+                "x": 1713,
+                "y": 859,
+                "w": 400,
+                "h": 65,
+                "originalLength": 400,
+                "originalWidth": 65,
+                "thicknessMm": 15,
+                "rotated": false,
+                "material": "Compensado Naval 15mm",
+                "woodMaterial": "Compensado Naval",
+                "isPerforated": false,
+                "holeDiameterMm": 40,
+                "spacingMm": 85,
+                "partType": "slat",
+                "isUpholstery": false,
+                "hasCabinetCutout": false
+              },
+              {
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #9 (400×65×15mm)__65x400_0-e9qw2",
+                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #9 (400×65×15mm)__65x400_0",
+                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #9 (400×65×15mm)",
+                "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
+                "x": 1713,
+                "y": 927,
+                "w": 400,
+                "h": 65,
+                "originalLength": 400,
+                "originalWidth": 65,
+                "thicknessMm": 15,
+                "rotated": false,
                 "material": "Compensado Naval 15mm",
                 "woodMaterial": "Compensado Naval",
                 "isPerforated": false,
@@ -2060,10 +2136,10 @@
                 "hasCabinetCutout": false
               }
             ],
-            "usedAreaM2": 2.634,
+            "usedAreaM2": 2.547,
             "totalAreaM2": 2.9768,
-            "efficiencyPct": 88.5,
-            "wastePct": 11.5
+            "efficiencyPct": 85.6,
+            "wastePct": 14.4
           },
           {
             "sheetIndex": 4,
@@ -2076,9 +2152,9 @@
             "kerfMm": 3,
             "placedPieces": [
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Direita (15mm)__385x1700_0-v3wpy",
-                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Direita (15mm)__385x1700_0",
-                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Direita (15mm)",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Direita (1700×385×15mm)__385x1700_0-06w8c",
+                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Direita (1700×385×15mm)__385x1700_0",
+                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Direita (1700×385×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
                 "x": 10,
                 "y": 10,
@@ -2098,9 +2174,9 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Esquerda (15mm)__385x1700_0-51dnp",
-                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Esquerda (15mm)__385x1700_0",
-                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Esquerda (15mm)",
+                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Esquerda (1700×385×15mm)__385x1700_0-tn0ao",
+                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Esquerda (1700×385×15mm)__385x1700_0",
+                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Lateral Esquerda (1700×385×15mm)",
                 "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
                 "x": 10,
                 "y": 398,
@@ -2118,110 +2194,95 @@
                 "partType": "left",
                 "isUpholstery": false,
                 "hasCabinetCutout": false
-              },
-              {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #6 (400×65×15mm)__65x400_0-d2f4g",
-                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #6 (400×65×15mm)__65x400_0",
-                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #6 (400×65×15mm)",
-                "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 10,
-                "y": 786,
-                "w": 400,
-                "h": 65,
-                "originalLength": 400,
-                "originalWidth": 65,
-                "thicknessMm": 15,
-                "rotated": false,
-                "material": "Compensado Naval 15mm",
-                "woodMaterial": "Compensado Naval",
-                "isPerforated": false,
-                "holeDiameterMm": 40,
-                "spacingMm": 85,
-                "partType": "slat",
-                "isUpholstery": false,
-                "hasCabinetCutout": false
-              },
-              {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #7 (400×65×15mm)__65x400_0-qtcjq",
-                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #7 (400×65×15mm)__65x400_0",
-                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #7 (400×65×15mm)",
-                "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 10,
-                "y": 854,
-                "w": 400,
-                "h": 65,
-                "originalLength": 400,
-                "originalWidth": 65,
-                "thicknessMm": 15,
-                "rotated": false,
-                "material": "Compensado Naval 15mm",
-                "woodMaterial": "Compensado Naval",
-                "isPerforated": false,
-                "holeDiameterMm": 40,
-                "spacingMm": 85,
-                "partType": "slat",
-                "isUpholstery": false,
-                "hasCabinetCutout": false
-              },
-              {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #8 (400×65×15mm)__65x400_0-2iooj",
-                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #8 (400×65×15mm)__65x400_0",
-                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #8 (400×65×15mm)",
-                "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 10,
-                "y": 922,
-                "w": 400,
-                "h": 65,
-                "originalLength": 400,
-                "originalWidth": 65,
-                "thicknessMm": 15,
-                "rotated": false,
-                "material": "Compensado Naval 15mm",
-                "woodMaterial": "Compensado Naval",
-                "isPerforated": false,
-                "holeDiameterMm": 40,
-                "spacingMm": 85,
-                "partType": "slat",
-                "isUpholstery": false,
-                "hasCabinetCutout": false
-              },
-              {
-                "id": "p-Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #9 (400×65×15mm)__65x400_0-ywhxq",
-                "pieceId": "Compensado Naval__15__🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #9 (400×65×15mm)__65x400_0",
-                "label": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total) • Ripa Móvel #9 (400×65×15mm)",
-                "moduleName": "🛏️ Sofá-Cama Retrátil com Ripas (2 Colunas / Total)",
-                "x": 10,
-                "y": 990,
-                "w": 400,
-                "h": 65,
-                "originalLength": 400,
-                "originalWidth": 65,
-                "thicknessMm": 15,
-                "rotated": false,
-                "material": "Compensado Naval 15mm",
-                "woodMaterial": "Compensado Naval",
-                "isPerforated": false,
-                "holeDiameterMm": 40,
-                "spacingMm": 85,
-                "partType": "slat",
-                "isUpholstery": false,
-                "hasCabinetCutout": false
               }
             ],
-            "usedAreaM2": 1.413,
+            "usedAreaM2": 1.309,
             "totalAreaM2": 2.9768,
-            "efficiencyPct": 47.5,
-            "wastePct": 52.5
+            "efficiencyPct": 44,
+            "wastePct": 56
           }
         ],
         "unplacedPieces": [],
         "totalSheets": 4,
-        "totalPiecesCount": 43,
-        "totalAreaUsedM2": 9.475,
-        "overallEfficiencyPct": 79.6
+        "totalPiecesCount": 42,
+        "totalAreaUsedM2": 9.277,
+        "overallEfficiencyPct": 77.9
       },
       {
-        "materialGroupKey": "Espuma D33 (Colchão)__60",
+        "materialGroupKey": "Compensado Naval__6",
+        "materialName": "Compensado Naval Compensado Navalmm",
+        "woodMaterial": "Compensado Naval",
+        "thicknessMm": "Compensado Naval",
+        "sheets": [
+          {
+            "sheetIndex": 1,
+            "sheetWidthMm": 2440,
+            "sheetHeightMm": 1220,
+            "material": "Compensado Naval__6",
+            "woodMaterial": "Compensado Naval",
+            "thicknessMm": "Compensado Naval",
+            "marginMm": 10,
+            "kerfMm": 3,
+            "placedPieces": [
+              {
+                "id": "p-Compensado Naval__6__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta de Correr (200×467mm)__200x467_0-2kany",
+                "pieceId": "Compensado Naval__6__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta de Correr (200×467mm)__200x467_0",
+                "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta de Correr (200×467mm)",
+                "moduleName": "🍳 Armário Alto Lateral & Cozinha",
+                "x": 10,
+                "y": 10,
+                "w": 467,
+                "h": 200,
+                "originalLength": 467,
+                "originalWidth": 200,
+                "thicknessMm": 6,
+                "rotated": false,
+                "material": "Compensado Naval 6mm Impermeabilizado",
+                "woodMaterial": "Compensado Naval",
+                "isPerforated": false,
+                "holeDiameterMm": 40,
+                "spacingMm": 85,
+                "partType": "cabinet",
+                "isUpholstery": false,
+                "hasCabinetCutout": false
+              },
+              {
+                "id": "p-Compensado Naval__6__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta de Correr (200×467mm)__200x467_1-1j0dl",
+                "pieceId": "Compensado Naval__6__🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta de Correr (200×467mm)__200x467_1",
+                "label": "🍳 Armário Alto Lateral & Cozinha • Armário Aéreo (rear) Porta de Correr (200×467mm)",
+                "moduleName": "🍳 Armário Alto Lateral & Cozinha",
+                "x": 10,
+                "y": 213,
+                "w": 467,
+                "h": 200,
+                "originalLength": 467,
+                "originalWidth": 200,
+                "thicknessMm": 6,
+                "rotated": false,
+                "material": "Compensado Naval 6mm Impermeabilizado",
+                "woodMaterial": "Compensado Naval",
+                "isPerforated": false,
+                "holeDiameterMm": 40,
+                "spacingMm": 85,
+                "partType": "cabinet",
+                "isUpholstery": false,
+                "hasCabinetCutout": false
+              }
+            ],
+            "usedAreaM2": 0.187,
+            "totalAreaM2": 2.9768,
+            "efficiencyPct": 6.3,
+            "wastePct": 93.7
+          }
+        ],
+        "unplacedPieces": [],
+        "totalSheets": 1,
+        "totalPiecesCount": 2,
+        "totalAreaUsedM2": 0.187,
+        "overallEfficiencyPct": 6.3
+      },
+      {
+        "materialGroupKey": "Espuma D33 (Colchão)__80",
         "materialName": "Espuma D33 (Colchão) Espuma D33 (Colchão)mm",
         "woodMaterial": "Espuma D33 (Colchão)",
         "thicknessMm": "Espuma D33 (Colchão)",
@@ -2230,16 +2291,16 @@
             "sheetIndex": 1,
             "sheetWidthMm": 2440,
             "sheetHeightMm": 1220,
-            "material": "Espuma D33 (Colchão)__60",
+            "material": "Espuma D33 (Colchão)__80",
             "woodMaterial": "Espuma D33 (Colchão)",
             "thicknessMm": "Espuma D33 (Colchão)",
             "marginMm": 10,
             "kerfMm": 3,
             "placedPieces": [
               {
-                "id": "p-Espuma D33 (Colchão)__60__Almofada 1/2 (Bipartido Modo Sofá)__388x1684_0-mt31i",
-                "pieceId": "Espuma D33 (Colchão)__60__Almofada 1/2 (Bipartido Modo Sofá)__388x1684_0",
-                "label": "Almofada 1/2 (Bipartido Modo Sofá)",
+                "id": "p-Espuma D33 (Colchão)__80__Almofada 1/2 (Bipartido)__388x1684_0-qkocj",
+                "pieceId": "Espuma D33 (Colchão)__80__Almofada 1/2 (Bipartido)__388x1684_0",
+                "label": "Almofada 1/2 (Bipartido)",
                 "moduleName": "🛏️ Cama Retrátil / Sofá-Cama",
                 "x": 10,
                 "y": 10,
@@ -2247,7 +2308,7 @@
                 "h": 388,
                 "originalLength": 1684,
                 "originalWidth": 388,
-                "thicknessMm": 60,
+                "thicknessMm": 80,
                 "rotated": false,
                 "material": "Espuma D33 Revestida em Tecido Impermeável Bipartido",
                 "woodMaterial": "Espuma D33 (Colchão)",
@@ -2259,9 +2320,9 @@
                 "hasCabinetCutout": false
               },
               {
-                "id": "p-Espuma D33 (Colchão)__60__Almofada 2/2 (Bipartido Modo Sofá)__388x1684_0-zed9e",
-                "pieceId": "Espuma D33 (Colchão)__60__Almofada 2/2 (Bipartido Modo Sofá)__388x1684_0",
-                "label": "Almofada 2/2 (Bipartido Modo Sofá)",
+                "id": "p-Espuma D33 (Colchão)__80__Almofada 2/2 (Bipartido)__388x1684_0-dv1v8",
+                "pieceId": "Espuma D33 (Colchão)__80__Almofada 2/2 (Bipartido)__388x1684_0",
+                "label": "Almofada 2/2 (Bipartido)",
                 "moduleName": "🛏️ Cama Retrátil / Sofá-Cama",
                 "x": 10,
                 "y": 401,
@@ -2269,7 +2330,7 @@
                 "h": 388,
                 "originalLength": 1684,
                 "originalWidth": 388,
-                "thicknessMm": 60,
+                "thicknessMm": 80,
                 "rotated": false,
                 "material": "Espuma D33 Revestida em Tecido Impermeável Bipartido",
                 "woodMaterial": "Espuma D33 (Colchão)",
@@ -2298,15 +2359,15 @@
   "upholstery": {
     "totalPieces": 2,
     "totalAreaM2": 1.3067839999999997,
-    "totalVolumeLiters": 78.40703999999998,
+    "totalVolumeLiters": 104.54271999999997,
     "estimatedSheets1900": 1,
     "cushions": [
       {
-        "key": "Espuma D33 (Colchão)__60__Almofada 1/2 (Bipartido Modo Sofá)__388x1684",
-        "label": "Almofada 1/2 (Bipartido Modo Sofá)",
+        "key": "Espuma D33 (Colchão)__80__Almofada 1/2 (Bipartido)__388x1684",
+        "label": "Almofada 1/2 (Bipartido)",
         "lengthMm": 1684,
         "widthMm": 388,
-        "thicknessMm": 60,
+        "thicknessMm": 80,
         "lengthM": 1.684,
         "widthM": 0.38799999999999996,
         "areaM2": 0.6533919999999999,
@@ -2325,13 +2386,13 @@
         "hasCabinetCutout": false
       },
       {
-        "key": "Espuma D33 (Colchão)__60__Almofada 2/2 (Bipartido Modo Sofá)__388x1684",
-        "label": "Almofada 2/2 (Bipartido Modo Sofá)",
+        "key": "Espuma D33 (Colchão)__80__Almofada 2/2 (Bipartido)__388x1684",
+        "label": "Almofada 2/2 (Bipartido)",
         "lengthMm": 1684,
         "widthMm": 388,
-        "thicknessMm": 60,
+        "thicknessMm": 80,
         "lengthM": 1.684,
-        "widthM": 0.38799999999999996,
+        "widthM": 0.3879999999999999,
         "areaM2": 0.6533919999999999,
         "qty": 1,
         "totalAreaM2": 0.6533919999999999,
@@ -2824,8 +2885,8 @@
   "pvc": {
     "enabled": true,
     "diameterMm": 100,
-    "totalPieces": 3,
-    "totalLinearMeters": 4.45,
+    "totalPieces": 5,
+    "totalLinearMeters": 4.49,
     "totalCapacityL": 37.7,
     "cutItems": [
       {
@@ -2853,16 +2914,40 @@
         "notes": "Fixado com abraçadeiras inox na longarina interna direita da Doblò"
       },
       {
-        "key": "pvc_front_transverse",
-        "label": "Cano Transversal Dianteiro",
+        "key": "pvc_transverse_left",
+        "label": "Cano Transversal Esquerdo (Dianteiro)",
         "spec": "Tubo PVC Esgoto/Série R Ø100 mm",
         "diameterMm": 100,
-        "lengthMm": 1085,
-        "lengthM": 1.0849999999999997,
+        "lengthMm": 522,
+        "lengthM": 0.522,
         "qty": 1,
-        "totalLengthM": 1.0849999999999997,
+        "totalLengthM": 0.522,
         "category": "Tubulação Transversal",
-        "notes": "Interliga os 2 joelhos de 90° na dianteira da van (com bocal de abastecimento)"
+        "notes": "Conecta o joelho 90° esquerdo à bolsa esquerda do Tê central na dianteira da van (frente do rack)"
+      },
+      {
+        "key": "pvc_transverse_right",
+        "label": "Cano Transversal Direito (Dianteiro)",
+        "spec": "Tubo PVC Esgoto/Série R Ø100 mm",
+        "diameterMm": 100,
+        "lengthMm": 522,
+        "lengthM": 0.522,
+        "qty": 1,
+        "totalLengthM": 0.522,
+        "category": "Tubulação Transversal",
+        "notes": "Conecta o joelho 90° direito à bolsa direita do Tê central na dianteira da van (frente do rack)"
+      },
+      {
+        "key": "pvc_vertical_nipple",
+        "label": "Extensão Vertical / Niple (Tê ao Cap)",
+        "spec": "Tubo PVC Esgoto/Série R Ø100 mm",
+        "diameterMm": 100,
+        "lengthMm": 80,
+        "lengthM": 0.08,
+        "qty": 1,
+        "totalLengthM": 0.08,
+        "category": "Extensão do Bocal",
+        "notes": "Pedacinho de cano que une a bolsa vertical do Tê 90° ao CAP superior onde assenta a tampinha"
       }
     ],
     "fittings": [
@@ -2872,15 +2957,35 @@
         "spec": "90° Ø100 mm",
         "qty": 2,
         "unit": "un",
-        "notes": "Interligam os canos laterais ao cano frontal na dianteira da estrutura"
+        "group": "↪️ Joelhos 90° PVC",
+        "notes": "Interligam os canos laterais aos canos transversais na dianteira da van (frente do rack)"
+      },
+      {
+        "key": "fit_tee_90",
+        "label": "Tê 90° PVC com 3 bolsas reforçadas",
+        "spec": "Tê 90° Ø100 mm",
+        "qty": 1,
+        "unit": "un",
+        "group": "🔀 Tê 90° PVC",
+        "notes": "Instalado no centro do cano transversal dianteiro para elevação vertical do bocal"
       },
       {
         "key": "fit_cap",
-        "label": "CAPs (Tampões) de Vedação PVC Traseiros",
+        "label": "CAPs (Tampões) de Vedação PVC Soldáveis",
         "spec": "CAP Soldável Ø100 mm",
-        "qty": 2,
+        "qty": 3,
         "unit": "un",
-        "notes": "Vedação estanque traseira das pontas voltadas para a tampa do porta-malas"
+        "group": "🛑 CAPs (Tampões) de Vedação",
+        "notes": "3 unidades: 2× de extremidade (traseiras) + 1× superior no Tê (base da tampinha)"
+      },
+      {
+        "key": "fit_filler",
+        "label": "Bocal / Tampinha Hermética de Abastecimento e Inspeção",
+        "spec": "Rosqueável 2\" ou 3\" com vedação hermética",
+        "qty": 1,
+        "unit": "un",
+        "group": "🚰 Válvulas, Bocal & Registros",
+        "notes": "Montada no topo do CAP superior do Tê para abastecimento rápido de água potável"
       },
       {
         "key": "fit_valve",
@@ -2888,15 +2993,8 @@
         "spec": "1/2\" ou 3/4\" BSP com manopla",
         "qty": 2,
         "unit": "un",
-        "notes": "Instalados nos CAPs traseiros para saída de água e ducha externa"
-      },
-      {
-        "key": "fit_filler",
-        "label": "Bocal de Abastecimento Rápido com Tampa Hermética",
-        "spec": "Rosqueável 2\" com vedação EPDM",
-        "qty": 1,
-        "unit": "un",
-        "notes": "Montado na parte superior central do cano frontal dianteiro"
+        "group": "🚰 Válvulas, Bocal & Registros",
+        "notes": "Instalados na traseira para dreno, ducha externa e tomada de água"
       },
       {
         "key": "fit_breather",
@@ -2904,7 +3002,8 @@
         "spec": "1/2\" automática c/ membrana",
         "qty": 1,
         "unit": "un",
-        "notes": "Garante fluxo contínuo de água sem sucção negativa ou refluxo"
+        "group": "🚰 Válvulas, Bocal & Registros",
+        "notes": "Instalada junto ao CAP/Tê para garantir fluxo contínuo sem vácuo ou refluxo"
       },
       {
         "key": "fit_clamp",
@@ -2912,6 +3011,7 @@
         "spec": "Inox 304 para Ø100 mm",
         "qty": 6,
         "unit": "un",
+        "group": "🔩 Fixação & Soldagem",
         "notes": "Ancoragem firme na face interna dos perfis de metalon 40×40"
       },
       {
@@ -2920,17 +3020,18 @@
         "spec": "Bisnaga 175g / 75g",
         "qty": 1,
         "unit": "kit",
-        "notes": "Soldagem a frio com adesivo nas bolsas e joelhos"
+        "group": "🔩 Fixação & Soldagem",
+        "notes": "Soldagem a frio com adesivo nas bolsas, Tê e joelhos"
       }
     ],
     "plan6m": [
       {
         "barIndex": 1,
         "barLengthMm": 6000,
-        "usedMm": 4451,
-        "wasteMm": 1541,
-        "kerfMm": 8,
-        "efficiencyPct": 74.2,
+        "usedMm": 4490,
+        "wasteMm": 1494,
+        "kerfMm": 16,
+        "efficiencyPct": 74.8,
         "segments": [
           {
             "label": "Lateral Esq.",
@@ -2945,16 +3046,28 @@
             "pct": 28.1
           },
           {
-            "label": "Cano Frontal",
-            "lengthMm": 1085,
+            "label": "Transv. Esq.",
+            "lengthMm": 522,
             "color": "#38bdf8",
-            "pct": 18.1
+            "pct": 8.7
+          },
+          {
+            "label": "Transv. Dir.",
+            "lengthMm": 522,
+            "color": "#67e8f9",
+            "pct": 8.7
+          },
+          {
+            "label": "Extensão Tê-Cap",
+            "lengthMm": 80,
+            "color": "#a5f3fc",
+            "pct": 1.3
           },
           {
             "label": "Sobra Aproveitável",
-            "lengthMm": 1541,
+            "lengthMm": 1494,
             "color": "rgba(100, 116, 139, 0.35)",
-            "pct": 25.7
+            "pct": 24.9
           }
         ]
       }
@@ -2963,10 +3076,10 @@
       {
         "barIndex": 1,
         "barLengthMm": 3000,
-        "usedMm": 2768,
-        "wasteMm": 228,
-        "kerfMm": 4,
-        "efficiencyPct": 92.3,
+        "usedMm": 2807,
+        "wasteMm": 181,
+        "kerfMm": 12,
+        "efficiencyPct": 93.6,
         "segments": [
           {
             "label": "Lateral Esq.",
@@ -2975,16 +3088,28 @@
             "pct": 56.1
           },
           {
-            "label": "Cano Frontal",
-            "lengthMm": 1085,
+            "label": "Transv. Esq.",
+            "lengthMm": 522,
             "color": "#38bdf8",
-            "pct": 36.2
+            "pct": 17.4
+          },
+          {
+            "label": "Transv. Dir.",
+            "lengthMm": 522,
+            "color": "#67e8f9",
+            "pct": 17.4
+          },
+          {
+            "label": "Extensão Tê-Cap",
+            "lengthMm": 80,
+            "color": "#a5f3fc",
+            "pct": 2.7
           },
           {
             "label": "Sobra Aproveitável",
-            "lengthMm": 228,
+            "lengthMm": 181,
             "color": "rgba(100, 116, 139, 0.35)",
-            "pct": 7.6
+            "pct": 6
           }
         ]
       },
@@ -3007,6 +3132,535 @@
             "lengthMm": 1317,
             "color": "rgba(100, 116, 139, 0.35)",
             "pct": 43.9
+          }
+        ]
+      }
+    ],
+    "recommendedBarOption": "6m"
+  },
+  "awning": {
+    "enabled": true,
+    "type": "batwing_270",
+    "typeLabel": "Asa de Morcego 270° Overland",
+    "side": "passenger",
+    "sideLabel": "Lado Passageiro (Direita)",
+    "lengthMm": 2000,
+    "extensionMm": 2200,
+    "totalProfilePieces": 12,
+    "totalLinearMeters": 19.75,
+    "profilesWeightKg": 10.81,
+    "fittingsWeightKg": 4.8,
+    "fabricWeightKg": 6.2,
+    "totalAwningWeightKg": 21.8,
+    "profileItems": [
+      {
+        "key": "awning_backbone",
+        "label": "Calha Base Estrutural (Backbone de Fixação)",
+        "spec": "Perfil Estrutural U Alumínio 50x30x2.5mm",
+        "profileType": "channel_u",
+        "dimensionsMm": "50 × 30 mm (Parede 2.5mm)",
+        "lengthMm": 2000,
+        "lengthM": 2,
+        "qty": 1,
+        "totalLengthM": 2,
+        "weightKgPerMeter": 0.98,
+        "totalWeightKg": 1.96,
+        "purpose": "Viga dorsal de apoio fixada na longarina lateral do rack para ancoragem do pivô e da lona recolhida",
+        "color": "#38bdf8"
+      },
+      {
+        "key": "awning_radial_arms",
+        "label": "Braços Radiais Articulados (Leque 270°)",
+        "spec": "Tubo Retangular Alumínio Estrutural 35x25x2.0mm",
+        "profileType": "rectangular_tube",
+        "dimensionsMm": "35 × 25 mm (Parede 2.0mm)",
+        "lengthMm": 2200,
+        "lengthM": 2.2,
+        "qty": 5,
+        "totalLengthM": 11,
+        "weightKgPerMeter": 0.62,
+        "totalWeightKg": 6.82,
+        "purpose": "5 hastes radiais articuladas no pivô central cobrindo a lateral e traseira completa da van",
+        "color": "#f59e0b"
+      },
+      {
+        "key": "awning_poles_upper",
+        "label": "Postes de Solo — Estágio Superior Externo",
+        "spec": "Tubo Redondo Alumínio Ø28mm (Parede 1.5mm)",
+        "profileType": "round_tube",
+        "dimensionsMm": "Ø 28 mm ext. (Parede 1.5mm)",
+        "lengthMm": 1150,
+        "lengthM": 1.15,
+        "qty": 3,
+        "totalLengthM": 3.45,
+        "weightKgPerMeter": 0.34,
+        "totalWeightKg": 1.17,
+        "purpose": "Corpo telescópico superior articulado na ponta dos braços radiais com trava twist-lock",
+        "color": "#10b981"
+      },
+      {
+        "key": "awning_poles_lower",
+        "label": "Postes de Solo — Estágio Inferior Deslizante",
+        "spec": "Tubo Redondo Alumínio Ø22mm (Parede 1.5mm)",
+        "profileType": "round_tube",
+        "dimensionsMm": "Ø 22 mm ext. (Parede 1.5mm)",
+        "lengthMm": 1100,
+        "lengthM": 1.1,
+        "qty": 3,
+        "totalLengthM": 3.3,
+        "weightKgPerMeter": 0.26,
+        "totalWeightKg": 0.86,
+        "purpose": "Haste telescópica inferior ajustável de altura (1.20m a 2.15m) conectada à sapata de solo",
+        "color": "#14b8a6"
+      }
+    ],
+    "fittings": [
+      {
+        "key": "awning_batwing_pivot_hub",
+        "label": "Mancal Central do Pivô 270° com Eixo em Inox",
+        "spec": "Bloco de Alumínio Naval Usinado CNC + Eixo Aço Inox 304 Ø16mm",
+        "qty": 1,
+        "unit": "cj",
+        "material": "Alumínio 6061-T6 + Inox 304",
+        "group": "pivot_assembly",
+        "notes": "Pivô de alta resistência na quina traseira do rack com buchas de teflon antifricção para os 5 braços"
+      },
+      {
+        "key": "awning_batwing_arm_brackets",
+        "label": "Terminais Articulados dos Braços no Pivô",
+        "spec": "Chapas Duplas Dobradas Alumínio 4.0mm com Buchas Autolubrificantes",
+        "qty": 5,
+        "unit": "pç",
+        "material": "Alumínio 5052-H34 + Teflon",
+        "group": "pivot_assembly",
+        "notes": "Articulação individual de cada braço radial com rotação suave independente"
+      },
+      {
+        "key": "awning_mount_brackets_l",
+        "label": "Suportes Reforçados em L para Fixação no Rack",
+        "spec": "Cantoneira Pesada Aço Inox 304 60x60x4.0mm (Furação M8)",
+        "qty": 3,
+        "unit": "pç",
+        "material": "Aço Inoxidável 304",
+        "group": "mounting_brackets",
+        "notes": "Ancoragem da calha dorsal nas canaletas T-Slot / longarina do rack Doblò"
+      },
+      {
+        "key": "awning_t_nuts_m8",
+        "label": "Porcas Martelo T-Nut M8 + Parafusos Inox M8x25mm",
+        "spec": "Porca T-Slot 40x40 M8 + Parafuso Sextavado Interno Inox A2 M8x25",
+        "qty": 6,
+        "unit": "cj",
+        "material": "Aço Inox 304 + Aço Galvanizado",
+        "group": "hardware",
+        "notes": "Fixação firme dos 3 suportes L na ranhura de 8mm do perfil de alumínio 40x40"
+      },
+      {
+        "key": "awning_arm_pivot_bolts",
+        "label": "Parafusos Pivotantes M8 com Porcas Parlock de Travamento",
+        "spec": "Parafuso Inox M8x50mm c/ Arruelas de Teflon + Porca Auto-travante",
+        "qty": 5,
+        "unit": "cj",
+        "material": "Aço Inoxidável 304",
+        "group": "hardware",
+        "notes": "Eixos horizontais de fixação dos 5 braços radiais no mancal central"
+      },
+      {
+        "key": "awning_pole_twist_locks",
+        "label": "Travas Rápidas de Ajuste Telescópico (Twist-Lock / Manípulo)",
+        "spec": "Anel Expansor de Poliacetal c/ Rosca ou Abraçadeira Rápida M6",
+        "qty": 3,
+        "unit": "pç",
+        "material": "Nylon Reforçado + Inox",
+        "group": "telescopic_locks",
+        "notes": "Bloqueio instantâneo da altura dos 3 postes telescópicos verticais"
+      },
+      {
+        "key": "awning_ground_feet",
+        "label": "Sapatas Articuladas de Apoio ao Solo com Furo para Estaca",
+        "spec": "Base Circular Ø60mm Alumínio Fundido com Pino Articulado Ø8mm",
+        "qty": 3,
+        "unit": "pç",
+        "material": "Alumínio + Aço Galvanizado",
+        "group": "anchoring",
+        "notes": "Distribui a carga no solo e permite estaquear contra ventos fortes"
+      },
+      {
+        "key": "awning_pegs_and_ropes",
+        "label": "Kit de Ancoragem (Estacas de Solo + Cordas Paracord com Esticador)",
+        "spec": "6× Estacas de Aço Ø6x200mm + 6× Cordas Paracord 3.5m c/ Tensor Alumínio",
+        "qty": 1,
+        "unit": "kit",
+        "material": "Aço Galvanizado + Corda Náutica",
+        "group": "anchoring",
+        "notes": "Amarras anti-vento indispensáveis para estabilidade overland em acampamentos"
+      }
+    ],
+    "plan6m": [
+      {
+        "barIndex": 1,
+        "barLengthMm": 6000,
+        "usedMm": 5550,
+        "wasteMm": 444,
+        "kerfMm": 6,
+        "efficiencyPct": 92.5,
+        "segments": [
+          {
+            "label": "Braços Radiais Articulados (Leque 270°) #1",
+            "lengthMm": 2200,
+            "color": "#f59e0b",
+            "pct": 36.7
+          },
+          {
+            "label": "Braços Radiais Articulados (Leque 270°) #2",
+            "lengthMm": 2200,
+            "color": "#f59e0b",
+            "pct": 36.7
+          },
+          {
+            "label": "Postes de Solo — Estágio Superior Externo #1",
+            "lengthMm": 1150,
+            "color": "#10b981",
+            "pct": 19.2
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 444,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 7.4,
+            "isWaste": true
+          }
+        ]
+      },
+      {
+        "barIndex": 2,
+        "barLengthMm": 6000,
+        "usedMm": 5550,
+        "wasteMm": 444,
+        "kerfMm": 6,
+        "efficiencyPct": 92.5,
+        "segments": [
+          {
+            "label": "Braços Radiais Articulados (Leque 270°) #3",
+            "lengthMm": 2200,
+            "color": "#f59e0b",
+            "pct": 36.7
+          },
+          {
+            "label": "Braços Radiais Articulados (Leque 270°) #4",
+            "lengthMm": 2200,
+            "color": "#f59e0b",
+            "pct": 36.7
+          },
+          {
+            "label": "Postes de Solo — Estágio Superior Externo #2",
+            "lengthMm": 1150,
+            "color": "#10b981",
+            "pct": 19.2
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 444,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 7.4,
+            "isWaste": true
+          }
+        ]
+      },
+      {
+        "barIndex": 3,
+        "barLengthMm": 6000,
+        "usedMm": 5350,
+        "wasteMm": 644,
+        "kerfMm": 6,
+        "efficiencyPct": 89.2,
+        "segments": [
+          {
+            "label": "Braços Radiais Articulados (Leque 270°) #5",
+            "lengthMm": 2200,
+            "color": "#f59e0b",
+            "pct": 36.7
+          },
+          {
+            "label": "Calha Base Estrutural (Backbone de Fixação)",
+            "lengthMm": 2000,
+            "color": "#38bdf8",
+            "pct": 33.3
+          },
+          {
+            "label": "Postes de Solo — Estágio Superior Externo #3",
+            "lengthMm": 1150,
+            "color": "#10b981",
+            "pct": 19.2
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 644,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 10.7,
+            "isWaste": true
+          }
+        ]
+      },
+      {
+        "barIndex": 4,
+        "barLengthMm": 6000,
+        "usedMm": 3300,
+        "wasteMm": 2694,
+        "kerfMm": 6,
+        "efficiencyPct": 55,
+        "segments": [
+          {
+            "label": "Postes de Solo — Estágio Inferior Deslizante #1",
+            "lengthMm": 1100,
+            "color": "#14b8a6",
+            "pct": 18.3
+          },
+          {
+            "label": "Postes de Solo — Estágio Inferior Deslizante #2",
+            "lengthMm": 1100,
+            "color": "#14b8a6",
+            "pct": 18.3
+          },
+          {
+            "label": "Postes de Solo — Estágio Inferior Deslizante #3",
+            "lengthMm": 1100,
+            "color": "#14b8a6",
+            "pct": 18.3
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 2694,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 44.9,
+            "isWaste": true
+          }
+        ]
+      }
+    ],
+    "plan3m": [
+      {
+        "barIndex": 1,
+        "barLengthMm": 3000,
+        "usedMm": 2200,
+        "wasteMm": 800,
+        "kerfMm": 0,
+        "efficiencyPct": 73.3,
+        "segments": [
+          {
+            "label": "Braços Radiais Articulados (Leque 270°) #1",
+            "lengthMm": 2200,
+            "color": "#f59e0b",
+            "pct": 73.3
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 800,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 26.7,
+            "isWaste": true
+          }
+        ]
+      },
+      {
+        "barIndex": 2,
+        "barLengthMm": 3000,
+        "usedMm": 2200,
+        "wasteMm": 800,
+        "kerfMm": 0,
+        "efficiencyPct": 73.3,
+        "segments": [
+          {
+            "label": "Braços Radiais Articulados (Leque 270°) #2",
+            "lengthMm": 2200,
+            "color": "#f59e0b",
+            "pct": 73.3
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 800,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 26.7,
+            "isWaste": true
+          }
+        ]
+      },
+      {
+        "barIndex": 3,
+        "barLengthMm": 3000,
+        "usedMm": 2200,
+        "wasteMm": 800,
+        "kerfMm": 0,
+        "efficiencyPct": 73.3,
+        "segments": [
+          {
+            "label": "Braços Radiais Articulados (Leque 270°) #3",
+            "lengthMm": 2200,
+            "color": "#f59e0b",
+            "pct": 73.3
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 800,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 26.7,
+            "isWaste": true
+          }
+        ]
+      },
+      {
+        "barIndex": 4,
+        "barLengthMm": 3000,
+        "usedMm": 2200,
+        "wasteMm": 800,
+        "kerfMm": 0,
+        "efficiencyPct": 73.3,
+        "segments": [
+          {
+            "label": "Braços Radiais Articulados (Leque 270°) #4",
+            "lengthMm": 2200,
+            "color": "#f59e0b",
+            "pct": 73.3
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 800,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 26.7,
+            "isWaste": true
+          }
+        ]
+      },
+      {
+        "barIndex": 5,
+        "barLengthMm": 3000,
+        "usedMm": 2200,
+        "wasteMm": 800,
+        "kerfMm": 0,
+        "efficiencyPct": 73.3,
+        "segments": [
+          {
+            "label": "Braços Radiais Articulados (Leque 270°) #5",
+            "lengthMm": 2200,
+            "color": "#f59e0b",
+            "pct": 73.3
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 800,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 26.7,
+            "isWaste": true
+          }
+        ]
+      },
+      {
+        "barIndex": 6,
+        "barLengthMm": 3000,
+        "usedMm": 2000,
+        "wasteMm": 1000,
+        "kerfMm": 0,
+        "efficiencyPct": 66.7,
+        "segments": [
+          {
+            "label": "Calha Base Estrutural (Backbone de Fixação)",
+            "lengthMm": 2000,
+            "color": "#38bdf8",
+            "pct": 66.7
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 1000,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 33.3,
+            "isWaste": true
+          }
+        ]
+      },
+      {
+        "barIndex": 7,
+        "barLengthMm": 3000,
+        "usedMm": 2300,
+        "wasteMm": 697,
+        "kerfMm": 3,
+        "efficiencyPct": 76.7,
+        "segments": [
+          {
+            "label": "Postes de Solo — Estágio Superior Externo #1",
+            "lengthMm": 1150,
+            "color": "#10b981",
+            "pct": 38.3
+          },
+          {
+            "label": "Postes de Solo — Estágio Superior Externo #2",
+            "lengthMm": 1150,
+            "color": "#10b981",
+            "pct": 38.3
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 697,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 23.2,
+            "isWaste": true
+          }
+        ]
+      },
+      {
+        "barIndex": 8,
+        "barLengthMm": 3000,
+        "usedMm": 2250,
+        "wasteMm": 747,
+        "kerfMm": 3,
+        "efficiencyPct": 75,
+        "segments": [
+          {
+            "label": "Postes de Solo — Estágio Superior Externo #3",
+            "lengthMm": 1150,
+            "color": "#10b981",
+            "pct": 38.3
+          },
+          {
+            "label": "Postes de Solo — Estágio Inferior Deslizante #1",
+            "lengthMm": 1100,
+            "color": "#14b8a6",
+            "pct": 36.7
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 747,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 24.9,
+            "isWaste": true
+          }
+        ]
+      },
+      {
+        "barIndex": 9,
+        "barLengthMm": 3000,
+        "usedMm": 2200,
+        "wasteMm": 797,
+        "kerfMm": 3,
+        "efficiencyPct": 73.3,
+        "segments": [
+          {
+            "label": "Postes de Solo — Estágio Inferior Deslizante #2",
+            "lengthMm": 1100,
+            "color": "#14b8a6",
+            "pct": 36.7
+          },
+          {
+            "label": "Postes de Solo — Estágio Inferior Deslizante #3",
+            "lengthMm": 1100,
+            "color": "#14b8a6",
+            "pct": 36.7
+          },
+          {
+            "label": "Sobra Aproveitável",
+            "lengthMm": 797,
+            "color": "rgba(100, 116, 139, 0.35)",
+            "pct": 26.6,
+            "isWaste": true
           }
         ]
       }

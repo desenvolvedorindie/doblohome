@@ -48,7 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onToggleVisible }) 
   const [assembledTab, setAssembledTab] = useState<AssembledLeftTab>('all');
   const [cuttingTab, setCuttingTab] = useState<CuttingTabId>('cutting_plan');
 
-  if (viewMode === 'electrical_planar' || viewMode === 'hydraulic_planar') {
+  if (viewMode === 'electrical_planar' || viewMode === 'hydraulic_planar' || viewMode === 'weights') {
     return null;
   }
 
@@ -208,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onToggleVisible }) 
               type="button"
               onClick={() => handleTabClick('metal_bars', cuttingTab, setCuttingTab)}
               className={`ide-activity-btn left ${isVisible && cuttingTab === 'metal_bars' ? 'active' : ''}`}
-              title="Perfis Metálicos (Alumínio / Metalon)"
+              title="Perfis do Rack"
             >
               <StructureFrameIcon />
             </button>
@@ -219,6 +219,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isVisible, onToggleVisible }) 
               title="Tubulação PVC (Caixa d'Água)"
             >
               <DropletIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabClick('awning_hardware', cuttingTab, setCuttingTab)}
+              className={`ide-activity-btn left ${isVisible && cuttingTab === 'awning_hardware' ? 'active' : ''}`}
+              title="Ferragens & Perfis do Toldo"
+            >
+              <span style={{ fontSize: '15px' }}>⛺</span>
             </button>
           </>
         )}

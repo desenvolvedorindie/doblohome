@@ -80,7 +80,9 @@ export class UpperCabinetBuilder {
     // Se NÃO tiver espaçamento inferior (bottomGapMm === 0) e a caixa tiver tampo superior,
     // não precisa ter 2 madeiras a menos que o armário comece fora ou depois do final da caixa.
     const isOverhanging = Math.abs(offsetM) > 0.05 || Math.abs(depthOffsetM) > 0.05 || positionMode === 'behind_box' || transverseMode === 'beside_box';
-    const hasBasePanel = bottomGapM > 0.001 || (box.panels?.top === false) || isOverhanging;
+    const hasBasePanelAuto = bottomGapM > 0.001 || (box.panels?.top === false) || isOverhanging;
+    // upperCabinetHasBasePanel: true = forçar 5 faces (com base inferior), false = forçar 4 faces (sem base), undefined = automático
+    const hasBasePanel = box.upperCabinetHasBasePanel !== undefined ? box.upperCabinetHasBasePanel : hasBasePanelAuto;
     const innerH = hasBasePanel ? (cabinetH - 2 * t) : (cabinetH - t);
     const interiorBottomY = hasBasePanel ? (-cabinetH / 2 + t) : (-cabinetH / 2);
     const backY = hasBasePanel ? 0 : -t / 2;

@@ -79,6 +79,29 @@ const LEGACY_DEFAULT_IDS = new Set(['flex-100w-padrao', 'resun-100w-flex', 'flex
 let memoryPanelPresets: SolarPanelPreset[] = [...DEFAULT_SOLAR_PANEL_PRESETS];
 let memoryActivePresetId: string = DEFAULT_SOLAR_PANEL_PRESETS[0].id;
 
+// Inicialização síncrona a partir do localStorage para evitar atraso de renderização
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    const rawPresets = window.localStorage.getItem(PRESETS_STORAGE_KEY);
+    if (rawPresets) {
+      const data = JSON.parse(rawPresets);
+      if (data && Array.isArray(data) && data.length > 0) {
+        const defaultIds = new Set(DEFAULT_SOLAR_PANEL_PRESETS.map(d => d.id));
+        const customOnly = data.filter(
+          (p: SolarPanelPreset) => !p.isDefault && !defaultIds.has(p.id) && !LEGACY_DEFAULT_IDS.has(p.id)
+        );
+        memoryPanelPresets = [...DEFAULT_SOLAR_PANEL_PRESETS, ...customOnly];
+      }
+    }
+    const rawActive = window.localStorage.getItem(ACTIVE_PRESET_KEY);
+    if (rawActive) {
+      if (rawActive === 'flex-200w-inmetro') memoryActivePresetId = 'inohouse-200w';
+      else if (rawActive && LEGACY_DEFAULT_IDS.has(rawActive)) memoryActivePresetId = 'inohouse-100w';
+      else if (rawActive) memoryActivePresetId = rawActive;
+    }
+  } catch {}
+}
+
 if (typeof window !== 'undefined') {
   dbGet<SolarPanelPreset[]>(PRESETS_STORAGE_KEY).then((data) => {
     if (data && Array.isArray(data) && data.length > 0) {

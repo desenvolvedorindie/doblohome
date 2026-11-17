@@ -41,6 +41,7 @@ import {
 export interface SolarContextType {
   sceneManager: SceneManager | null;
   setSceneManager: (mgr: SceneManager | null) => void;
+  loadProjectData?: (data: any) => void;
 
   stackLevels: StackLevels;
   level1: LevelConfig;
@@ -82,6 +83,12 @@ export interface SolarContextType {
   partsFilter: PartsGroupFilter;
   activeCameraPreset: CameraPreset;
   sunHour: number;
+
+  // Boneco de referência humana
+  humanFigureVisible: boolean;
+  humanFigureHeightM: number;
+  toggleHumanFigure: () => void;
+  setHumanFigureHeight: (heightM: number) => void;
 
   hoveredBar: BarMeasurementData | null;
   hoverPos: { x: number; y: number };

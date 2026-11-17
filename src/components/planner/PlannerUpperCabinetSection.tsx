@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSolar } from '../../context/SolarContext';
-import { InternalBoxItem, UpperCabinetClosure, getUpperCabinetClosure, getUpperCabinetShelfDoorDiscountMm } from '../../types';
+import { InternalBoxItem, UpperCabinetClosure, BoxJointStyle, BackPanelCoverMode, getUpperCabinetClosure, getUpperCabinetShelfDoorDiscountMm } from '../../types';
 
 interface PlannerUpperCabinetProps {
   selectedBox: InternalBoxItem;
@@ -195,6 +195,202 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
                   <option value="doors">🚪 Porta Basculante c/ Pistão (Abre p/ Cima)</option>
                   <option value="open">🕳️ Nicho Aberto c/ Friso Anti-Queda</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Fechamento Inferior: 5 Faces (com base) vs 4 Faces (sem base) */}
+            <div
+              style={{
+                padding: '8px 10px',
+                background: 'rgba(15, 23, 42, 0.5)',
+                border: '1px solid rgba(148, 163, 184, 0.2)',
+                borderRadius: '7px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: '#f59e0b' }}>
+                  🗃️ Fundo Inferior do Armário:
+                </span>
+                <span style={{ fontSize: '8.5px', color: '#94a3b8' }}>
+                  {selectedBox.upperCabinetHasBasePanel === undefined ? 'Automático' : selectedBox.upperCabinetHasBasePanel ? '5 Faces (Com Base)' : '4 Faces (Sem Base)'}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
+                {[
+                  { label: '🤖 Auto', desc: 'Decide por contexto', val: undefined as boolean | undefined },
+                  { label: '5️⃣ 5 Faces', desc: 'Com base inferior', val: true as boolean | undefined },
+                  { label: '4️⃣ 4 Faces', desc: 'Sem base (encosta na caixa)', val: false as boolean | undefined }
+                ].map((opt) => {
+                  const isActive = selectedBox.upperCabinetHasBasePanel === opt.val;
+                  return (
+                    <button
+                      key={String(opt.val)}
+                      type="button"
+                      onClick={() => updateInternalBox(selectedBox.id, { upperCabinetHasBasePanel: opt.val })}
+                      style={{
+                        background: isActive
+                          ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(217, 119, 6, 0.2))'
+                          : 'rgba(30, 41, 59, 0.6)',
+                        border: isActive ? '1px solid #f59e0b' : '1px solid rgba(148, 163, 184, 0.25)',
+                        borderRadius: '5px',
+                        padding: '5px 4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '1px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: isActive ? '#fbbf24' : '#94a3b8' }}>
+                        {opt.label}
+                      </span>
+                      <span style={{ fontSize: '7.5px', color: isActive ? '#f59e0b' : '#64748b', textAlign: 'center', lineHeight: 1.2 }}>
+                        {opt.desc}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: '8.5px', color: '#64748b', lineHeight: 1.3 }}>
+                💡 <strong>5 Faces</strong>: tampo + 2 laterais + fundo traseiro + base inferior (armário suspenso independente). <strong>4 Faces</strong>: sem base, armário apoia-se sobre o tampo da caixa abaixo.
+              </div>
+            </div>
+
+            {/* Fechamento do Tampo Traseiro & Encaixe de Marcenaria (Laterais vs Tampo/Base vs Fundo Maior) */}
+            <div
+              style={{
+                padding: '8px 10px',
+                background: 'rgba(15, 23, 42, 0.5)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '7px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}
+            >
+              {/* 1. Encaixe entre Cima/Baixo e Laterais */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#38bdf8' }}>
+                    🪚 Encaixe das Chapas (Cima/Baixo vs Laterais):
+                  </span>
+                  <span style={{ fontSize: '8.5px', color: '#94a3b8' }}>
+                    {(selectedBox.upperCabinetJointStyle || 'sides_outside') === 'top_bottom_cap'
+                      ? 'Cima/Baixo Maiores'
+                      : 'Laterais Maiores'}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+                  {[
+                    {
+                      val: 'sides_outside' as BoxJointStyle,
+                      label: '📐 Laterais Maiores',
+                      desc: 'Laterais inteiras por fora; tampo e base no meio'
+                    },
+                    {
+                      val: 'top_bottom_cap' as BoxJointStyle,
+                      label: '⬆️⬇️ Cima e Baixo Maiores',
+                      desc: 'Tampo e base cobrem as laterais por cima/baixo'
+                    }
+                  ].map((opt) => {
+                    const currentJoint = selectedBox.upperCabinetJointStyle || 'sides_outside';
+                    const isActive = currentJoint === opt.val;
+                    return (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => updateInternalBox(selectedBox.id, { upperCabinetJointStyle: opt.val })}
+                        style={{
+                          background: isActive
+                            ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(37, 99, 235, 0.2))'
+                            : 'rgba(30, 41, 59, 0.6)',
+                          border: isActive ? '1px solid #38bdf8' : '1px solid rgba(148, 163, 184, 0.25)',
+                          borderRadius: '5px',
+                          padding: '5px 6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '1px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <span style={{ fontSize: '9.5px', fontWeight: 700, color: isActive ? '#38bdf8' : '#cbd5e1' }}>
+                          {opt.label}
+                        </span>
+                        <span style={{ fontSize: '7.5px', color: isActive ? '#7dd3fc' : '#64748b', textAlign: 'center', lineHeight: 1.2 }}>
+                          {opt.desc}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. Fechamento do Tampo Traseiro (Fundo Interno vs Fundo Maior Cobrindo Tudo) */}
+              <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.15)', paddingTop: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#10b981' }}>
+                    🧱 Fechamento do Tampo Traseiro (Fundo):
+                  </span>
+                  <span style={{ fontSize: '8.5px', color: '#94a3b8' }}>
+                    {(selectedBox.upperCabinetBackCoverMode || 'inset') === 'overlay_all'
+                      ? 'Fundo Maior (Cobre Tudo)'
+                      : '4 Partes em Volta do Fundo'}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+                  {[
+                    {
+                      val: 'inset' as BackPanelCoverMode,
+                      label: '🔲 4 Partes em Volta do Tampo',
+                      desc: 'Fundo menor embutido dentro das 4 bordas'
+                    },
+                    {
+                      val: 'overlay_all' as BackPanelCoverMode,
+                      label: '⬛ Tampo Traseiro Maior (Cobre Tudo)',
+                      desc: 'Fundo inteiro fechando as 5 partes por trás'
+                    }
+                  ].map((opt) => {
+                    const currentBack = selectedBox.upperCabinetBackCoverMode || 'inset';
+                    const isActive = currentBack === opt.val;
+                    return (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => updateInternalBox(selectedBox.id, { upperCabinetBackCoverMode: opt.val })}
+                        style={{
+                          background: isActive
+                            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.2))'
+                            : 'rgba(30, 41, 59, 0.6)',
+                          border: isActive ? '1px solid #10b981' : '1px solid rgba(148, 163, 184, 0.25)',
+                          borderRadius: '5px',
+                          padding: '5px 6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '1px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <span style={{ fontSize: '9.5px', fontWeight: 700, color: isActive ? '#34d399' : '#cbd5e1' }}>
+                          {opt.label}
+                        </span>
+                        <span style={{ fontSize: '7.5px', color: isActive ? '#6ee7b7' : '#64748b', textAlign: 'center', lineHeight: 1.2 }}>
+                          {opt.desc}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: '8.5px', color: '#64748b', marginTop: '4px', lineHeight: 1.3 }}>
+                  💡 Atualiza automaticamente as medidas no <strong>Plano de Corte</strong>: quando o fundo é maior (cobre tudo), o tampo, a base e as laterais descontam a espessura do fundo.
+                </div>
               </div>
             </div>
 

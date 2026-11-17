@@ -69,23 +69,40 @@ export class UpperCabinetTransverseBuilder {
 
         upperGroup.position.set(cabinetCenterX, cabinetCenterY, cabinetCenterZ);
 
+        const jointStyle = box.upperCabinetJointStyle || 'sides_outside';
+        const backCoverMode = box.upperCabinetBackCoverMode || (jointStyle === 'back_over_all' ? 'overlay_all' : 'inset');
+        const isBackOverlay = backCoverMode === 'overlay_all' || jointStyle === 'back_over_all';
+        const isTopBottomCap = jointStyle === 'top_bottom_cap';
+
         const innerW = cabinetWidthM - 2 * t;
         const innerD = cabinetDepthM - t;
+
+        // Se o fundo traseiro for sobreposto (overlay_all), ele fecha todas as bordas na face traseira,
+        // portanto as laterais, o tampo e a base têm profundidade innerD (cabinetDepthM - t) e deslocam na direção frontal:
+        const sideAndCapDepth = isBackOverlay ? innerD : cabinetDepthM;
+        const sideAndCapZ = isBackOverlay ? (side === 'rear' ? t / 2 : -t / 2) : 0;
+
+        // Se 'top_bottom_cap' (em cima e embaixo maiores), o tampo e a base têm largura total cabinetWidthM,
+        // e as laterais ficam entre o tampo e a base (altura innerH, centradas em backY).
+        // Se 'sides_outside' (laterais maiores), as laterais têm altura total cabinetH, e o tampo/base têm largura innerW.
+        const sideHeight = isTopBottomCap ? innerH : cabinetH;
+        const sideCenterY = isTopBottomCap ? backY : 0;
+        const capWidth = isTopBottomCap ? cabinetWidthM : innerW;
 
         // 1. Lateral Esquerda 15mm
         addPanel(
           upperGroup,
           t,
-          cabinetH,
-          cabinetDepthM,
+          sideHeight,
+          sideAndCapDepth,
           cabinetWidthM / 2 - t / 2,
-          0,
-          0,
+          sideCenterY,
+          sideAndCapZ,
           cabinetMat,
           edgeMat,
           box.id,
           container,
-          `${box.name} • Armário Aéreo (${side}) Lateral Esq. (${Math.round(cabinetDepthM * 1000)}×${Math.round(cabinetH * 1000)}mm)`,
+          `${box.name} • Armário Aéreo (${side}) Lateral Esq. (${Math.round(sideAndCapDepth * 1000)}×${Math.round(sideHeight * 1000)}mm)`,
           cabinetUserData
         );
 
@@ -93,33 +110,33 @@ export class UpperCabinetTransverseBuilder {
         addPanel(
           upperGroup,
           t,
-          cabinetH,
-          cabinetDepthM,
+          sideHeight,
+          sideAndCapDepth,
           -cabinetWidthM / 2 + t / 2,
-          0,
-          0,
+          sideCenterY,
+          sideAndCapZ,
           cabinetMat,
           edgeMat,
           box.id,
           container,
-          `${box.name} • Armário Aéreo (${side}) Lateral Dir. (${Math.round(cabinetDepthM * 1000)}×${Math.round(cabinetH * 1000)}mm)`,
+          `${box.name} • Armário Aéreo (${side}) Lateral Dir. (${Math.round(sideAndCapDepth * 1000)}×${Math.round(sideHeight * 1000)}mm)`,
           cabinetUserData
         );
 
         // 3. Tampo Superior 15mm
         addPanel(
           upperGroup,
-          innerW,
+          capWidth,
           t,
-          cabinetDepthM,
+          sideAndCapDepth,
           0,
           cabinetH / 2 - t / 2,
-          0,
+          sideAndCapZ,
           cabinetMat,
           edgeMat,
           box.id,
           container,
-          `${box.name} • Armário Aéreo (${side}) Tampo Teto (${Math.round(innerW * 1000)}×${Math.round(cabinetDepthM * 1000)}mm)`,
+          `${box.name} • Armário Aéreo (${side}) Tampo Teto (${Math.round(capWidth * 1000)}×${Math.round(sideAndCapDepth * 1000)}mm)`,
           cabinetUserData
         );
 
@@ -127,36 +144,42 @@ export class UpperCabinetTransverseBuilder {
         if (hasBasePanel) {
           addPanel(
             upperGroup,
-            innerW,
+            capWidth,
             t,
-            cabinetDepthM,
+            sideAndCapDepth,
             0,
             -cabinetH / 2 + t / 2,
-            0,
+            sideAndCapZ,
             cabinetMat,
             edgeMat,
             box.id,
             container,
-            `${box.name} • Armário Aéreo (${side}) Base Inferior (${Math.round(innerW * 1000)}×${Math.round(cabinetDepthM * 1000)}mm)`,
+            `${box.name} • Armário Aéreo (${side}) Base Inferior (${Math.round(capWidth * 1000)}×${Math.round(sideAndCapDepth * 1000)}mm)`,
             cabinetUserData
           );
         }
 
-        // 5. Fundo
+        // 5. Fundo Traseiro (Embutido nas 4 partes vs Sobreposto fechando as 5 partes)
         const backZ = side === 'rear' ? (-cabinetDepthM / 2 + t / 2) : (cabinetDepthM / 2 - t / 2);
+        const backW = isBackOverlay ? cabinetWidthM : innerW;
+        const backH = isBackOverlay ? cabinetH : innerH;
+        const backPanelY = isBackOverlay ? 0 : backY;
+        const backLabel = isBackOverlay
+          ? `${box.name} • Armário Aéreo (${side}) Tampo de Fundo Sobreposto (${Math.round(backW * 1000)}×${Math.round(backH * 1000)}mm)`
+          : `${box.name} • Armário Aéreo (${side}) Fundo Embutido (${Math.round(backW * 1000)}×${Math.round(backH * 1000)}mm)`;
         addPanel(
           upperGroup,
-          innerW,
-          innerH,
+          backW,
+          backH,
           t,
           0,
-          backY,
+          backPanelY,
           backZ,
           cabinetMat,
           edgeMat,
           box.id,
           container,
-          `${box.name} • Armário Aéreo (${side}) Fundo (${Math.round(innerW * 1000)}×${Math.round(innerH * 1000)}mm)`,
+          backLabel,
           cabinetUserData
         );
 

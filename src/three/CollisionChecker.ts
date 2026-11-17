@@ -103,7 +103,6 @@ export const CollisionChecker = {
       label: string;
       axis: 'x' | 'y' | 'z';
       isBaseVolume?: boolean;
-      isRoofCollider?: boolean;
     }> = [];
 
     const SHRINK = 0.0025; // 2.5 mm por face
@@ -118,10 +117,12 @@ export const CollisionChecker = {
     };
 
     scene.traverse((obj) => {
+      // Ignora o teto do veículo (não checa colisão com lataria)
+      if (obj.userData?.isRoofCollider) return;
+
       const isBar = Boolean(obj.userData?.isBar);
       const isCargoBoxVol = Boolean(obj.userData?.isCargoBoxVolume);
-      const isRoofCol = Boolean(obj.userData?.isRoofCollider);
-      if (!isBar && !isCargoBoxVol && !isRoofCol) return;
+      if (!isBar && !isCargoBoxVol) return;
       if (!(obj as THREE.Mesh).isMesh) return;
       if (!isTrulyVisible(obj)) return;
       if (obj.name === '__hitbox') return;
@@ -148,7 +149,7 @@ export const CollisionChecker = {
       if (box.isEmpty()) return;
 
       const shrunk = box.clone();
-      const s = (isCargoBoxVol || isRoofCol) ? 0.006 : SHRINK;
+      const s = isCargoBoxVol ? 0.006 : SHRINK;
       shrunk.min.addScalar(s);
       shrunk.max.subScalar(s);
       if (shrunk.isEmpty()) return;
@@ -164,7 +165,6 @@ export const CollisionChecker = {
         label: obj.userData.barLabel || obj.name || 'Barra',
         axis: inferAxis(box),
         isBaseVolume: isCargoBoxVol,
-        isRoofCollider: isRoofCol
       });
     });
 
@@ -183,9 +183,8 @@ export const CollisionChecker = {
         const a = bars[i];
         const b = bars[j];
 
-        // Ignora comparação entre cuba e tampa do próprio baú ou teto vs baú assentado
+        // Ignora comparação entre cuba e tampa do próprio baú
         if (a.isBaseVolume && b.isBaseVolume) continue;
-        if (a.isRoofCollider && b.isRoofCollider) continue;
 
         // ① Sem sobreposição real de Box3
         if (!a.shrunkBox.intersectsBox(b.shrunkBox)) continue;
@@ -194,12 +193,12 @@ export const CollisionChecker = {
         const vol = intersectionVolume(a.shrunkBox, b.shrunkBox);
         if (vol < MIN_VOLUME) continue;
 
-        // Se um dos itens for o teto da Doblò ou o volume do Baú, qualquer penetração (> 5 cm³) com barras estruturais é colisão real!
-        if (a.isRoofCollider || b.isRoofCollider || a.isBaseVolume || b.isBaseVolume) {
+        // Se um dos itens for o volume do Baú, qualquer penetração (> 5 cm³) com barras estruturais é colisão real!
+        if (a.isBaseVolume || b.isBaseVolume) {
           // Ignora travessas do subchassi onde a cuba do baú apoia na borda inferior (interseção rasante)
           if (vol < 5e-5) continue;
-          if (!a.isRoofCollider) collidingSet.add(a.mesh);
-          if (!b.isRoofCollider) collidingSet.add(b.mesh);
+          collidingSet.add(a.mesh);
+          collidingSet.add(b.mesh);
           collisions.push({
             meshA: a.mesh,
             meshB: b.mesh,

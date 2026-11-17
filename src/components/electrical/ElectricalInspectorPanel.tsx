@@ -160,9 +160,13 @@ export const ElectricalInspectorPanel: React.FC<ElectricalInspectorPanelProps> =
         ) : selectedNode ? (
           <NodeInspectorSection
             selectedNode={selectedNode}
+            nodes={nodes}
             edges={edges}
             onUpdateNodeData={onUpdateNodeData}
             onDeleteNode={onDeleteNode}
+            onUpdateEdgeData={onUpdateEdgeData}
+            onDeleteEdge={onDeleteEdge}
+            onSelectEdge={onSelectEdge}
           />
         ) : (
           /* Estado vazio no Inspetor */

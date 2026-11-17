@@ -50,8 +50,8 @@ export function getMetalonColorLabel(color?: string): string {
   return found ? found.name : color.toUpperCase();
 }
 
-export type ViewMode = 'internal_boxes' | 'assembled' | 'bars_lineup' | 'electrical_planar' | 'hydraulic_planar';
-export type PartsGroupFilter = 'all' | 'metal' | 'wood' | 'upholstery' | 'pvc' | 'cutting';
+export type ViewMode = 'internal_boxes' | 'assembled' | 'bars_lineup' | 'electrical_planar' | 'hydraulic_planar' | 'weights';
+export type PartsGroupFilter = 'all' | 'metal' | 'wood' | 'upholstery' | 'pvc' | 'awning' | 'cutting';
 
 export interface BarMeasurementData {
   name: string;

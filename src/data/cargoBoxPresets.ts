@@ -99,6 +99,32 @@ const ACTIVE_CARGO_PRESET_KEY = 'doblo_active_cargo_preset_id';
 let memoryCargoPresets: CargoBoxPreset[] = [...DEFAULT_CARGO_BOX_PRESETS];
 let memoryActivePresetId: string = DEFAULT_CARGO_BOX_PRESETS[0].id;
 
+// Inicialização síncrona a partir do localStorage para evitar atraso de renderização
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    const rawCargo = window.localStorage.getItem(CARGO_PRESETS_STORAGE_KEY);
+    if (rawCargo) {
+      const data = JSON.parse(rawCargo);
+      if (data && Array.isArray(data) && data.length > 0) {
+        const merged = [...data];
+        DEFAULT_CARGO_BOX_PRESETS.forEach(def => {
+          const idx = merged.findIndex(p => p.id === def.id);
+          if (idx === -1) {
+            merged.push(def);
+          } else {
+            merged[idx] = { ...def, ...merged[idx], isDefault: true };
+          }
+        });
+        memoryCargoPresets = merged;
+      }
+    }
+    const rawActive = window.localStorage.getItem(ACTIVE_CARGO_PRESET_KEY);
+    if (rawActive) {
+      memoryActivePresetId = rawActive;
+    }
+  } catch {}
+}
+
 // Inicializa a carga a partir do IndexedDB
 if (typeof window !== 'undefined') {
   dbGet<CargoBoxPreset[]>(CARGO_PRESETS_STORAGE_KEY).then((data) => {

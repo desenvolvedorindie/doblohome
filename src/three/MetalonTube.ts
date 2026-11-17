@@ -3,11 +3,13 @@ import {
   buildMetalonTubeShape,
   createMetalonTubeMesh,
   getCachedTubeGeometry,
-  getCachedTubeShape
+  getCachedTubeShape,
+  buildMetalonCapMesh
 } from './metalon/MetalonRectGeometry';
 import {
   buildPvcCapMesh,
   buildPvcElbowMesh,
+  buildPvcTeeMesh,
   getCachedPvcPipeGeometry
 } from './metalon/PvcPipeFittingsGeometry';
 
@@ -82,6 +84,8 @@ export class MetalonTubeFactory {
       radius?: number;
       showCutFace?: boolean;
       cutFaceMaterial?: THREE.Material;
+      addCaps?: boolean;
+      capMaterial?: THREE.Material;
     } = {}
   ): THREE.Mesh {
     return createMetalonTubeMesh(this.geoCache, this.shapeCache, length, material, options);
@@ -118,5 +122,28 @@ export class MetalonTubeFactory {
     material: THREE.Material
   ): THREE.Group {
     return buildPvcCapMesh(diameter, material);
+  }
+
+  /**
+   * Constrói e retorna um Mesh 3D do Tê 90° em PVC com 3 bolsas reforçadas
+   */
+  static createPvcTeeMesh(
+    diameter: number = 0.200,
+    material: THREE.Material
+  ): THREE.Group {
+    return buildPvcTeeMesh(diameter, material);
+  }
+
+  /**
+   * Constrói e retorna um Mesh 3D do CAP de Metalon (Ponteira plástica com aletas de retenção)
+   */
+  static createMetalonCapMesh(
+    width: number = 0.040,
+    height: number = 0.040,
+    wallThickness: number = 0.0020,
+    material?: THREE.Material,
+    options: { centered?: boolean } = {}
+  ): THREE.Group {
+    return buildMetalonCapMesh(width, height, wallThickness, material, options);
   }
 }

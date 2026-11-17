@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSolar } from '../context/SolarContext';
+import { RightPanelHumanSection } from './rightpanel/RightPanelHumanSection';
 import { RightPanelExpansionSection } from './rightpanel/RightPanelExpansionSection';
 import { RightPanelAccessorySection } from './rightpanel/RightPanelAccessorySection';
 import { RightPanelWeightSection } from './rightpanel/RightPanelWeightSection';
@@ -17,10 +18,12 @@ import {
   ScaleIcon,
   SunIcon,
   BatteryIcon,
+  PersonStandingIcon,
 } from './layout/IdeIcons';
 
 type AssembledRightTab =
   | 'all'
+  | 'human'
   | 'expansion'
   | 'accessories'
   | 'weight'
@@ -42,11 +45,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   isVisible,
   onToggleVisible,
 }) => {
-  const { viewMode } = useSolar();
+  const { viewMode, humanFigureVisible } = useSolar();
   const [widths, setWidths] = useState(DEFAULT_WIDTHS);
   const [assembledTab, setAssembledTab] = useState<AssembledRightTab>('all');
 
-  if (viewMode === 'electrical_planar' || viewMode === 'hydraulic_planar') {
+  if (viewMode === 'electrical_planar' || viewMode === 'hydraulic_planar' || viewMode === 'weights') {
     return null;
   }
 
@@ -72,6 +75,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   const renderPanelTitle = () => {
     if (viewMode === 'internal_boxes') return 'INSPETOR DE CAIXA / MÓDULO';
     if (viewMode === 'bars_lineup') return 'ENGENHARIA & PESO DO RACK';
+    if (assembledTab === 'human') return 'BONECO DE REFERÊNCIA (ESCALA)';
     if (assembledTab === 'expansion') return 'EXPANSÃO & INSPEÇÃO';
     if (assembledTab === 'accessories') return 'ACESSÓRIOS & INTERNO';
     if (assembledTab === 'weight') return 'PESO & ALTURA DO RACK';
@@ -108,6 +112,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
             {viewMode === 'bars_lineup' && (
               <>
+                <RightPanelHumanSection />
                 <RightPanelWeightSection />
                 <RightPanelEnvironmentSection />
               </>
@@ -115,6 +120,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
             {viewMode === 'assembled' && (
               <>
+                {/* O Boneco fica em PRIMEIRO LUGAR no topo de Todos, ou na aba dedicada */}
+                {(assembledTab === 'all' || assembledTab === 'human') && (
+                  <RightPanelHumanSection />
+                )}
                 {(assembledTab === 'all' || assembledTab === 'expansion') && (
                   <RightPanelExpansionSection />
                 )}
@@ -171,6 +180,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
         {viewMode === 'assembled' && (
           <>
+            {/* 1. TODOS OS PAINÉIS */}
             <button
               type="button"
               onClick={() => handleAssembledTabClick('all')}
@@ -179,6 +189,19 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             >
               <SlidersIcon />
             </button>
+
+            {/* 2. BONECO DE REFERÊNCIA — EM PRIMEIRO LOGO DEPOIS DE TODOS */}
+            <button
+              type="button"
+              onClick={() => handleAssembledTabClick('human')}
+              className={`ide-activity-btn right ${isVisible && assembledTab === 'human' ? 'active' : ''}`}
+              title="Boneco de Referência (Escala Humana)"
+              style={humanFigureVisible ? { color: '#38bdf8' } : {}}
+            >
+              <PersonStandingIcon size={18} />
+            </button>
+
+            {/* 3. DEMAIS ABAS ESPECÍFICAS */}
             <button
               type="button"
               onClick={() => handleAssembledTabClick('expansion')}

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { LineupItem, LineupRowGroup } from './LineupTypes';
 import { InternalBoxesBuilder } from '../InternalBoxesBuilder';
 import { extractPvcCutStats } from '../../utils/pvcUtils';
+import { extractAwningHardwareStats } from '../../utils/awningHardwareUtils';
 import { sanitizeUpholsteryLabel } from '../../utils/woodUtils';
 
 export class BarsLineupCollector {
@@ -10,10 +11,13 @@ export class BarsLineupCollector {
     sortedUpholsteryRows: LineupRowGroup[];
     sortedMetalRows: LineupRowGroup[];
     sortedPvcRows: LineupRowGroup[];
+    sortedAwningRows: LineupRowGroup[];
     metalItems: LineupItem[];
     woodItems: LineupItem[];
     upholsteryItems: LineupItem[];
+    awningItems: LineupItem[];
     totalPvc: number;
+    metalonCapItems: LineupItem[];
   } {
     const metalItems: LineupItem[] = [];
     const woodItems: LineupItem[] = [];
@@ -218,7 +222,7 @@ export class BarsLineupCollector {
         metalRowMap.set(key, {
           key,
           type: 'metal',
-          title: `🔩 ${spec.toUpperCase()}`,
+          title: `🔩 ${spec.toUpperCase().includes('RACK') ? spec.toUpperCase() : spec.toUpperCase() + ' (DO RACK)'}`,
           subtitle: '',
           profileSpec: spec,
           colorHex: 0x38bdf8,
@@ -238,17 +242,93 @@ export class BarsLineupCollector {
         return a.name.localeCompare(b.name);
       });
       const totalMeters = row.items.reduce((acc, it) => acc + it.length, 0);
-      row.subtitle = `${row.items.length} barras • ${totalMeters.toFixed(1)} m`;
+      row.subtitle = `${row.items.length} barras do rack • ${totalMeters.toFixed(1)} m`;
     });
 
-    // 4.1 COLETA DOS CANOS & CONEXÕES DE PVC
+    // 4.0 COLETA DOS CAPS PLÁSTICOS DE METALON (PONTEIRAS DE PROTEÇÃO)
+    const metalonCapItems: LineupItem[] = [];
+    for (let i = 0; i < 4; i++) {
+      metalonCapItems.push({
+        sourceMesh: null,
+        type: 'metal',
+        length: 0.020,
+        width: 0.040,
+        thickness: 0.040,
+        thicknessMm: 40,
+        area: 0.040 * 0.040,
+        name: `CAP Plástico 40x40mm (Ponteira Rack Base ${i + 1})`,
+        profileSpec: 'Metalon Cap 40x40',
+        material: 'Polietileno de Alta Densidade (PEAD Preto)',
+        isMetalonCap: true,
+        capProfileSize: 40
+      });
+    }
+
+    if (solarSystem?.cargoBoxConfig?.enabled) {
+      for (let i = 0; i < 4; i++) {
+        metalonCapItems.push({
+          sourceMesh: null,
+          type: 'metal',
+          length: 0.020,
+          width: 0.030,
+          thickness: 0.030,
+          thicknessMm: 30,
+          area: 0.030 * 0.030,
+          name: `CAP Plástico 30x30mm (Ponteira Subchassi Baú ${i + 1})`,
+          profileSpec: 'Metalon Cap 30x30',
+          material: 'Polietileno de Alta Densidade (PEAD Preto)',
+          isMetalonCap: true,
+          capProfileSize: 30
+        });
+      }
+    }
+
+    if (solarSystem?.stackLevels === 2) {
+      for (let i = 0; i < 4; i++) {
+        metalonCapItems.push({
+          sourceMesh: null,
+          type: 'metal',
+          length: 0.020,
+          width: 0.030,
+          thickness: 0.030,
+          thicknessMm: 30,
+          area: 0.030 * 0.030,
+          name: `CAP Plástico 30x30mm (Ponteira Nível Superior ${i + 1})`,
+          profileSpec: 'Metalon Cap 30x30',
+          material: 'Polietileno de Alta Densidade (PEAD Preto)',
+          isMetalonCap: true,
+          capProfileSize: 30
+        });
+      }
+    }
+
+    if (metalonCapItems.length > 0) {
+      sortedMetalRows.push({
+        key: 'metalon_caps_row',
+        type: 'metal',
+        title: '🛡️ CAPS PROTETORES DO RACK',
+        subtitle: `${metalonCapItems.length} ponteiras plásticas do rack de acabamento e proteção`,
+        profileSpec: 'CAP Plástico',
+        colorHex: 0x38bdf8,
+        items: metalonCapItems
+      });
+    }
+
+    // 4.1 COLETA DOS CANOS & CONEXÕES DE PVC EM GRUPOS SEPARADOS (TUBOS, JOELHOS, TÊ E CAPS)
     const pvcItems: LineupItem[] = [];
-    const pvcFittingItems: LineupItem[] = [];
+    const pvcElbowItems: LineupItem[] = [];
+    const pvcTeeItems: LineupItem[] = [];
+    const pvcCapItems: LineupItem[] = [];
     const sortedPvcRows: LineupRowGroup[] = [];
 
     if (solarSystem.waterTankConfig?.enabled) {
       const pvcStats = extractPvcCutStats(solarSystem.waterTankConfig);
       const diamM = pvcStats.diameterMm / 1000;
+      const isRear = pvcStats.connectionPosition === 'rear';
+      const connSideLabel = isRear ? 'Traseiro' : 'Dianteiro';
+      const endCapSideLabel = isRear ? 'Dianteiro' : 'Traseiro';
+
+      // Grupo 1: Tubos Retilíneos de PVC
       pvcStats.cutItems.forEach((c) => {
         pvcItems.push({
           sourceMesh: null,
@@ -279,9 +359,12 @@ export class BarsLineupCollector {
 
       const elbowSpanM = Math.round(diamM * 1.45 * 1000) / 1000;
       const fittingThickM = Math.round(diamM * 1.10 * 1000) / 1000;
+      const teeRunLenM = Math.round(diamM * 1.65 * 1000) / 1000;
+      const teeBranchSpanM = Math.round(diamM * 1.45 * 1000) / 1000;
       const capLenM = Math.round(diamM * 0.485 * 1000) / 1000;
 
-      pvcFittingItems.push(
+      // Grupo 2: Joelhos 90° (2 unidades)
+      pvcElbowItems.push(
         {
           sourceMesh: null,
           type: 'pvc',
@@ -290,7 +373,7 @@ export class BarsLineupCollector {
           thickness: fittingThickM,
           thicknessMm: pvcStats.diameterMm,
           area: +(elbowSpanM * elbowSpanM).toFixed(3),
-          name: 'Joelho 90° PVC com Bolsa Reforçada (Dianteiro Esq.)',
+          name: `Joelho 90° PVC com Bolsa Reforçada (${connSideLabel} Esq.)`,
           profileSpec: `Joelho 90° Ø${pvcStats.diameterMm}mm`,
           material: `PVC Série R / Esgoto Ø${pvcStats.diameterMm}mm`,
           pvcFittingType: 'elbow_90'
@@ -303,11 +386,50 @@ export class BarsLineupCollector {
           thickness: fittingThickM,
           thicknessMm: pvcStats.diameterMm,
           area: +(elbowSpanM * elbowSpanM).toFixed(3),
-          name: 'Joelho 90° PVC com Bolsa Reforçada (Dianteiro Dir.)',
+          name: `Joelho 90° PVC com Bolsa Reforçada (${connSideLabel} Dir.)`,
           profileSpec: `Joelho 90° Ø${pvcStats.diameterMm}mm`,
           material: `PVC Série R / Esgoto Ø${pvcStats.diameterMm}mm`,
           pvcFittingType: 'elbow_90'
-        },
+        }
+      );
+
+      sortedPvcRows.push({
+        key: 'pvc_water_elbows',
+        type: 'pvc',
+        title: `💧 JOELHOS 90° PVC • Ø${pvcStats.diameterMm}mm`,
+        subtitle: `2× Joelhos 90° com bolsas reforçadas (curvas ${connSideLabel.toLowerCase()}s)`,
+        profileSpec: `Joelho 90° Ø${pvcStats.diameterMm}mm`,
+        colorHex: 0x38bdf8,
+        items: pvcElbowItems
+      });
+
+      // Grupo 3: Tê 90° Central (1 unidade)
+      pvcTeeItems.push({
+        sourceMesh: null,
+        type: 'pvc',
+        length: teeRunLenM,
+        width: teeBranchSpanM,
+        thickness: fittingThickM,
+        thicknessMm: pvcStats.diameterMm,
+        area: +(teeRunLenM * teeBranchSpanM).toFixed(3),
+        name: `Tê 90° PVC com 3 Bolsas Reforçadas (Central ${connSideLabel})`,
+        profileSpec: `Tê 90° Ø${pvcStats.diameterMm}mm`,
+        material: `PVC Série R / Esgoto Ø${pvcStats.diameterMm}mm`,
+        pvcFittingType: 'tee_90'
+      });
+
+      sortedPvcRows.push({
+        key: 'pvc_water_tees',
+        type: 'pvc',
+        title: `💧 TÊ 90° PVC • Ø${pvcStats.diameterMm}mm`,
+        subtitle: `1× Tê 90° central de derivação vertical para o bocal de abastecimento`,
+        profileSpec: `Tê 90° Ø${pvcStats.diameterMm}mm`,
+        colorHex: 0x06b6d4,
+        items: pvcTeeItems
+      });
+
+      // Grupo 4: CAPs / Tampões de Vedação (3 unidades: 2 de extremidade + 1 superior do Tê)
+      pvcCapItems.push(
         {
           sourceMesh: null,
           type: 'pvc',
@@ -316,7 +438,7 @@ export class BarsLineupCollector {
           thickness: fittingThickM,
           thicknessMm: pvcStats.diameterMm,
           area: +(capLenM * fittingThickM).toFixed(3),
-          name: 'CAP (Tampão) de Vedação PVC Traseiro (Esq.)',
+          name: `CAP (Tampão) de Vedação PVC ${endCapSideLabel} (Esq.)`,
           profileSpec: `CAP Soldável Ø${pvcStats.diameterMm}mm`,
           material: `PVC Série R / Esgoto Ø${pvcStats.diameterMm}mm`,
           pvcFittingType: 'cap'
@@ -329,7 +451,20 @@ export class BarsLineupCollector {
           thickness: fittingThickM,
           thicknessMm: pvcStats.diameterMm,
           area: +(capLenM * fittingThickM).toFixed(3),
-          name: 'CAP (Tampão) de Vedação PVC Traseiro (Dir.)',
+          name: `CAP (Tampão) de Vedação PVC ${endCapSideLabel} (Dir.)`,
+          profileSpec: `CAP Soldável Ø${pvcStats.diameterMm}mm`,
+          material: `PVC Série R / Esgoto Ø${pvcStats.diameterMm}mm`,
+          pvcFittingType: 'cap'
+        },
+        {
+          sourceMesh: null,
+          type: 'pvc',
+          length: capLenM,
+          width: fittingThickM,
+          thickness: fittingThickM,
+          thicknessMm: pvcStats.diameterMm,
+          area: +(capLenM * fittingThickM).toFixed(3),
+          name: `CAP (Tampão) Superior do Tê c/ Base da Tampinha`,
           profileSpec: `CAP Soldável Ø${pvcStats.diameterMm}mm`,
           material: `PVC Série R / Esgoto Ø${pvcStats.diameterMm}mm`,
           pvcFittingType: 'cap'
@@ -337,27 +472,85 @@ export class BarsLineupCollector {
       );
 
       sortedPvcRows.push({
-        key: 'pvc_water_fittings',
+        key: 'pvc_water_caps',
         type: 'pvc',
-        title: `💧 CONEXÕES PVC & VEDAÇÃO • Ø${pvcStats.diameterMm}mm (JOELHOS 90° & CAPS)`,
-        subtitle: `4 conexões (2× Joelhos 90° c/ bolsa + 2× CAPs soldáveis) • Caixa d'Água em U`,
-        profileSpec: `Conexões PVC Ø${pvcStats.diameterMm}mm`,
-        colorHex: 0x38bdf8,
-        items: pvcFittingItems
+        title: `💧 CAPS (TAMPÕES) DE VEDAÇÃO PVC • Ø${pvcStats.diameterMm}mm`,
+        subtitle: `3× CAPs soldáveis (2× fechamento ${endCapSideLabel.toLowerCase()} + 1× topo do Tê)`,
+        profileSpec: `CAP Soldável Ø${pvcStats.diameterMm}mm`,
+        colorHex: 0x22d3ee,
+        items: pvcCapItems
       });
     }
 
-    const totalPvc = pvcItems.length + pvcFittingItems.length;
+    const totalPvc = pvcItems.length + pvcElbowItems.length + pvcTeeItems.length + pvcCapItems.length;
+
+    // 4.2 COLETA DOS PERFIS DE ALUMÍNIO E FERRAGENS DO TOLDO OVERLAND (SEPARADOS)
+    const awningItems: LineupItem[] = [];
+    const sortedAwningRows: LineupRowGroup[] = [];
+
+    if (solarSystem?.awningConfig?.enabled) {
+      const awningStats = extractAwningHardwareStats(solarSystem.awningConfig);
+
+      awningStats.profileItems.forEach((p) => {
+        const pLenM = p.lengthMm / 1000;
+        const pThickM = p.spec.includes('35x25')
+          ? 0.025
+          : p.spec.includes('50x30')
+            ? 0.030
+            : p.spec.includes('35x35')
+              ? 0.035
+              : 0.028;
+        const pWidthM = p.spec.includes('50x30')
+          ? 0.050
+          : p.spec.includes('35x25')
+            ? 0.035
+            : p.spec.includes('35x35')
+              ? 0.035
+              : 0.028;
+
+        for (let i = 0; i < p.qty; i++) {
+          const suffix = p.qty > 1 ? ` #${i + 1}` : '';
+          awningItems.push({
+            sourceMesh: null,
+            type: 'awning',
+            length: pLenM,
+            width: pWidthM,
+            thickness: pThickM,
+            thicknessMm: Math.round(pThickM * 1000),
+            area: +(pLenM * pWidthM).toFixed(3),
+            name: `${p.label}${suffix}`,
+            profileSpec: p.spec,
+            material: 'Alumínio Estrutural Anodizado',
+            colorHex: 0xf59e0b
+          });
+        }
+      });
+
+      if (awningItems.length > 0) {
+        sortedAwningRows.push({
+          key: 'awning_profiles_row',
+          type: 'awning',
+          title: `⛺ PERFIS DE ALUMÍNIO DO TOLDO • ${awningStats.typeLabel.toUpperCase()}`,
+          subtitle: `${awningItems.length} perfis de alumínio • ${awningStats.totalLinearMeters} m (${awningStats.sideLabel})`,
+          profileSpec: 'Perfis de Alumínio do Toldo',
+          colorHex: 0xf59e0b,
+          items: awningItems
+        });
+      }
+    }
 
     return {
       sortedWoodRows,
       sortedUpholsteryRows,
       sortedMetalRows,
       sortedPvcRows,
+      sortedAwningRows,
       metalItems,
       woodItems,
       upholsteryItems,
-      totalPvc
+      awningItems,
+      totalPvc,
+      metalonCapItems
     };
   }
 }

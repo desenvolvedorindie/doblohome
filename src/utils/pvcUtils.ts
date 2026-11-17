@@ -22,6 +22,7 @@ export interface PvcFittingItem {
   spec: string;
   qty: number;
   unit: string;
+  group: string;
   notes: string;
 }
 
@@ -263,14 +264,16 @@ export function extractPvcCutStats(
       spec: `90° Ø${diameterMm} mm`,
       qty: 2,
       unit: 'un',
+      group: '↪️ Joelhos 90° PVC',
       notes: `Interligam os canos laterais aos canos transversais na ${posNote}`
     },
     {
       key: 'fit_tee_90',
-      label: 'Tê 90° PVC com bolsas reforçadas',
+      label: 'Tê 90° PVC com 3 bolsas reforçadas',
       spec: `Tê 90° Ø${diameterMm} mm`,
       qty: 1,
       unit: 'un',
+      group: '🔀 Tê 90° PVC',
       notes: `Instalado no centro do cano transversal ${posLabel.toLowerCase()} para elevação vertical do bocal`
     },
     {
@@ -279,6 +282,7 @@ export function extractPvcCutStats(
       spec: `CAP Soldável Ø${diameterMm} mm`,
       qty: 3,
       unit: 'un',
+      group: '🛑 CAPs (Tampões) de Vedação',
       notes: `3 unidades: 2× de extremidade (${isRear ? 'dianteiras' : 'traseiras'}) + 1× superior no Tê (base da tampinha)`
     },
     {
@@ -287,6 +291,7 @@ export function extractPvcCutStats(
       spec: 'Rosqueável 2" ou 3" com vedação hermética',
       qty: 1,
       unit: 'un',
+      group: '🚰 Válvulas, Bocal & Registros',
       notes: 'Montada no topo do CAP superior do Tê para abastecimento rápido de água potável'
     },
     {
@@ -295,6 +300,7 @@ export function extractPvcCutStats(
       spec: '1/2" ou 3/4" BSP com manopla',
       qty: 2,
       unit: 'un',
+      group: '🚰 Válvulas, Bocal & Registros',
       notes: 'Instalados na traseira para dreno, ducha externa e tomada de água'
     },
     {
@@ -303,6 +309,7 @@ export function extractPvcCutStats(
       spec: '1/2" automática c/ membrana',
       qty: 1,
       unit: 'un',
+      group: '🚰 Válvulas, Bocal & Registros',
       notes: 'Instalada junto ao CAP/Tê para garantir fluxo contínuo sem vácuo ou refluxo'
     },
     {
@@ -311,6 +318,7 @@ export function extractPvcCutStats(
       spec: `Inox 304 para Ø${diameterMm} mm`,
       qty: lateralPipeLengthM >= 1.4 ? 6 : 4,
       unit: 'un',
+      group: '🔩 Fixação & Soldagem',
       notes: 'Ancoragem firme na face interna dos perfis de metalon 40×40'
     },
     {
@@ -319,6 +327,7 @@ export function extractPvcCutStats(
       spec: 'Bisnaga 175g / 75g',
       qty: 1,
       unit: 'kit',
+      group: '🔩 Fixação & Soldagem',
       notes: 'Soldagem a frio com adesivo nas bolsas, Tê e joelhos'
     }
   ];

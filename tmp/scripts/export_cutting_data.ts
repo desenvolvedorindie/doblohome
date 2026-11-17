@@ -47,6 +47,7 @@ import { DEFAULT_INTERNAL_GRID, INTERNAL_BOXES_PRESETS } from '../../src/data/in
 import { extractWoodCutGroups, groupWoodCutPieces, extractUpholsteryStats, extractBarStats } from '../../src/utils/woodUtils';
 import { optimizeCuttingPlan, CutPieceInput, CuttingResult, computePerforationHoles } from '../../src/utils/cuttingOptimizer';
 import { extractPvcCutStats } from '../../src/utils/pvcUtils';
+import { extractAwningHardwareStats } from '../../src/utils/awningHardwareUtils';
 import { SolarSystem } from '../../src/three/SolarSystem';
 import { calculateWeldedJoints } from '../../src/utils/weldedJointsUtils';
 
@@ -131,7 +132,16 @@ const pvcStats = extractPvcCutStats({
   diameterMm: 100
 });
 
-// 6. Montar objeto consolidado para o gerador de PDF
+// 6. Ferragem do Toldo Retrátil Overland (Calculada Separadamente)
+const awningStats = extractAwningHardwareStats({
+  enabled: true,
+  type: 'batwing_270',
+  side: 'passenger',
+  lengthMm: 2000,
+  extensionMm: 2200
+});
+
+// 7. Montar objeto consolidado para o gerador de PDF
 const exportData = {
   project: {
     title: 'Plano de Corte Executivo & Desenho Técnico dos Cortes',
@@ -189,6 +199,26 @@ const exportData = {
     plan6m: pvcStats.plan6m,
     plan3m: pvcStats.plan3m,
     recommendedBarOption: pvcStats.recommendedBarOption
+  },
+  awning: {
+    enabled: awningStats.enabled,
+    type: awningStats.type,
+    typeLabel: awningStats.typeLabel,
+    side: awningStats.side,
+    sideLabel: awningStats.sideLabel,
+    lengthMm: awningStats.lengthMm,
+    extensionMm: awningStats.extensionMm,
+    totalProfilePieces: awningStats.totalProfilePieces,
+    totalLinearMeters: awningStats.totalLinearMeters,
+    profilesWeightKg: awningStats.profilesWeightKg,
+    fittingsWeightKg: awningStats.fittingsWeightKg,
+    fabricWeightKg: awningStats.fabricWeightKg,
+    totalAwningWeightKg: awningStats.totalAwningWeightKg,
+    profileItems: awningStats.profileItems,
+    fittings: awningStats.fittings,
+    plan6m: awningStats.plan6m,
+    plan3m: awningStats.plan3m,
+    recommendedBarOption: awningStats.recommendedBarOption
   }
 };
 

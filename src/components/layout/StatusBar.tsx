@@ -9,6 +9,7 @@ const WORKSPACE_NAMES: Record<ViewMode, string> = {
   bars_lineup: '3. Peças & Corte',
   electrical_planar: '4. Elétrica 2D',
   hydraulic_planar: '5. Hidráulica 2D',
+  weights: '6. Pesos & Cargas',
 };
 
 export const StatusBar: React.FC = () => {

@@ -8,6 +8,7 @@ import {
   UsinaModelRating,
   SavedConfig
 } from '../../types';
+import { getSavedConfigSync } from './SolarPersistence';
 
 export function useCargoAndEquipmentActions(
   sceneManager: any,
@@ -16,47 +17,76 @@ export function useCargoAndEquipmentActions(
   flashToast: (msg: string) => void,
   expansionProgress: number
 ) {
+  const initialCfg = getSavedConfigSync();
+
   // Baú de Teto Motobul Off Road & Basculamento
-  const [cargoBox, setCargoBoxState] = useState<CargoBoxConfig>({
-    enabled: true,
-    length: 1600,
-    width: 1000,
-    height: 330,
-    hingeSide: 'driver',
-    tiltAngle: 0,
-    lidAngle: 0,
-    verticalLiftMm: 0
+  const [cargoBox, setCargoBoxState] = useState<CargoBoxConfig>(() => {
+    if (initialCfg?.cargoBox) {
+      const maxLift = Math.max(60, Math.floor(((initialCfg.cargoBox.height || 330) - 100) / 10) * 10);
+      return {
+        ...initialCfg.cargoBox,
+        verticalLiftMm: Math.max(0, Math.min(maxLift, initialCfg.cargoBox.verticalLiftMm || 0))
+      };
+    }
+    return {
+      enabled: true,
+      length: 1600,
+      width: 1000,
+      height: 330,
+      hingeSide: 'driver',
+      tiltAngle: 0,
+      lidAngle: 0,
+      verticalLiftMm: 0
+    };
   });
 
   // Caixa d'Água Lateral
-  const [waterTank, setWaterTankState] = useState<WaterTankConfig>({
-    enabled: true,
-    lengthMm: 2200,
-    diameterMm: 200,
-    connectionPosition: 'front'
+  const [waterTank, setWaterTankState] = useState<WaterTankConfig>(() => {
+    if (initialCfg?.waterTank) {
+      return {
+        enabled: Boolean(initialCfg.waterTank.enabled),
+        lengthMm: Math.max(400, Math.min(2200, Math.round(initialCfg.waterTank.lengthMm || 2200))),
+        diameterMm: Math.max(80, Math.min(350, Math.round(initialCfg.waterTank.diameterMm || 200))),
+        connectionPosition: initialCfg.waterTank.connectionPosition === 'rear' ? 'rear' : 'front'
+      };
+    }
+    return {
+      enabled: true,
+      lengthMm: 2200,
+      diameterMm: 200,
+      connectionPosition: 'front'
+    };
   });
 
   // Toldo Retrátil Overland
-  const [awning, setAwningState] = useState<AwningConfig>({
-    enabled: false,
-    type: 'rear',
-    side: 'passenger',
-    lengthMm: 1400,
-    extensionMm: 2000,
-    isOpen: false,
-    fabricColor: '#374151'
+  const [awning, setAwningState] = useState<AwningConfig>(() => {
+    if (initialCfg?.awning) {
+      return initialCfg.awning;
+    }
+    return {
+      enabled: false,
+      type: 'rear',
+      side: 'passenger',
+      lengthMm: 1400,
+      extensionMm: 2000,
+      isOpen: false,
+      fabricColor: '#374151'
+    };
   });
 
   // Carregador Inteligente DC-DC B2B1230
-  const [b2bCharger, setB2BCharger] = useState<B2BChargerConfig>({
-    enabled: true,
-    isEngineRunning: false,
-    engineHoursPerDay: 1.5,
-    chargingAmps: 30,
-    voltageIn: 14.1,
-    voltageOut: 14.4,
-    watts: 390,
-    bluetoothConnected: true
+  const [b2bCharger, setB2BCharger] = useState<B2BChargerConfig>(() => {
+    const engineHours = initialCfg?.b2bEngineHours !== undefined ? initialCfg.b2bEngineHours : 1.5;
+    return {
+      enabled: true,
+      isEngineRunning: false,
+      engineHoursPerDay: engineHours,
+      chargingAmps: 30,
+      voltageIn: 14.1,
+      voltageOut: 14.4,
+      watts: 390,
+      bluetoothConnected: true
+    };
   });
   const b2bChargerRef = useRef<B2BChargerConfig>(b2bCharger);
   b2bChargerRef.current = b2bCharger;
@@ -267,11 +297,21 @@ export function useCargoAndEquipmentActions(
 
   // Toldo
   const setAwning = (updates: Partial<AwningConfig>) => {
-    const next: AwningConfig = { ...awning, ...updates };
+    let next: AwningConfig = { ...awning, ...updates };
+    if (updates.type === 'batwing_270' && (!updates.lengthMm || next.lengthMm <= 1600)) {
+      next.lengthMm = 2000;
+      next.extensionMm = updates.extensionMm || 2200;
+    } else if (updates.type === 'rear' && (!updates.lengthMm || next.lengthMm >= 1800)) {
+      next.lengthMm = 1400;
+      next.extensionMm = updates.extensionMm || 2000;
+    }
     setAwningState(next);
     if (sceneManager) {
       sceneManager.solarSystem.setAwningConfig(next);
       updateCalculations();
+      if (sceneManager.viewMode === 'bars_lineup') {
+        sceneManager.buildBarsLineup();
+      }
     }
     if (updates.enabled !== undefined) {
       flashToast(updates.enabled ? '⛺ Toldo Retrátil Overland Ativado' : '🚫 Toldo Overland Desativado');

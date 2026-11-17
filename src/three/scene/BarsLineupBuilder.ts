@@ -23,9 +23,11 @@ export class BarsLineupBuilder {
       sortedUpholsteryRows,
       sortedMetalRows,
       sortedPvcRows,
+      sortedAwningRows,
       metalItems,
       woodItems,
       upholsteryItems,
+      awningItems,
       totalPvc
     } = BarsLineupCollector.collect(solarSystem, internalBoxesBuilder);
 
@@ -38,8 +40,10 @@ export class BarsLineupBuilder {
       activeRows = sortedMetalRows;
     } else if (filter === 'pvc') {
       activeRows = sortedPvcRows;
+    } else if (filter === 'awning') {
+      activeRows = sortedAwningRows;
     } else {
-      activeRows = [...sortedWoodRows, ...sortedUpholsteryRows, ...sortedMetalRows, ...sortedPvcRows];
+      activeRows = [...sortedWoodRows, ...sortedUpholsteryRows, ...sortedMetalRows, ...sortedPvcRows, ...sortedAwningRows];
     }
 
     const gapX = 0.05;
@@ -74,9 +78,11 @@ export class BarsLineupBuilder {
       // Header 3D da Linha
       const headerColor = row.type === 'upholstery'
         ? '#38bdf8'
-        : row.type === 'metal'
-          ? '#38bdf8'
-          : (row.woodMaterial?.includes('MDF') ? '#38bdf8' : '#f59e0b');
+        : row.type === 'awning'
+          ? '#f59e0b'
+          : row.type === 'metal'
+            ? '#38bdf8'
+            : (row.woodMaterial?.includes('MDF') ? '#38bdf8' : '#f59e0b');
       const headerSprite = (typeof caller?.createGroupHeaderSprite === 'function')
         ? caller.createGroupHeaderSprite(row.title, row.subtitle, headerColor)
         : BarsLineupBuilder.createGroupHeaderSprite(row.title, row.subtitle, headerColor);
@@ -93,9 +99,24 @@ export class BarsLineupBuilder {
         const zPos = rowBaselineZ + item.length / 2;
 
         let partObj: THREE.Object3D;
-        const isFitting = item.type === 'pvc' && (item.pvcFittingType === 'elbow_90' || item.pvcFittingType === 'cap');
+        const isFitting = item.type === 'pvc' && (item.pvcFittingType === 'elbow_90' || item.pvcFittingType === 'tee_90' || item.pvcFittingType === 'cap');
 
-        if (item.type === 'pvc') {
+        if (item.isMetalonCap) {
+          const capObj = MetalonTubeFactory.createMetalonCapMesh(
+            item.width,
+            item.thickness,
+            item.thicknessMm ? item.thicknessMm / 1000 : 0.002,
+            undefined,
+            { centered: true }
+          );
+          capObj.userData = {
+            isMetalonCap: true,
+            profileSpec: item.profileSpec,
+            purpose: 'Ponteira Plástica / CAP Protetor de Metalon',
+            name: item.name
+          };
+          partObj = capObj;
+        } else if (item.type === 'pvc') {
           const pvcMat = new THREE.MeshStandardMaterial({
             color: 0x1e293b,
             roughness: 0.35,
@@ -106,6 +127,8 @@ export class BarsLineupBuilder {
           if (item.pvcFittingType === 'elbow_90') {
             partObj = MetalonTubeFactory.createPvcElbowMesh(item.thicknessMm / 1000, pvcMat);
             partObj.rotation.y = Math.PI;
+          } else if (item.pvcFittingType === 'tee_90') {
+            partObj = MetalonTubeFactory.createPvcTeeMesh(item.thicknessMm / 1000, pvcMat);
           } else if (item.pvcFittingType === 'cap') {
             partObj = MetalonTubeFactory.createPvcCapMesh(item.thicknessMm / 1000, pvcMat);
             // Cap Esq voltado para frente mostrando a bolsa de encaixe; Cap Dir voltado para trás mostrando o domo e bujão de latão
@@ -135,6 +158,33 @@ export class BarsLineupBuilder {
 
             partObj = mesh;
           }
+        } else if (item.type === 'awning') {
+          const isRound = item.profileSpec?.includes('Ø');
+          const aluMat = new THREE.MeshStandardMaterial({
+            color: 0x475569,
+            metalness: 0.85,
+            roughness: 0.25
+          });
+          let geo: THREE.BufferGeometry;
+          if (isRound) {
+            geo = new THREE.CylinderGeometry(item.width / 2, item.width / 2, item.length, 16);
+            geo.rotateX(Math.PI / 2);
+          } else {
+            geo = new THREE.BoxGeometry(item.width, item.thickness, item.length);
+          }
+          const mesh = new THREE.Mesh(geo, aluMat);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+
+          const edgeGeo = new THREE.EdgesGeometry(geo, isRound ? 25 : undefined);
+          const edgeMat = new THREE.LineBasicMaterial({
+            color: 0xf59e0b,
+            transparent: true,
+            opacity: 0.85
+          });
+          mesh.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+          partObj = mesh;
         } else {
           let geo: THREE.BufferGeometry;
           const isMetalonOrTube = item.type === 'metal' && (item.profileSpec?.includes('Metalon') || item.profileSpec?.includes('Tubo'));
@@ -186,7 +236,9 @@ export class BarsLineupBuilder {
 
         partObj.userData = {
           isLineupPart: true,
-          isBar: item.type === 'metal',
+          isBar: item.type === 'metal' || item.type === 'awning',
+          isAwningPart: item.type === 'awning',
+          isMetalonCap: item.isMetalonCap,
           isWoodPart: item.type === 'wood',
           isUpholstery: item.type === 'upholstery',
           isPvcPart: item.type === 'pvc',
@@ -208,10 +260,16 @@ export class BarsLineupBuilder {
           profileSpec: item.profileSpec,
           material: item.material,
           category: row.title,
-          purpose: isFitting
+          purpose: item.type === 'awning'
+            ? 'Perfil de Alumínio Estrutural do Toldo Retrátil Overland'
+            : item.isMetalonCap
+            ? 'Ponteira Plástica / CAP Protetor do Rack'
+            : isFitting
             ? (item.pvcFittingType === 'elbow_90'
               ? 'Conexão 90° de alta resistência com bolsas para fusão soldável a frio na tubulação de água limpa'
-              : 'Vedação estanque final traseira com ponto rosqueado para inspeção/dreno de fundo')
+              : item.pvcFittingType === 'tee_90'
+                ? 'Conexão Tê 90° central com 3 bolsas reforçadas para unir as metades transversais e elevar o bocal de abastecimento'
+                : 'Vedação estanque final com ponto rosqueado para inspeção, dreno ou bocal de abastecimento')
             : item.type === 'upholstery'
               ? `${item.woodMaterial || 'Espuma D33 (Colchão)'}${item.hasCabinetCutout ? ' (com Recorte Especial para Armário Aéreo)' : ''} | Área: ${item.area.toFixed(2)} m² (${Math.round(item.width * 1000)} × ${Math.round(item.length * 1000)} × ${item.thicknessMm} mm)`
               : `${item.isPerforated ? (item.hasCabinetExclusion ? '🍃 Vazado CNC c/ Apoio Maciço p/ Armário Aéreo | ' : '🍃 Vazado CNC (-35% peso / Aeração) | ') : ''}Área: ${item.area >= 0.1 ? item.area.toFixed(2) + ' m²' : Math.round(item.area * 10000) + ' cm²'} (${Math.round(item.width * 1000)} × ${Math.round(item.length * 1000)} mm)`
@@ -221,9 +279,11 @@ export class BarsLineupBuilder {
 
         const customLabel = item.pvcFittingType === 'elbow_90'
           ? 'Joelho 90°'
-          : item.pvcFittingType === 'cap'
-            ? 'CAP Tampão'
-            : undefined;
+          : item.pvcFittingType === 'tee_90'
+            ? 'Tê 90°'
+            : item.pvcFittingType === 'cap'
+              ? 'CAP Tampão'
+              : undefined;
         const labelSprite = (typeof caller?.createBarLengthSprite === 'function')
           ? caller.createBarLengthSprite(idx + 1, item.length, item.width, item.area, item.type, customLabel)
           : BarsLineupBuilder.createBarLengthSprite(idx + 1, item.length, item.width, item.area, item.type, customLabel);
@@ -234,12 +294,7 @@ export class BarsLineupBuilder {
       currentZ += rowMaxLen + rowGapZ;
     });
 
-    const totalRendered =
-      filter === 'metal' ? metalItems.length
-        : filter === 'wood' ? woodItems.length
-          : filter === 'upholstery' ? upholsteryItems.length
-            : filter === 'pvc' ? totalPvc
-              : metalItems.length + woodItems.length + upholsteryItems.length + totalPvc;
+    const totalRendered = activeRows.reduce((sum, r) => sum + r.items.length, 0);
 
     barsLineupGroup.userData.totalBars = totalRendered;
     barsLineupGroup.userData.totalSpanX = Math.max(maxRowSpanX, 3.5);
@@ -317,7 +372,7 @@ export class BarsLineupBuilder {
     lengthM: number,
     widthM: number,
     areaM2: number,
-    type: 'metal' | 'wood' | 'upholstery' | 'pvc',
+    type: 'metal' | 'wood' | 'upholstery' | 'pvc' | 'awning',
     customLabel?: string
   ): THREE.Sprite {
     if (typeof document === 'undefined') {
@@ -333,6 +388,7 @@ export class BarsLineupBuilder {
     const isWood = type === 'wood';
     const isUpholstery = type === 'upholstery';
     const isPvc = type === 'pvc';
+    const isAwning = type === 'awning';
     ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
     ctx.strokeStyle = isWood
       ? 'rgba(245, 158, 11, 0.85)'
@@ -340,27 +396,31 @@ export class BarsLineupBuilder {
         ? 'rgba(56, 189, 248, 0.95)'
         : isPvc
           ? 'rgba(14, 165, 233, 0.85)'
-          : 'rgba(56, 189, 248, 0.85)';
+          : isAwning
+            ? 'rgba(245, 158, 11, 0.95)'
+            : 'rgba(56, 189, 248, 0.85)';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 10);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = isWood ? '#f59e0b' : isUpholstery ? '#38bdf8' : isPvc ? '#38bdf8' : '#38bdf8';
+    ctx.fillStyle = isWood ? '#f59e0b' : isUpholstery ? '#38bdf8' : isPvc ? '#38bdf8' : isAwning ? '#fbbf24' : '#38bdf8';
     ctx.font = 'bold 13.5px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`${isWood ? '🪵' : isUpholstery ? '🛏️' : isPvc ? '💧' : '🔩'} #${rank}`, 12, 26);
+    ctx.fillText(`${isWood ? '🪵' : isUpholstery ? '🛏️' : isPvc ? '💧' : isAwning ? '⛺' : '🔩'} #${rank}`, 12, 26);
 
     ctx.fillStyle = '#f8fafc';
     ctx.font = 'bold 12.5px monospace';
     ctx.textAlign = 'right';
     const areaStr = isPvc
       ? `Ø${Math.round(widthM * 1000)}mm`
-      : (areaM2 >= 0.1 ? `${areaM2.toFixed(2)}m²` : `${Math.round(areaM2 * 10000)}cm²`);
+      : isAwning && widthM === 0.028
+        ? `Ø${Math.round(widthM * 1000)}mm`
+        : (areaM2 >= 0.1 ? `${areaM2.toFixed(2)}m²` : `${Math.round(areaM2 * 10000)}cm²`);
     ctx.fillText(areaStr, canvas.width - 12, 26);
 
-    ctx.fillStyle = isWood ? '#fed7aa' : isPvc ? '#7dd3fc' : '#bae6fd';
+    ctx.fillStyle = isWood ? '#fed7aa' : isPvc ? '#7dd3fc' : isAwning ? '#fde68a' : '#bae6fd';
     ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'center';
     const centerX = canvas.width / 2;

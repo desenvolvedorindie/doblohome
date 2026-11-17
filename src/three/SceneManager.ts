@@ -14,6 +14,7 @@ import { SceneRaycaster } from './scene/SceneRaycaster';
 import { BarsLineupBuilder } from './scene/BarsLineupBuilder';
 import { SceneCameraManager } from './scene/SceneCameraManager';
 import { SceneEnvironment } from './scene/SceneEnvironment';
+import { HumanFigureBuilder } from './HumanFigureBuilder';
 
 export class SceneManager {
   container: HTMLElement;
@@ -34,6 +35,7 @@ export class SceneManager {
   barsLineupGroup: THREE.Group;
   currentLineupFilter: PartsGroupFilter = 'all';
   savedVehicleVisible: boolean = true;
+  humanFigure: HumanFigureBuilder;
 
   activeExpansionAnim: number | null = null;
   rewindTimeout: any = null;
@@ -100,6 +102,11 @@ export class SceneManager {
     this.barsLineupGroup.name = 'BarsLineupGroup';
     this.barsLineupGroup.visible = false;
     this.scene.add(this.barsLineupGroup);
+
+    // Boneco de referência humana — colocado fora do veículo, à esquerda
+    this.humanFigure = new HumanFigureBuilder();
+    this.humanFigure.group.visible = true; // começa visível por padrão
+    this.scene.add(this.humanFigure.group);
 
     const origBuildSystem = this.solarSystem.buildSystem.bind(this.solarSystem);
     this.solarSystem.buildSystem = () => {
@@ -446,7 +453,7 @@ export class SceneManager {
     return BarsLineupBuilder.createGroupHeaderSprite(title, subtitle, colorHex);
   }
 
-  createBarLengthSprite(rank: number, lengthM: number, widthM: number, areaM2: number, type: 'metal' | 'wood' | 'upholstery' | 'pvc', customLabel?: string): THREE.Sprite {
+  createBarLengthSprite(rank: number, lengthM: number, widthM: number, areaM2: number, type: 'metal' | 'wood' | 'upholstery' | 'pvc' | 'awning', customLabel?: string): THREE.Sprite {
     return BarsLineupBuilder.createBarLengthSprite(rank, lengthM, widthM, areaM2, type, customLabel);
   }
 

@@ -151,8 +151,13 @@ export const HydraulicInspectorPanel: React.FC<HydraulicInspectorPanelProps> = (
         ) : selectedNode ? (
           <HydraulicNodeInspectorForm
             selectedNode={selectedNode}
+            nodes={nodes}
+            edges={edges}
             onUpdateNodeData={onUpdateNodeData}
             onDeleteNode={onDeleteNode}
+            onUpdateEdgeData={onUpdateEdgeData}
+            onDeleteEdge={onDeleteEdge}
+            onSelectEdge={onSelectEdge}
           />
         ) : (
           <div

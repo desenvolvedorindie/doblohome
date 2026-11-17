@@ -112,7 +112,8 @@ def generate_cutting_plan_pdf(json_path="tmp/scripts/cutting_data.json", output_
     # P(6+N): Hidráulica PVC
     # P(7+N): Guia Técnico e Ordem de Corte
     wood_sheets_count = sum(len(cp["sheets"]) for cp in data["wood"]["cuttingPlans"])
-    total_pages = 2 + wood_sheets_count + 1 + 2 + 1 + 1
+    has_awning = bool(data.get("awning") and data["awning"].get("enabled", True))
+    total_pages = 2 + wood_sheets_count + 1 + 2 + 1 + (1 if has_awning else 0) + 1
 
     current_page = 1
 
@@ -880,6 +881,122 @@ def generate_cutting_plan_pdf(json_path="tmp/scripts/cutting_data.json", output_
     p_pvc.insert_text(fitz.Point(36, 557), "Instalar respiro superior c/ tela anti-inseto e válvula de retenção na saída inferior para garantir vazão uniforme sem vácuo.", fontname="helv", fontsize=7, color=C_TEXT_MUTED)
 
     current_page += 1
+
+    # =========================================================================
+    # PÁGINA: TOLDO RETRÁTIL OVERLAND — FERRAGENS & PLANO DE CORTE LINEAR
+    # =========================================================================
+    if has_awning:
+        p_awn = doc.new_page(width=842, height=595)
+        awn_info = data["awning"]
+        draw_header_footer(p_awn, current_page, total_pages, f"TOLDO RETRÁTIL OVERLAND — {awn_info['typeLabel'].upper()}", f"Ferragens e Plano de Corte Linear dos Perfis de Alumínio  •  {awn_info['sideLabel']}")
+
+        # 4 Cards de Resumo do Toldo
+        awn_y = 56
+        draw_card(p_awn, fitz.Rect(36, awn_y, 220, awn_y + 56), "MODELO & FIXAÇÃO", (awn_info["typeLabel"].split(" ")[0] + " 270°") if "270" in awn_info["typeLabel"] else "Toldo Traseiro", awn_info["sideLabel"], border_color=C_AMBER, bg_color=C_AMBER_LIGHT)
+        draw_card(p_awn, fitz.Rect(230, awn_y, 414, awn_y + 56), "PERFIS DE ALUMÍNIO", f"{awn_info['totalProfilePieces']} Cortes", f"{awn_info['totalLinearMeters']:.2f} m lineares  •  {awn_info['profilesWeightKg']} kg", border_color=C_PRIMARY, bg_color=rgb(224, 242, 254))
+        draw_card(p_awn, fitz.Rect(424, awn_y, 608, awn_y + 56), "BARRAS COMERCIAIS", f"{len(awn_info['plan6m'])} Barras de 6m", f"Recomendado: Barras de {awn_info['recommendedBarOption']}", border_color=C_EMERALD, bg_color=C_EMERALD_LIGHT)
+        draw_card(p_awn, fitz.Rect(618, awn_y, 806, awn_y + 56), "PESO TOTAL CONJUNTO", f"{awn_info['totalAwningWeightKg']} kg Total", f"Perfis: {awn_info['profilesWeightKg']}kg | Ferragens: {awn_info['fittingsWeightKg']}kg", border_color=rgb(168, 85, 247), bg_color=rgb(250, 245, 255))
+
+        # Desenho Linear de Corte das Barras de Alumínio
+        awn_cad_y = 124
+        s_acad = p_awn.new_shape()
+        s_acad.draw_rect(fitz.Rect(36, awn_cad_y, 806, awn_cad_y + 114))
+        s_acad.finish(fill=rgb(248, 250, 252), color=C_SLATE_BORDER, width=1)
+        s_acad.commit()
+
+        p_awn.insert_text(fitz.Point(46, awn_cad_y + 16), "📏 DESENHO DE CORTE LINEAR DAS BARRAS DE ALUMÍNIO (BARRAS COMERCIAIS DE 6.000 mm)", fontname="hebo", fontsize=8.5, color=C_PRIMARY_DARK)
+
+        # Réguas das barras de alumínio do toldo
+        bar_y_offset = awn_cad_y + 24
+        scale_awn = 740 / 6000.0
+        for b_idx, bar in enumerate(awn_info["plan6m"]):
+            s_abar = p_awn.new_shape()
+            rx0 = 46
+            rw = 740
+            rh = 14
+            s_abar.draw_rect(fitz.Rect(rx0, bar_y_offset, rx0 + rw, bar_y_offset + rh))
+            s_abar.finish(fill=C_WASTE, color=C_SLATE_BORDER, width=0.8)
+
+            cx = rx0
+            for c_idx, seg in enumerate(bar["segments"]):
+                if seg.get("isWaste"):
+                    continue
+                seg_w = seg["lengthMm"] * scale_awn
+                pal = PIECE_PALETTES[c_idx % len(PIECE_PALETTES)]
+                s_abar.draw_rect(fitz.Rect(cx, bar_y_offset, cx + seg_w, bar_y_offset + rh))
+                s_abar.finish(fill=pal["fill"], color=pal["stroke"], width=0.8)
+                s_abar.draw_line(fitz.Point(cx + seg_w, bar_y_offset), fitz.Point(cx + seg_w, bar_y_offset + rh))
+                s_abar.finish(color=rgb(239, 68, 68), width=1.2)
+                cx += seg_w + 3 * scale_awn
+            s_abar.commit()
+
+            # Textos dos segmentos
+            cx = rx0
+            for c_idx, seg in enumerate(bar["segments"]):
+                if seg.get("isWaste"):
+                    continue
+                seg_w = seg["lengthMm"] * scale_awn
+                pal = PIECE_PALETTES[c_idx % len(PIECE_PALETTES)]
+                if seg_w > 26:
+                    lbl = seg["label"]
+                    if len(lbl) > 16:
+                        lbl = lbl[:14] + ".."
+                    p_awn.insert_text(fitz.Point(cx + 3, bar_y_offset + 7), lbl, fontname="helv", fontsize=5.5, color=C_TEXT_MAIN)
+                    p_awn.insert_text(fitz.Point(cx + 3, bar_y_offset + 12), f"{seg['lengthMm']}mm", fontname="hebo", fontsize=5.5, color=pal["text"])
+                cx += seg_w + 3 * scale_awn
+
+            p_awn.insert_text(fitz.Point(rx0 + rw + 4, bar_y_offset + 10), f"B#{b_idx+1}: {bar['efficiencyPct']:.0f}%", fontname="hebo", fontsize=6.5, color=C_PRIMARY_DARK)
+            bar_y_offset += 20
+
+        # Tabelas: Perfis Cortados (à esquerda) e Ferragens/Mancais (à direita)
+        tbl_y = awn_cad_y + 122
+        # Header Perfis
+        s_th1 = p_awn.new_shape()
+        s_th1.draw_rect(fitz.Rect(36, tbl_y, 440, tbl_y + 20))
+        s_th1.finish(fill=C_PRIMARY_DARK, width=0)
+        s_th1.commit()
+        p_awn.insert_text(fitz.Point(42, tbl_y + 13), "Peça / Perfil de Alumínio", fontname="hebo", fontsize=7.2, color=C_BG_PAGE)
+        p_awn.insert_text(fitz.Point(230, tbl_y + 13), "Perfil Comercial", fontname="hebo", fontsize=7.2, color=C_BG_PAGE)
+        p_awn.insert_text(fitz.Point(340, tbl_y + 13), "Compr.", fontname="hebo", fontsize=7.2, color=C_BG_PAGE)
+        p_awn.insert_text(fitz.Point(395, tbl_y + 13), "Qtd", fontname="hebo", fontsize=7.2, color=C_BG_PAGE)
+
+        ry1 = tbl_y + 20
+        for idx, p_item in enumerate(awn_info["profileItems"]):
+            s_r = p_awn.new_shape()
+            s_r.draw_rect(fitz.Rect(36, ry1, 440, ry1 + 17))
+            s_r.finish(fill=C_BG_PAGE if idx % 2 == 0 else C_SLATE_BG, color=C_SLATE_BORDER, width=0.4)
+            s_r.commit()
+            p_awn.insert_text(fitz.Point(42, ry1 + 11), p_item["label"][:26], fontname="hebo", fontsize=6.5, color=C_TEXT_MAIN)
+            p_awn.insert_text(fitz.Point(230, ry1 + 11), p_item["spec"][:20], fontname="helv", fontsize=6.2, color=C_TEXT_MUTED)
+            p_awn.insert_text(fitz.Point(340, ry1 + 11), f"{p_item['lengthMm']}mm", fontname="hebo", fontsize=6.5, color=C_PRIMARY_DARK)
+            p_awn.insert_text(fitz.Point(400, ry1 + 11), f"{p_item['qty']} un", fontname="hebo", fontsize=6.5, color=C_AMBER)
+            ry1 += 17
+
+        # Header Ferragens / Mancais / Parafusos
+        s_th2 = p_awn.new_shape()
+        s_th2.draw_rect(fitz.Rect(448, tbl_y, 806, tbl_y + 20))
+        s_th2.finish(fill=rgb(109, 40, 217), width=0)
+        s_th2.commit()
+        p_awn.insert_text(fitz.Point(454, tbl_y + 13), "Ferragens, Mancais & Parafusos", fontname="hebo", fontsize=7.2, color=C_BG_PAGE)
+        p_awn.insert_text(fitz.Point(670, tbl_y + 13), "Material", fontname="hebo", fontsize=7.2, color=C_BG_PAGE)
+        p_awn.insert_text(fitz.Point(760, tbl_y + 13), "Qtd", fontname="hebo", fontsize=7.2, color=C_BG_PAGE)
+
+        ry2 = tbl_y + 20
+        for idx, fit_item in enumerate(awn_info["fittings"]):
+            s_r = p_awn.new_shape()
+            s_r.draw_rect(fitz.Rect(448, ry2, 806, ry2 + 17))
+            s_r.finish(fill=C_BG_PAGE if idx % 2 == 0 else C_SLATE_BG, color=C_SLATE_BORDER, width=0.4)
+            s_r.commit()
+            p_awn.insert_text(fitz.Point(454, ry2 + 11), fit_item["label"][:32], fontname="hebo", fontsize=6.5, color=C_TEXT_MAIN)
+            p_awn.insert_text(fitz.Point(670, ry2 + 11), fit_item["material"][:16], fontname="helv", fontsize=6.2, color=C_TEXT_MUTED)
+            p_awn.insert_text(fitz.Point(765, ry2 + 11), f"{fit_item['qty']} {fit_item['unit']}", fontname="hebo", fontsize=6.5, color=C_AMBER)
+            ry2 += 17
+
+        # Nota Técnica Rodapé
+        p_awn.insert_text(fitz.Point(36, 550), "⛺ RECOMENDAÇÃO OVERLAND: Utilizar lubrificante seco de Teflon (PTFE) nas buchas do pivô central 270°. Em acampamentos com ventos superiores a 35 km/h,", fontname="hebo", fontsize=7.2, color=C_PRIMARY_DARK)
+        p_awn.insert_text(fitz.Point(36, 560), "ancorar obrigatoriamente os 3 postes verticais com estacas e cordas guias (guy lines) a 45° para evitar esforço de torção no rack da van.", fontname="helv", fontsize=6.8, color=C_TEXT_MUTED)
+
+        current_page += 1
 
     # =========================================================================
     # PÁGINA: GUIA TÉCNICO DE OFICINA & ORDEM DOS CORTES

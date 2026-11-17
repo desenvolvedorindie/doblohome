@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { SceneManager } from '../three/SceneManager';
-import { SavedConfig } from '../types';
+import { SavedConfig, ProjectData } from '../types';
 import { loadPanelPresets } from '../data/solarPanelPresets';
 import { loadCargoBoxPresets } from '../data/cargoBoxPresets';
 import { SolarContextType } from './solar/SolarContextTypes';
@@ -11,6 +11,8 @@ import { useStructureActions } from './solar/useStructureActions';
 import { useCargoAndEquipmentActions } from './solar/useCargoAndEquipmentActions';
 import { useViewAndInspectionActions } from './solar/useViewAndInspectionActions';
 import { SolarPersistence } from './solar/SolarPersistence';
+import { useProject } from './ProjectContext';
+import { ProjectManager } from '../data/projectManager';
 
 export * from './solar/SolarContextTypes';
 
@@ -23,6 +25,13 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const isDbLoadedRef = useRef<boolean>(false);
   const [selectedBoxId, setSelectedBoxIdState] = useState<string | null>(null);
   const [isolatedBoxId, setIsolatedBoxIdState] = useState<string | null>(null);
+
+  // Integração com Projetos
+  let projectCtx: ReturnType<typeof useProject> | null = null;
+  try {
+    projectCtx = useProject();
+  } catch {}
+  const currentProject = projectCtx?.currentProject ?? null;
 
   const flashToast = (msg: string) => {
     setToastMessage(msg);
@@ -104,40 +113,66 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [viewMgr.viewMode, selectedBoxId, isolatedBoxId, sceneManager]);
 
+  const getRestoreHandlers = useCallback(() => ({
+    setStackLevelsState: structureMgr.setStackLevelsState,
+    setLevel1State: structureMgr.setLevel1State,
+    setLevel2State: structureMgr.setLevel2State,
+    setStructureMaterialState: structureMgr.setStructureMaterialState,
+    setSteelProfileUnitState: structureMgr.setSteelProfileUnitState,
+    setAluminumColorState: structureMgr.setAluminumColorState,
+    setMetalonColorState: structureMgr.setMetalonColorState,
+    setMetalonWallThicknessState: structureMgr.setMetalonWallThicknessState,
+    setMetalonThickness40State: structureMgr.setMetalonThickness40State,
+    setMetalonThickness30State: structureMgr.setMetalonThickness30State,
+    setCargoBoxState: cargoAndEquipMgr.setCargoBoxState,
+    setWaterTankState: cargoAndEquipMgr.setWaterTankState,
+    setAwningState: cargoAndEquipMgr.setAwningState,
+    setB2BCharger: cargoAndEquipMgr.setB2BCharger,
+    setActivePanelPresetIdState: presetsMgr.setActivePanelPresetIdState,
+    setActiveCargoPresetIdState: presetsMgr.setActiveCargoPresetIdState,
+    setOffsetZState: structureMgr.setOffsetZState,
+    setOffsetYState: structureMgr.setOffsetYState,
+    setExpansionProgressState: structureMgr.setExpansionProgressState,
+    setPanelPresetsState: presetsMgr.setPanelPresetsState,
+    setCargoBoxPresetsState: presetsMgr.setCargoBoxPresetsState,
+    setInternalGridState: boxesMgr.setInternalGridState,
+    setInternalBoxesState: boxesMgr.setInternalBoxesState,
+    setPartsFilterState: viewMgr.setPartsFilterState,
+    loadPanelPresets,
+    loadCargoBoxPresets,
+    sceneManager,
+    updateCalculations: appliancesMgr.updateCalculations
+  }), [structureMgr, cargoAndEquipMgr, presetsMgr, boxesMgr, viewMgr, sceneManager, appliancesMgr]);
+
+  const loadProjectData = useCallback((data: ProjectData) => {
+    SolarPersistence.applyProjectData(data, getRestoreHandlers());
+  }, [getRestoreHandlers]);
+
   // Carrega configurações do Banco de Dados ao montar
   useEffect(() => {
     (async () => {
-      await SolarPersistence.restoreConfig({
-        setStackLevelsState: structureMgr.setStackLevelsState,
-        setLevel1State: structureMgr.setLevel1State,
-        setLevel2State: structureMgr.setLevel2State,
-        setStructureMaterialState: structureMgr.setStructureMaterialState,
-        setSteelProfileUnitState: structureMgr.setSteelProfileUnitState,
-        setAluminumColorState: structureMgr.setAluminumColorState,
-        setMetalonColorState: structureMgr.setMetalonColorState,
-        setMetalonWallThicknessState: structureMgr.setMetalonWallThicknessState,
-        setMetalonThickness40State: structureMgr.setMetalonThickness40State,
-        setMetalonThickness30State: structureMgr.setMetalonThickness30State,
-        setCargoBoxState: cargoAndEquipMgr.setCargoBoxState,
-        setWaterTankState: cargoAndEquipMgr.setWaterTankState,
-        setAwningState: cargoAndEquipMgr.setAwningState,
-        setB2BCharger: cargoAndEquipMgr.setB2BCharger,
-        setActivePanelPresetIdState: presetsMgr.setActivePanelPresetIdState,
-        setActiveCargoPresetIdState: presetsMgr.setActiveCargoPresetIdState,
-        setOffsetZState: structureMgr.setOffsetZState,
-        setOffsetYState: structureMgr.setOffsetYState,
-        setExpansionProgressState: structureMgr.setExpansionProgressState,
-        setPanelPresetsState: presetsMgr.setPanelPresetsState,
-        setCargoBoxPresetsState: presetsMgr.setCargoBoxPresetsState,
-        setInternalGridState: boxesMgr.setInternalGridState,
-        setInternalBoxesState: boxesMgr.setInternalBoxesState,
-        setPartsFilterState: viewMgr.setPartsFilterState,
-        loadPanelPresets,
-        loadCargoBoxPresets
-      });
+      await SolarPersistence.restoreConfig(getRestoreHandlers(), currentProject?.id);
       isDbLoadedRef.current = true;
     })();
-  }, []);
+  }, [sceneManager]);
+
+  // Sincroniza quando o projeto ativo mudar
+  const prevProjectIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentProject) {
+      prevProjectIdRef.current = null;
+      return;
+    }
+    if (prevProjectIdRef.current !== currentProject.id) {
+      prevProjectIdRef.current = currentProject.id;
+      (async () => {
+        const data = await ProjectManager.getProjectData(currentProject.id);
+        if (data) {
+          loadProjectData(data);
+        }
+      })();
+    }
+  }, [currentProject?.id, loadProjectData]);
 
   // Quando o sceneManager estiver disponível, aplica as configurações restauradas
   useEffect(() => {
@@ -245,6 +280,9 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     if (!sceneManager) return;
     sceneManager.solarSystem.setAwningConfig(cargoAndEquipMgr.awning);
+    if (sceneManager.viewMode === 'bars_lineup') {
+      sceneManager.buildBarsLineup();
+    }
   }, [sceneManager, cargoAndEquipMgr.awning]);
 
   const prevBoxesCountRef = useRef<number>(boxesMgr.internalBoxes.length);
@@ -285,6 +323,10 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   ]);
 
   const saveConfig = (overrides?: Partial<SavedConfig>) => {
+    if (!isDbLoadedRef.current) {
+      console.warn('[SolarContext] Ignorando saveConfig antes da inicialização do banco de dados');
+      return;
+    }
     const configToSave: SavedConfig = {
       stackLevels: overrides?.stackLevels ?? structureMgr.stackLevels,
       level1: overrides?.level1 ?? structureMgr.level1,
@@ -306,7 +348,11 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       panelPresetId: overrides?.panelPresetId ?? presetsMgr.activePanelPresetId,
       cargoBoxPresetId: overrides?.cargoBoxPresetId ?? presetsMgr.activeCargoPresetId
     };
-    SolarPersistence.saveConfig(configToSave);
+    SolarPersistence.saveConfig(configToSave, currentProject?.id, {
+      internalBoxes: boxesMgr.internalBoxes,
+      internalGrid: boxesMgr.internalGrid,
+      partsFilter: viewMgr.partsFilter
+    });
     flashToast('✅ Configuração Salva no Banco de Dados');
   };
 
@@ -315,6 +361,7 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       value={{
         sceneManager,
         setSceneManager,
+        loadProjectData,
         stackLevels: structureMgr.stackLevels,
         level1: structureMgr.level1,
         level2: structureMgr.level2,
@@ -346,6 +393,10 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         hoverPos: viewMgr.hoverPos,
         activeModal: viewMgr.activeModal,
         toastMessage,
+        humanFigureVisible: viewMgr.humanFigureVisible,
+        humanFigureHeightM: viewMgr.humanFigureHeightM,
+        toggleHumanFigure: viewMgr.toggleHumanFigure,
+        setHumanFigureHeight: viewMgr.setHumanFigureHeight,
         panelPresets: presetsMgr.panelPresets,
         activePanelPreset: presetsMgr.activePanelPreset,
         selectPanelPreset: presetsMgr.selectPanelPreset,

@@ -35,7 +35,7 @@ export const MetalBarsTab: React.FC<MetalBarsTabProps> = ({
           justifyContent: 'space-between'
         }}
       >
-        <span>🔩 Total: {barStats.totalPieces} peças metálicas ({barStats.totalMeters.toFixed(1)} m lineares)</span>
+        <span>🔩 Total: {barStats.totalPieces} peças do Rack ({barStats.totalMeters.toFixed(1)} m lineares)</span>
         <span style={{ fontSize: '10px', color: '#cbd5e1' }}>~{barStats.totalBars6m} barras de 6 metros (+5% refilo)</span>
       </div>
 
@@ -55,7 +55,7 @@ export const MetalBarsTab: React.FC<MetalBarsTabProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '15px' }}>📐</span>
             <strong style={{ fontSize: '11px', color: '#38bdf8' }}>
-              Métrica das "Quinas" (Juntas e Nós Estruturais)
+              Métrica das "Quinas" (Juntas e Nós Estruturais do Rack)
             </strong>
           </div>
           <div style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
@@ -96,7 +96,7 @@ export const MetalBarsTab: React.FC<MetalBarsTabProps> = ({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <strong style={{ fontSize: '11.5px', color: '#f8fafc' }}>Resumo de Barras Comerciais de 6m (por Espessura):</strong>
+          <strong style={{ fontSize: '11.5px', color: '#f8fafc' }}>Resumo de Barras Comerciais de 6m do Rack (por Espessura):</strong>
           <span style={{ fontSize: '10px', color: '#94a3b8' }}>Total: {barStats.totalBars6m} barras de 6m</span>
         </div>
 
@@ -155,7 +155,7 @@ export const MetalBarsTab: React.FC<MetalBarsTabProps> = ({
         }}
       >
         <strong style={{ fontSize: '11.5px', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
-          Lista de Cortes Estruturais por Espessura ({barStats.totalPieces} peças):
+          Lista de Cortes do Rack por Espessura ({barStats.totalPieces} peças):
         </strong>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5px' }}>

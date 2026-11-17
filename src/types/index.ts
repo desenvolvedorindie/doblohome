@@ -11,3 +11,4 @@ export * from './hydraulicPlanar';
 export * from './batteryPreset';
 export * from './mpptPreset';
 export * from './b2bPreset';
+export * from './project';

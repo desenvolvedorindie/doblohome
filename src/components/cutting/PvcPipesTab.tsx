@@ -281,98 +281,153 @@ export const PvcPipesTab: React.FC<PvcPipesTabProps> = ({
         ))}
       </div>
 
-      {/* Tabela Detalhada de Cortes dos Tubos de PVC */}
+      {/* Tabela Detalhada de Cortes dos Tubos de PVC Separada por Grupos */}
       <div
         style={{
           background: 'rgba(15, 23, 42, 0.75)',
           border: '1px solid rgba(148, 163, 184, 0.25)',
           borderRadius: '8px',
-          padding: '10px'
+          padding: '10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
         }}
       >
-        <strong style={{ fontSize: '11.5px', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
-          📏 Lista de Cortes dos Tubos de PVC ({pvcStats.totalPieces} peças):
+        <strong style={{ fontSize: '11.5px', color: '#cbd5e1', display: 'block' }}>
+          📏 Lista de Cortes dos Tubos de PVC por Grupo ({pvcStats.totalPieces} peças):
         </strong>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5px' }}>
-            <thead>
-              <tr style={{ background: 'rgba(30, 41, 59, 0.6)', color: '#94a3b8', textAlign: 'left' }}>
-                <th style={{ padding: '4px 6px' }}>#</th>
-                <th style={{ padding: '4px 6px' }}>Identificação</th>
-                <th style={{ padding: '4px 6px' }}>Diâmetro</th>
-                <th style={{ padding: '4px 6px' }}>Comprimento</th>
-                <th style={{ padding: '4px 6px' }}>Qtd</th>
-                <th style={{ padding: '4px 6px' }}>Metros</th>
-                <th style={{ padding: '4px 6px' }}>Instalação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pvcStats.cutItems.map((c, idx) => (
-                <tr key={c.key} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.15)' }}>
-                  <td style={{ padding: '4px 6px', color: '#64748b' }}>{idx + 1}</td>
-                  <td style={{ padding: '4px 6px', fontWeight: 600, color: '#f8fafc' }}>{c.label}</td>
-                  <td style={{ padding: '4px 6px', color: '#38bdf8' }}>Ø{c.diameterMm} mm</td>
-                  <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>
-                    {c.lengthMm} mm
-                  </td>
-                  <td style={{ padding: '4px 6px', fontWeight: 700, color: '#f59e0b' }}>{c.qty}</td>
-                  <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{c.totalLengthM.toFixed(2)} m</td>
-                  <td style={{ padding: '4px 6px', color: '#94a3b8', fontSize: '10px' }}>{c.notes}</td>
-                </tr>
-              ))}
-              <tr style={{ background: 'rgba(14, 165, 233, 0.12)', fontWeight: 800 }}>
-                <td colSpan={4} style={{ padding: '6px', color: '#38bdf8' }}>
-                  TOTAL TUBULAÇÃO PVC RETILÍNEA
-                </td>
-                <td style={{ padding: '6px', color: '#f59e0b' }}>{pvcStats.totalPieces} un</td>
-                <td style={{ padding: '6px', color: '#34d399', fontFamily: 'var(--font-mono)' }}>
-                  {pvcStats.totalLinearMeters.toFixed(2)} m
-                </td>
-                <td style={{ padding: '6px', color: '#cbd5e1', fontSize: '10px' }}>
-                  Capacidade útil: {pvcStats.totalCapacityL} L
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        {Array.from(new Set(pvcStats.cutItems.map((c) => c.category))).map((catName) => {
+          const catItems = pvcStats.cutItems.filter((c) => c.category === catName);
+          const catTotalM = catItems.reduce((acc, it) => acc + it.totalLengthM, 0);
+          return (
+            <div
+              key={catName}
+              style={{
+                background: 'rgba(2, 6, 23, 0.55)',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                borderRadius: '6px',
+                padding: '7px 9px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <strong style={{ fontSize: '10.5px', color: '#38bdf8' }}>
+                  🔹 {catName}
+                </strong>
+                <span style={{ fontSize: '9.5px', color: '#94a3b8' }}>
+                  {catItems.length} {catItems.length === 1 ? 'peça' : 'peças'} • {catTotalM.toFixed(2)} m
+                </span>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5px' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(30, 41, 59, 0.6)', color: '#94a3b8', textAlign: 'left' }}>
+                      <th style={{ padding: '4px 6px' }}>Identificação</th>
+                      <th style={{ padding: '4px 6px' }}>Diâmetro</th>
+                      <th style={{ padding: '4px 6px' }}>Comprimento</th>
+                      <th style={{ padding: '4px 6px' }}>Qtd</th>
+                      <th style={{ padding: '4px 6px' }}>Metros</th>
+                      <th style={{ padding: '4px 6px' }}>Instalação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {catItems.map((c) => (
+                      <tr key={c.key} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.15)' }}>
+                        <td style={{ padding: '4px 6px', fontWeight: 600, color: '#f8fafc' }}>{c.label}</td>
+                        <td style={{ padding: '4px 6px', color: '#38bdf8' }}>Ø{c.diameterMm} mm</td>
+                        <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>
+                          {c.lengthMm} mm
+                        </td>
+                        <td style={{ padding: '4px 6px', fontWeight: 700, color: '#f59e0b' }}>{c.qty}</td>
+                        <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{c.totalLengthM.toFixed(2)} m</td>
+                        <td style={{ padding: '4px 6px', color: '#94a3b8', fontSize: '10px' }}>{c.notes}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })}
+        <div
+          style={{
+            background: 'rgba(14, 165, 233, 0.12)',
+            padding: '6px 10px',
+            borderRadius: '6px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '10.5px',
+            fontWeight: 800
+          }}
+        >
+          <span style={{ color: '#38bdf8' }}>TOTAL TUBULAÇÃO PVC RETILÍNEA</span>
+          <span style={{ color: '#f59e0b' }}>{pvcStats.totalPieces} un</span>
+          <span style={{ color: '#34d399', fontFamily: 'var(--font-mono)' }}>{pvcStats.totalLinearMeters.toFixed(2)} m</span>
+          <span style={{ color: '#cbd5e1', fontSize: '10px' }}>Capacidade útil: {pvcStats.totalCapacityL} L</span>
         </div>
       </div>
 
-      {/* Conexões e Acessórios Hidráulicos para Montagem */}
+      {/* Conexões e Acessórios Hidráulicos em Grupos Separados (Joelhos, Tê, CAPs, Válvulas, Fixação) */}
       <div
         style={{
           background: 'rgba(15, 23, 42, 0.75)',
           border: '1px solid rgba(148, 163, 184, 0.25)',
           borderRadius: '8px',
-          padding: '10px'
+          padding: '10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
         }}
       >
-        <strong style={{ fontSize: '11.5px', color: '#38bdf8', display: 'block', marginBottom: '6px' }}>
-          🔧 Conexões & Acessórios Hidráulicos Necessários ({pvcStats.fittings.length} itens):
+        <strong style={{ fontSize: '11.5px', color: '#38bdf8', display: 'block' }}>
+          🔧 Conexões & Acessórios Hidráulicos por Grupo ({pvcStats.fittings.length} tipos):
         </strong>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5px' }}>
-            <thead>
-              <tr style={{ background: 'rgba(30, 41, 59, 0.6)', color: '#94a3b8', textAlign: 'left' }}>
-                <th style={{ padding: '4px 6px' }}>Conexão / Acessório</th>
-                <th style={{ padding: '4px 6px' }}>Especificação</th>
-                <th style={{ padding: '4px 6px' }}>Qtd</th>
-                <th style={{ padding: '4px 6px' }}>Função & Aplicação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pvcStats.fittings.map((f) => (
-                <tr key={f.key} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.15)' }}>
-                  <td style={{ padding: '4px 6px', fontWeight: 600, color: '#f8fafc' }}>{f.label}</td>
-                  <td style={{ padding: '4px 6px', color: '#38bdf8' }}>{f.spec}</td>
-                  <td style={{ padding: '4px 6px', fontWeight: 700, color: '#4ade80' }}>
-                    {f.qty} {f.unit}
-                  </td>
-                  <td style={{ padding: '4px 6px', color: '#94a3b8', fontSize: '10px' }}>{f.notes}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {Array.from(new Set(pvcStats.fittings.map((f) => f.group))).map((grpName) => {
+          const grpItems = pvcStats.fittings.filter((f) => f.group === grpName);
+          const totalUnits = grpItems.reduce((acc, it) => acc + it.qty, 0);
+          return (
+            <div
+              key={grpName}
+              style={{
+                background: 'rgba(2, 6, 23, 0.55)',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                borderRadius: '6px',
+                padding: '7px 9px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <strong style={{ fontSize: '10.5px', color: '#38bdf8' }}>{grpName}</strong>
+                <span style={{ fontSize: '9.5px', color: '#4ade80', fontWeight: 700 }}>
+                  {totalUnits} {totalUnits === 1 ? 'item' : 'itens'}
+                </span>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5px' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(30, 41, 59, 0.6)', color: '#94a3b8', textAlign: 'left' }}>
+                      <th style={{ padding: '4px 6px' }}>Conexão / Acessório</th>
+                      <th style={{ padding: '4px 6px' }}>Especificação</th>
+                      <th style={{ padding: '4px 6px' }}>Qtd</th>
+                      <th style={{ padding: '4px 6px' }}>Função & Aplicação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grpItems.map((f) => (
+                      <tr key={f.key} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.15)' }}>
+                        <td style={{ padding: '4px 6px', fontWeight: 600, color: '#f8fafc' }}>{f.label}</td>
+                        <td style={{ padding: '4px 6px', color: '#38bdf8' }}>{f.spec}</td>
+                        <td style={{ padding: '4px 6px', fontWeight: 700, color: '#4ade80' }}>
+                          {f.qty} {f.unit}
+                        </td>
+                        <td style={{ padding: '4px 6px', color: '#94a3b8', fontSize: '10px' }}>{f.notes}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -24,6 +24,10 @@ export function useViewAndInspectionActions(
   const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(true);
   const [isAutoAnimating, setIsAutoAnimating] = useState<boolean>(false);
   const [viewMode, setViewModeState] = useState<ViewMode>('assembled');
+
+  // Boneco de referência humana — visível por padrão como guia de escala
+  const [humanFigureVisible, setHumanFigureVisibleState] = useState<boolean>(true);
+  const [humanFigureHeightM, setHumanFigureHeightMState] = useState<number>(1.75);
   const [partsFilter, setPartsFilterState] = useState<PartsGroupFilter>(() => {
     try {
       const saved = localStorage.getItem('doblo_parts_filter');
@@ -47,6 +51,17 @@ export function useViewAndInspectionActions(
     const next = !isVehicleVisible;
     setIsVehicleVisible(next);
     if (sceneManager) sceneManager.vehicle.setVisible(next);
+  };
+
+  const toggleHumanFigure = () => {
+    const next = !humanFigureVisible;
+    setHumanFigureVisibleState(next);
+    if (sceneManager) sceneManager.humanFigure.setVisible(next);
+  };
+
+  const setHumanFigureHeight = (heightM: number) => {
+    setHumanFigureHeightMState(heightM);
+    if (sceneManager) sceneManager.humanFigure.setHeight(heightM);
   };
 
   const setVehicleOpacity = (op: number) => {
@@ -177,12 +192,14 @@ export function useViewAndInspectionActions(
           filter === 'upholstery'
             ? '🛏️ Colchão / Estofaria'
             : filter === 'metal'
-              ? '🔩 Ferragens'
+              ? '🔩 Rack'
               : filter === 'wood'
                 ? '🪵 Madeira'
                 : filter === 'pvc'
                   ? '💧 Tubos PVC'
-                  : '📦 Todas as Peças';
+                  : filter === 'awning'
+                    ? '⛺ Ferragem do Toldo'
+                    : '📦 Todas as Peças';
         flashToast(`${label}: ${total} peças alinhadas`);
       }
     }
@@ -242,6 +259,10 @@ export function useViewAndInspectionActions(
     clearFloating,
     setViewMode,
     setPartsFilter,
-    toggleViewMode
+    toggleViewMode,
+    humanFigureVisible,
+    humanFigureHeightM,
+    toggleHumanFigure,
+    setHumanFigureHeight,
   };
 }

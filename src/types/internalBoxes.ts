@@ -154,6 +154,15 @@ export interface BoxPanelThicknessConfig {
   shelf?: number;    // Espessura da mesa/prateleira rebatível traseira em mm
 }
 
+export type BoxJointStyle =
+  | 'sides_outside'   // Laterais externas passantes (tampo, base e fundo embutidos entre as laterais)
+  | 'top_bottom_cap'  // Tampo e base maiores cobrindo por cima e por baixo das laterais
+  | 'back_over_all';  // Fundo traseiro sobreposto total cobrindo todas as bordas traseiras (5 partes)
+
+export type BackPanelCoverMode =
+  | 'inset'           // Fundo interno embutido nas 4 partes em volta (entre laterais, tampo e base)
+  | 'overlay_all';    // Fundo sobreposto maior fechando as 5 partes por trás (cobre topo, base e laterais)
+
 export type UpperCabinetClosure = 'doors' | 'sliding_doors' | 'open' | 'drawer';
 
 export function getUpperCabinetClosure(box: { upperCabinetClosure?: UpperCabinetClosure; upperCabinetDoors?: boolean }): UpperCabinetClosure {
@@ -317,6 +326,11 @@ export interface InternalBoxItem {
   isUpperCabinetOpen?: boolean;  // Estado aberto/fechado individual das portas do armário aéreo
   upperCabinetShelves?: number;  // Quantidade de prateleiras internas (1 a 3, padrão 1)
   upperCabinetShelfDoorDiscountMm?: number; // Desconto/recuo frontal da prateleira para as portas (em mm, padrão automático: 30mm p/ correr, 25mm p/ abrir, 15mm p/ nicho)
+  upperCabinetHasBasePanel?: boolean; // Chapa de fundo inferior do armário: true = 5 faces (com base), false = 4 faces (sem base, encosta na caixa abaixo), undefined = automático
+  upperCabinetJointStyle?: BoxJointStyle; // Tipo de montagem das chapas do armário aéreo: 'sides_outside' (laterais passantes), 'top_bottom_cap' (tampo e base maiores) ou 'back_over_all' (fundo cobrindo tudo)
+  upperCabinetBackCoverMode?: BackPanelCoverMode; // Modo de fechamento do fundo do armário aéreo: 'inset' (embutido nas 4 partes) ou 'overlay_all' (tampo traseiro cobrindo as 5 partes)
+  boxJointStyle?: BoxJointStyle; // Tipo de montagem das chapas do módulo/baú inferior: 'sides_outside', 'top_bottom_cap' ou 'back_over_all'
+  boxBackCoverMode?: BackPanelCoverMode; // Modo de fechamento do fundo do módulo/baú inferior: 'inset' (embutido nas 4 partes em volta) ou 'overlay_all' (tampo fechando as 5 partes)
   drawerMode?: DrawerMode;       // Alternância entre 'drawer' (gaveteiro alto fechado) ou 'slide_tray' (bandeja corrediça rasa)
   hasCentralTable?: boolean;     // Mesa dinette central removível c/ pedestal náutico
   centralTable?: CentralTableConfig; // Configuração dimensional e de deslocamento da mesa central

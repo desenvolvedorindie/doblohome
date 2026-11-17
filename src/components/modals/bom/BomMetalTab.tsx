@@ -36,9 +36,9 @@ export const BomMetalTab: React.FC<BomMetalTabProps> = ({
           alignItems: 'center'
         }}
       >
-        <span>🔩 FERRAGENS & ESTRUTURA METÁLICA (PERFIS, TRILHOS & ACESSÓRIOS)</span>
+        <span>🔩 FERRAGENS & ESTRUTURA METÁLICA DO RACK (PERFIS, TRILHOS & ACESSÓRIOS)</span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: '#cbd5e1' }}>
-          Material: {structureMaterial === 'aluminum' ? 'Alumínio Estrutural T-Slot' : structureMaterial === 'aluminum_tube' ? 'Alumínio Tubular (Metalon Alumínio)' : 'Aço Metalon Soldado'}
+          Material: {structureMaterial === 'aluminum' ? 'Alumínio Estrutural T-Slot do Rack' : structureMaterial === 'aluminum_tube' ? 'Alumínio Tubular do Rack' : 'Aço do Rack Soldado'}
         </span>
       </div>
 
@@ -271,7 +271,7 @@ export const BomMetalTab: React.FC<BomMetalTabProps> = ({
           alignItems: 'center'
         }}
       >
-        <span>📏 LISTA DE CORTES DE BARRAS ({barStats.totalPieces} PEÇAS AGRUPADAS POR ESPESSURA)</span>
+        <span>📏 LISTA DE CORTES DO RACK ({barStats.totalPieces} PEÇAS AGRUPADAS POR ESPESSURA)</span>
         <span style={{ fontSize: '10px', color: '#94a3b8' }}>Separado por tubo e bitola</span>
       </div>
       <table className="bom-table" style={{ marginBottom: '18px' }}>

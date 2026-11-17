@@ -68,7 +68,7 @@ export const SidebarAwningSection: React.FC = () => {
                 <button
                   type="button"
                   className={`btn-compact ${awning.type === 'rear' ? 'active' : ''}`}
-                  onClick={() => setAwning({ type: 'rear' })}
+                  onClick={() => setAwning({ type: 'rear', lengthMm: 1400, extensionMm: 2000 })}
                   style={{
                     fontSize: '11px',
                     padding: '7px 4px',
@@ -80,7 +80,7 @@ export const SidebarAwningSection: React.FC = () => {
                 <button
                   type="button"
                   className={`btn-compact ${awning.type === 'batwing_270' ? 'active accent-amber' : ''}`}
-                  onClick={() => setAwning({ type: 'batwing_270' })}
+                  onClick={() => setAwning({ type: 'batwing_270', lengthMm: 2000, extensionMm: 2200 })}
                   style={{
                     fontSize: '11px',
                     padding: '7px 4px',

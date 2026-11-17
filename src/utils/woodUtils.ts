@@ -274,16 +274,131 @@ export function groupWoodCutPieces(cutGroups: WoodCutGroup[]): WoodGroupByCatego
   });
 }
 
+export type UpholsteryFabricId =
+  | 'acquablock'
+  | 'suede'
+  | 'facto'
+  | 'nautico'
+  | 'lona_algodao'
+  | 'oxford_impermeavel';
+
+export interface UpholsteryFabricSpec {
+  id: UpholsteryFabricId;
+  name: string;
+  rollWidthM: number; // Largura útil do rolo de tecido (ex: 1.40m ou 1.50m)
+  seamAllowanceMm: number; // Margem de costura recomendada por lado (ex: 15mm ou 20mm)
+  wasteFactor: number; // Fator de perda de corte e sentido do fio/estampa (ex: 1.12 a 1.18)
+  waterproofLevel: string;
+  zipperRecommendedMm: number; // Zíper embutido por almofada
+  notes: string;
+}
+
+export const UPHOLSTERY_FABRIC_SPECS: UpholsteryFabricSpec[] = [
+  {
+    id: 'acquablock',
+    name: 'Acquablock (Karsten Impermeável)',
+    rollWidthM: 1.40,
+    seamAllowanceMm: 15,
+    wasteFactor: 1.12,
+    waterproofLevel: '💧 Hidrorrepelente Antimofo / UV',
+    zipperRecommendedMm: 50,
+    notes: 'Rolo padrão 1,40m • Ideal para campervan (fácil limpeza, respirável e resistente a respingos)'
+  },
+  {
+    id: 'suede',
+    name: 'Suede Aveludado Automotivo / Estofaria',
+    rollWidthM: 1.40,
+    seamAllowanceMm: 15,
+    wasteFactor: 1.15,
+    waterproofLevel: '🛋️ Toque Macio Conforto Térmico',
+    zipperRecommendedMm: 50,
+    notes: 'Rolo 1,40m • Exige corte no mesmo sentido do pelo (fio) para não dar diferença de tonalidade'
+  },
+  {
+    id: 'facto',
+    name: 'Facto / Couríssimo Automotivo Premium',
+    rollWidthM: 1.40,
+    seamAllowanceMm: 15,
+    wasteFactor: 1.12,
+    waterproofLevel: '🛡️ 100% Impermeável Lavável',
+    zipperRecommendedMm: 50,
+    notes: 'Rolo 1,40m • Alta resistência à abrasão; recomenda-se tela aerada (spacer) no fundo para respiro da espuma'
+  },
+  {
+    id: 'nautico',
+    name: 'Tecido Náutico Sintético c/ Proteção UV',
+    rollWidthM: 1.40,
+    seamAllowanceMm: 18,
+    wasteFactor: 1.14,
+    waterproofLevel: '⚓ 100% Impermeável Antimofo Marítimo',
+    zipperRecommendedMm: 60,
+    notes: 'Rolo 1,40m • Costura reforçada com linha de nylon plastificada resistente a umidade extrema e maresia'
+  },
+  {
+    id: 'lona_algodao',
+    name: 'Lona de Algodão Encerada / Sarja Pesada',
+    rollWidthM: 1.50,
+    seamAllowanceMm: 20,
+    wasteFactor: 1.15,
+    waterproofLevel: '🏕️ Respirável Rústico Overland (Alta Gramatura)',
+    zipperRecommendedMm: 50,
+    notes: 'Rolo 1,50m • Muito fresca no calor e super resistente a rasgos; considerar ~3% de pré-encolhimento'
+  },
+  {
+    id: 'oxford_impermeavel',
+    name: 'Oxford Impermeável Resinada / Ripstop 600D',
+    rollWidthM: 1.50,
+    seamAllowanceMm: 15,
+    wasteFactor: 1.10,
+    waterproofLevel: '☔ Impermeável Leve de Secagem Rápida',
+    zipperRecommendedMm: 40,
+    notes: 'Rolo 1,50m • Ótimo custo-benefício, leve, não desfia fácil e aproveitamento excelente na largura 1,50m'
+  }
+];
+
+export interface CushionCoverBreakdown {
+  key: string;
+  label: string;
+  qty: number;
+  lengthMm: number;
+  widthMm: number;
+  thicknessMm: number;
+  topBottomAreaM2: number;  // 2 × (L × W) - Tampo Superior + Tampo Inferior
+  sidesStripAreaM2: number; // 2 × (L + W) × H - Faixas Laterais (Fole /Caixa)
+  netSurfaceAreaM2: number; // Área líquida total dos 6 planos da almofada (por unidade)
+  cutAreaWithSeamM2: number; // Área de corte incluindo margem de costura nas 6 faces (por unidade)
+  totalNetAreaM2: number;   // Multiplicado pela quantidade (qty)
+  totalCutAreaM2: number;   // Multiplicado pela quantidade (qty)
+  zipperLengthM: number;    // Comprimento de zíper (L + 10cm de virada nas pontas) × qty
+}
+
+export interface FabricEstimateRow {
+  fabric: UpholsteryFabricSpec;
+  totalCutAreaWithWasteM2: number; // Área total de corte com margem de costura + fator de perda
+  linearMetersNeeded: number;      // Metros lineares de compra (totalCutAreaWithWasteM2 / rollWidthM)
+  recommendedBuyMeters: number;    // Arredondado para cima a cada 0.1m (ou 0.5m comercial)
+}
+
 export interface UpholsteryStats {
   totalPieces: number;
-  totalAreaM2: number;
+  totalAreaM2: number; // Área projetada na planta (1 face / base da espuma)
   totalVolumeLiters: number;
   estimatedSheets1900: number; // Bloco padrão 1.90m x 1.40m
   cushions: WoodCutGroup[];
+  // Estatísticas de cobertura têxtil (6 planos das almofadas: tampo + fundo + 4 faixas laterais)
+  totalTopBottomAreaM2: number;
+  totalSidesAreaM2: number;
+  totalSurfaceNetAreaM2: number; // Soma exata dos 6 planos de todas as almofadas
+  totalCutAreaWithSeamM2: number; // Com margem de costura de 15mm em cada peça
+  totalZipperMeters: number;
+  cushionBreakdowns: CushionCoverBreakdown[];
+  fabricEstimates: FabricEstimateRow[];
 }
 
 /**
  * Extrai resumo específico de espumas/estofarias (colchão campervan)
+ * e calcula a cobertura completa dos planos (6 faces por almofada) para os tecidos:
+ * Acquablock, Suede, Facto, Tecidos Náuticos, Lona de Algodão e Oxford Impermeável.
  */
 export function extractUpholsteryStats(cutGroups: WoodCutGroup[]): UpholsteryStats {
   const cushions = cutGroups.filter(g => g.isUpholstery);
@@ -296,12 +411,102 @@ export function extractUpholsteryStats(cutGroups: WoodCutGroup[]): UpholsterySta
   // Bloco de espuma padrão 1.90m x 1.40m = 2.66 m²
   const estimatedSheets1900 = Math.max(totalPieces > 0 ? 1 : 0, Math.ceil((totalAreaM2 * 1.15) / 2.66));
 
+  const defaultSeamM = 0.015; // 15mm (1,5 cm) de margem de costura para cada lado das partes cortadas
+  let totalTopBottomAreaM2 = 0;
+  let totalSidesAreaM2 = 0;
+  let totalSurfaceNetAreaM2 = 0;
+  let totalCutAreaWithSeamM2 = 0;
+  let totalZipperMeters = 0;
+
+  const cushionBreakdowns: CushionCoverBreakdown[] = cushions.map((c) => {
+    const Lm = c.lengthMm / 1000;
+    const Wm = c.widthMm / 1000;
+    const Hm = (c.thicknessMm || 80) / 1000;
+
+    // 1. Área líquida dos 6 planos da almofada (1 unidade):
+    // Tampo Superior + Tampo Inferior = 2 × (L × W)
+    const topBottomAreaM2 = 2 * (Lm * Wm);
+    // 4 Faixas Laterais (Fole perimetral) = 2 × (L + W) × H
+    const sidesStripAreaM2 = 2 * (Lm + Wm) * Hm;
+    const netSurfaceAreaM2 = topBottomAreaM2 + sidesStripAreaM2;
+
+    // 2. Área de corte dos moldes com margem de costura (1,5cm para cada lado = +3cm em cada dimensão):
+    const cutTopBottom = 2 * ((Lm + 2 * defaultSeamM) * (Wm + 2 * defaultSeamM));
+    const cutSides =
+      2 * ((Lm + 2 * defaultSeamM) * (Hm + 2 * defaultSeamM)) +
+      2 * ((Wm + 2 * defaultSeamM) * (Hm + 2 * defaultSeamM));
+    const cutAreaWithSeamM2 = cutTopBottom + cutSides;
+
+    const totalNet = netSurfaceAreaM2 * c.qty;
+    const totalCut = cutAreaWithSeamM2 * c.qty;
+    // Zíper instalado na face maior + 10cm virando nas quinas para facilitar vestir a espuma
+    const zipperLengthM = (Lm + 0.10) * c.qty;
+
+    totalTopBottomAreaM2 += topBottomAreaM2 * c.qty;
+    totalSidesAreaM2 += sidesStripAreaM2 * c.qty;
+    totalSurfaceNetAreaM2 += totalNet;
+    totalCutAreaWithSeamM2 += totalCut;
+    totalZipperMeters += zipperLengthM;
+
+    return {
+      key: c.key,
+      label: c.label,
+      qty: c.qty,
+      lengthMm: c.lengthMm,
+      widthMm: c.widthMm,
+      thicknessMm: c.thicknessMm || 80,
+      topBottomAreaM2,
+      sidesStripAreaM2,
+      netSurfaceAreaM2,
+      cutAreaWithSeamM2,
+      totalNetAreaM2: totalNet,
+      totalCutAreaM2: totalCut,
+      zipperLengthM
+    };
+  });
+
+  // 3. Cálculo específico para cada tipo de tecido (Acquablock, Suede, Facto, Náutico, Lona de Algodão, Oxford Impermeável)
+  const fabricEstimates: FabricEstimateRow[] = UPHOLSTERY_FABRIC_SPECS.map((fabric) => {
+    const seamM = fabric.seamAllowanceMm / 1000;
+    let fabricRawCutAreaM2 = 0;
+
+    cushions.forEach((c) => {
+      const Lm = c.lengthMm / 1000;
+      const Wm = c.widthMm / 1000;
+      const Hm = (c.thicknessMm || 80) / 1000;
+
+      const cTopBottom = 2 * ((Lm + 2 * seamM) * (Wm + 2 * seamM));
+      const cSides =
+        2 * ((Lm + 2 * seamM) * (Hm + 2 * seamM)) +
+        2 * ((Wm + 2 * seamM) * (Hm + 2 * seamM));
+      fabricRawCutAreaM2 += (cTopBottom + cSides) * c.qty;
+    });
+
+    const totalCutAreaWithWasteM2 = fabricRawCutAreaM2 * fabric.wasteFactor;
+    const linearMetersNeeded = totalCutAreaWithWasteM2 / fabric.rollWidthM;
+    const recommendedBuyMeters = Math.ceil(linearMetersNeeded * 10) / 10;
+
+    return {
+      fabric,
+      totalCutAreaWithWasteM2,
+      linearMetersNeeded,
+      recommendedBuyMeters
+    };
+  });
+
   return {
     totalPieces,
     totalAreaM2,
     totalVolumeLiters,
     estimatedSheets1900,
-    cushions
+    cushions,
+    totalTopBottomAreaM2,
+    totalSidesAreaM2,
+    totalSurfaceNetAreaM2,
+    totalCutAreaWithSeamM2,
+    totalZipperMeters,
+    cushionBreakdowns,
+    fabricEstimates
   };
 }
 

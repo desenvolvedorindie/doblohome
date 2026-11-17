@@ -9,6 +9,7 @@ import {
   LevelConfig,
   SavedConfig
 } from '../../types';
+import { getSavedConfigSync } from './SolarPersistence';
 
 export function useStructureActions(
   sceneManager: any,
@@ -18,27 +19,69 @@ export function useStructureActions(
   cargoBox: any,
   setIsAutoAnimating: (val: boolean) => void
 ) {
-  const [stackLevels, setStackLevelsState] = useState<StackLevels>(2);
-  const [level1, setLevel1State] = useState<LevelConfig>({
-    panels: 2,
-    direction: 'longitudinal',
-    orientation: 'longitudinal'
+  const initialCfg = getSavedConfigSync();
+
+  const [stackLevels, setStackLevelsState] = useState<StackLevels>(() => {
+    return initialCfg?.stackLevels === 1 || initialCfg?.stackLevels === 2 ? initialCfg.stackLevels : 2;
   });
-  const [level2, setLevel2State] = useState<LevelConfig>({
-    panels: 2,
-    direction: 'fixed',
-    orientation: 'longitudinal'
+  const [level1, setLevel1State] = useState<LevelConfig>(() => {
+    if (initialCfg?.level1 && typeof initialCfg.level1.panels === 'number' && [1, 2, 3, 4].includes(initialCfg.level1.panels)) {
+      return initialCfg.level1;
+    }
+    return {
+      panels: 2,
+      direction: 'longitudinal',
+      orientation: 'longitudinal'
+    };
   });
-  const [structureMaterial, setStructureMaterialState] = useState<StructureMaterial>('aluminum');
-  const [steelProfileUnit, setSteelProfileUnitState] = useState<SteelProfileUnit>('mm');
-  const [aluminumColor, setAluminumColorState] = useState<AluminumColor>('silver');
-  const [metalonColor, setMetalonColorState] = useState<string>('#333b47');
-  const [metalonWallThickness, setMetalonWallThicknessState] = useState<number>(1.5);
-  const [metalonThickness40, setMetalonThickness40State] = useState<number>(2.0);
-  const [metalonThickness30, setMetalonThickness30State] = useState<number>(1.5);
-  const [offsetZ, setOffsetZState] = useState<number>(-1.20);
-  const [offsetY, setOffsetYState] = useState<number>(-0.14);
-  const [expansionProgress, setExpansionProgressState] = useState<number>(0.0);
+  const [level2, setLevel2State] = useState<LevelConfig>(() => {
+    if (initialCfg?.level2 && typeof initialCfg.level2.panels === 'number' && [1, 2, 3, 4].includes(initialCfg.level2.panels)) {
+      return initialCfg.level2;
+    }
+    return {
+      panels: 2,
+      direction: 'fixed',
+      orientation: 'longitudinal'
+    };
+  });
+  const [structureMaterial, setStructureMaterialState] = useState<StructureMaterial>(() => {
+    return initialCfg?.structureMaterial || 'aluminum';
+  });
+  const [steelProfileUnit, setSteelProfileUnitState] = useState<SteelProfileUnit>(() => {
+    return initialCfg?.steelProfileUnit || 'mm';
+  });
+  const [aluminumColor, setAluminumColorState] = useState<AluminumColor>(() => {
+    return initialCfg?.aluminumColor || 'silver';
+  });
+  const [metalonColor, setMetalonColorState] = useState<string>(() => {
+    return initialCfg?.metalonColor || '#333b47';
+  });
+  const [metalonWallThickness, setMetalonWallThicknessState] = useState<number>(() => {
+    return initialCfg?.metalonWallThickness !== undefined ? initialCfg.metalonWallThickness : 1.5;
+  });
+  const [metalonThickness40, setMetalonThickness40State] = useState<number>(() => {
+    return initialCfg?.metalonThickness40 !== undefined ? initialCfg.metalonThickness40 : 2.0;
+  });
+  const [metalonThickness30, setMetalonThickness30State] = useState<number>(() => {
+    return initialCfg?.metalonThickness30 !== undefined ? initialCfg.metalonThickness30 : 1.5;
+  });
+  const [offsetZ, setOffsetZState] = useState<number>(() => {
+    if (initialCfg?.offsetZ !== undefined) {
+      let z = initialCfg.offsetZ > 0.1 ? -initialCfg.offsetZ : initialCfg.offsetZ;
+      return Math.abs(z - (-0.68)) < 0.01 ? -1.20 : z;
+    }
+    return -1.20;
+  });
+  const [offsetY, setOffsetYState] = useState<number>(() => {
+    if (initialCfg?.offsetY !== undefined) {
+      let y = Math.max(-0.30, Math.min(0.50, initialCfg.offsetY));
+      return Math.abs(y) < 0.001 ? -0.14 : y;
+    }
+    return -0.14;
+  });
+  const [expansionProgress, setExpansionProgressState] = useState<number>(() => {
+    return initialCfg?.expansionProgress !== undefined ? initialCfg.expansionProgress : 0.0;
+  });
 
   const setStackLevels = (levels: StackLevels) => {
     setStackLevelsState(levels);

@@ -56,6 +56,12 @@ export class DrawerBuilder {
     const hasLeft = slideDir === 'left' ? false : (box.panels?.left ?? true);
     const hasRight = slideDir === 'right' ? false : (box.panels?.right ?? true);
 
+    const jointStyle = box.boxJointStyle || 'top_bottom_cap';
+    const backCoverMode = box.boxBackCoverMode || (jointStyle === 'back_over_all' ? 'overlay_all' : 'inset');
+    const isSidesOutside = jointStyle === 'sides_outside';
+    // Qual face funciona como o "fundo oposto" da gaveta
+    const isBackOverlay = backCoverMode === 'overlay_all' || jointStyle === 'back_over_all';
+
     // 1. Gabinete / Carcaça externa fixa
     // Para bandeja corrediça rasa (slide_tray): a carcaça usa o mesmo material
     // selecionado pelo usuário (mat), pois não há distinção visual necessária entre
@@ -68,32 +74,12 @@ export class DrawerBuilder {
           metalness: 0.2
         });
 
-    const sideH = Math.max(0.01, h - (hasTop ? tTop : 0) - (hasBottom ? tBottom : 0));
-    const sideY = hasBottom ? (-h / 2 + tBottom + sideH / 2) : (hasTop ? -tTop / 2 : 0);
-
-    // Tampo superior
-    if (hasTop) {
-      const exclusionZones = box ? getUpperCabinetExclusionZones(box, w, l) : [];
-      const hasCabExcl = exclusionZones.length > 0;
-      const topLabel = hasCabExcl
-        ? `${box.name} • Tampo Superior Vazado CNC c/ Apoio do Aéreo (${tTopMm}mm)`
-        : `${box.name} • Tampo Superior Vazado (${tTopMm}mm)`;
-      if (box.topPerforated) {
-        addPerforatedPanel(container, w, tTop, l, 0, h / 2 - tTop / 2, 0, cabinetMat, edgeMat, box.id, container, topLabel, box, {
-          thicknessMm: tTopMm, woodMaterial: woodMat, moduleName: box.name, partType: 'top'
-        });
-      } else {
-        addPanel(container, w, tTop, l, 0, h / 2 - tTop / 2, 0, cabinetMat, edgeMat, box.id, container, `${box.name} • Tampo Superior (${tTopMm}mm)`, {
-          thicknessMm: tTopMm, woodMaterial: woodMat, moduleName: box.name, partType: 'top', material: `${woodMat} ${tTopMm}mm Impermeabilizado`
-        });
-      }
-    }
-    // Fundo inferior próprio da carcaça
-    if (hasBottom) {
-      addPanel(container, w, tBottom, l, 0, -h / 2 + tBottom / 2, 0, cabinetMat, edgeMat, box.id, container, `${box.name} • Base Carcaça (${tBottomMm}mm)`, {
-        thicknessMm: tBottomMm, woodMaterial: woodMat, moduleName: box.name, partType: 'bottom', material: `${woodMat} ${tBottomMm}mm Impermeabilizado`
-      });
-    }
+    const sideH = isSidesOutside
+      ? h
+      : Math.max(0.01, h - (hasTop ? tTop : 0) - (hasBottom ? tBottom : 0));
+    const sideY = isSidesOutside
+      ? 0
+      : (hasBottom ? (-h / 2 + tBottom + sideH / 2) : (hasTop ? -tTop / 2 : 0));
 
     // Cálculo do vão interno da carcaça para acomodar a gaveta
     const cabXMin = hasRight ? (-w / 2 + tRight) : (-w / 2);
@@ -106,25 +92,80 @@ export class DrawerBuilder {
     const cabInnerL = Math.max(0.01, cabZMax - cabZMin);
     const cabCenterZ = (cabZMin + cabZMax) / 2;
 
+    // Se o fundo oposto à abertura for sobreposto (overlay_all), desconta a espessura dele nas laterais/tampo/base:
+    const backDiscountZ = (isBackOverlay && ((slideDir === 'rear' && hasFront) || (slideDir !== 'rear' && hasRear)))
+      ? (slideDir === 'rear' ? tFront : tRear)
+      : 0;
+    const backOffsetZ = (isBackOverlay && ((slideDir === 'rear' && hasFront) || (slideDir !== 'rear' && hasRear)))
+      ? (slideDir === 'rear' ? -tFront / 2 : tRear / 2)
+      : 0;
+    const panelLengthZ = Math.max(0.01, l - backDiscountZ);
+
+    const topBottomW = isSidesOutside ? cabInnerW : w;
+    const topBottomX = isSidesOutside ? cabCenterX : 0;
+
+    // Tampo superior
+    if (hasTop) {
+      const exclusionZones = box ? getUpperCabinetExclusionZones(box, w, l) : [];
+      const hasCabExcl = exclusionZones.length > 0;
+      const topLabel = hasCabExcl
+        ? `${box.name} • Tampo Superior Vazado CNC c/ Apoio do Aéreo (${tTopMm}mm)`
+        : `${box.name} • Tampo Superior Vazado (${tTopMm}mm)`;
+      if (box.topPerforated) {
+        addPerforatedPanel(container, topBottomW, tTop, panelLengthZ, topBottomX, h / 2 - tTop / 2, backOffsetZ, cabinetMat, edgeMat, box.id, container, topLabel, box, {
+          thicknessMm: tTopMm, woodMaterial: woodMat, moduleName: box.name, partType: 'top'
+        });
+      } else {
+        addPanel(container, topBottomW, tTop, panelLengthZ, topBottomX, h / 2 - tTop / 2, backOffsetZ, cabinetMat, edgeMat, box.id, container, `${box.name} • Tampo Superior (${Math.round(topBottomW * 1000)}×${Math.round(panelLengthZ * 1000)}×${tTopMm}mm)`, {
+          thicknessMm: tTopMm, woodMaterial: woodMat, moduleName: box.name, partType: 'top', material: `${woodMat} ${tTopMm}mm Impermeabilizado`
+        });
+      }
+    }
+    // Fundo inferior próprio da carcaça
+    if (hasBottom) {
+      addPanel(container, topBottomW, tBottom, panelLengthZ, topBottomX, -h / 2 + tBottom / 2, backOffsetZ, cabinetMat, edgeMat, box.id, container, `${box.name} • Base Carcaça (${Math.round(topBottomW * 1000)}×${Math.round(panelLengthZ * 1000)}×${tBottomMm}mm)`, {
+        thicknessMm: tBottomMm, woodMaterial: woodMat, moduleName: box.name, partType: 'bottom', material: `${woodMat} ${tBottomMm}mm Impermeabilizado`
+      });
+    }
+
+    // Altura interna entre tampo e base para o fundo embutido
+    const innerVertH = Math.max(0.01, h - (hasTop ? tTop : 0) - (hasBottom ? tBottom : 0));
+    const innerVertY = hasBottom ? (-h / 2 + tBottom + innerVertH / 2) : (hasTop ? -tTop / 2 : 0);
+
     // Paredes verticais da carcaça
     if (hasLeft) {
-      addPanel(container, tLeft, sideH, l, w / 2 - tLeft / 2, sideY, 0, cabinetMat, edgeMat, box.id, container, `${box.name} • Lateral Esq. Carcaça (${tLeftMm}mm)`, {
+      addPanel(container, tLeft, sideH, panelLengthZ, w / 2 - tLeft / 2, sideY, backOffsetZ, cabinetMat, edgeMat, box.id, container, `${box.name} • Lateral Esq. Carcaça (${Math.round(panelLengthZ * 1000)}×${Math.round(sideH * 1000)}×${tLeftMm}mm)`, {
         thicknessMm: tLeftMm, woodMaterial: woodMat, moduleName: box.name, partType: 'left', material: `${woodMat} ${tLeftMm}mm Impermeabilizado`
       });
     }
     if (hasRight) {
-      addPanel(container, tRight, sideH, l, -w / 2 + tRight / 2, sideY, 0, cabinetMat, edgeMat, box.id, container, `${box.name} • Lateral Dir. Carcaça (${tRightMm}mm)`, {
+      addPanel(container, tRight, sideH, panelLengthZ, -w / 2 + tRight / 2, sideY, backOffsetZ, cabinetMat, edgeMat, box.id, container, `${box.name} • Lateral Dir. Carcaça (${Math.round(panelLengthZ * 1000)}×${Math.round(sideH * 1000)}×${tRightMm}mm)`, {
         thicknessMm: tRightMm, woodMaterial: woodMat, moduleName: box.name, partType: 'right', material: `${woodMat} ${tRightMm}mm Impermeabilizado`
       });
     }
     if (hasFront) {
-      addPanel(container, cabInnerW, sideH, tFront, cabCenterX, sideY, l / 2 - tFront / 2, cabinetMat, edgeMat, box.id, container, `${box.name} • Fundo Frontal Carcaça (${tFrontMm}mm)`, {
+      const isFrontServingAsBack = slideDir === 'rear';
+      const fW = (isFrontServingAsBack && isBackOverlay) ? w : cabInnerW;
+      const fH = (isFrontServingAsBack && isBackOverlay) ? h : innerVertH;
+      const fX = (isFrontServingAsBack && isBackOverlay) ? 0 : cabCenterX;
+      const fY = (isFrontServingAsBack && isBackOverlay) ? 0 : innerVertY;
+      const fLabel = (isFrontServingAsBack && isBackOverlay)
+        ? `${box.name} • Tampo de Fundo Carcaça (Fecha 5 Partes • ${Math.round(fW * 1000)}×${Math.round(fH * 1000)}×${tFrontMm}mm)`
+        : `${box.name} • Fundo Frontal Carcaça (${Math.round(fW * 1000)}×${Math.round(fH * 1000)}×${tFrontMm}mm)`;
+      addPanel(container, fW, fH, tFront, fX, fY, l / 2 - tFront / 2, cabinetMat, edgeMat, box.id, container, fLabel, {
         thicknessMm: tFrontMm, woodMaterial: woodMat, moduleName: box.name, partType: 'front', material: `${woodMat} ${tFrontMm}mm Impermeabilizado`
       });
     }
     if (hasRear) {
       const tRearMm = Math.round(tRear * 1000);
-      addPanel(container, cabInnerW, sideH, tRear, cabCenterX, sideY, -l / 2 + tRear / 2, cabinetMat, edgeMat, box.id, container, `${box.name} • Fechamento Traseiro Carcaça (${tRearMm}mm)`, {
+      const rW = isBackOverlay ? w : cabInnerW;
+      const rH = isBackOverlay ? h : innerVertH;
+      const rX = isBackOverlay ? 0 : cabCenterX;
+      const rY = isBackOverlay ? 0 : innerVertY;
+      const rLabel = isBackOverlay
+        ? `${box.name} • Tampo Traseiro Carcaça (Fecha 5 Partes • ${Math.round(rW * 1000)}×${Math.round(rH * 1000)}×${tRearMm}mm)`
+        : `${box.name} • Fechamento Traseiro Carcaça (4 Partes • ${Math.round(rW * 1000)}×${Math.round(rH * 1000)}×${tRearMm}mm)`;
+      addPanel(container, rW, rH, tRear, rX, rY, -l / 2 + tRear / 2, cabinetMat, edgeMat, box.id, container, rLabel, {
         thicknessMm: tRearMm, woodMaterial: woodMat, moduleName: box.name, partType: 'rear', material: `${woodMat} ${tRearMm}mm Impermeabilizado`
       });
     }

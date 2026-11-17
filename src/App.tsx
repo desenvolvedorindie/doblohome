@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useSolar } from './context/SolarContext';
+import { useProject } from './context/ProjectContext';
 import { CanvasViewport } from './components/CanvasViewport';
 import { Header } from './components/Header';
 import { WorkspaceSwitcher } from './components/layout/WorkspaceSwitcher';
 import { StatusBar } from './components/layout/StatusBar';
+import { WelcomeScreen } from './components/layout/WelcomeScreen/WelcomeScreen';
 import { Sidebar } from './components/Sidebar';
 import { RightPanel } from './components/RightPanel';
 import { BarTooltip } from './components/BarTooltip';
@@ -24,14 +26,16 @@ import { MpptPresetsModal } from './components/modals/MpptPresetsModal';
 import { B2bPresetsModal } from './components/modals/B2bPresetsModal';
 import { ElectricalPlanarView } from './components/electrical/ElectricalPlanarView';
 import { HydraulicPlanarView } from './components/hydraulic/HydraulicPlanarView';
+import { WeightsView } from './components/weights/WeightsView';
 
 export const App: React.FC = () => {
   const { viewMode } = useSolar();
+  const { currentProject } = useProject();
   const [leftSidebarVisible, setLeftSidebarVisible] = useState<boolean>(true);
   const [rightSidebarVisible, setRightSidebarVisible] = useState<boolean>(true);
 
   const isPlanarMode =
-    viewMode === 'electrical_planar' || viewMode === 'hydraulic_planar';
+    viewMode === 'electrical_planar' || viewMode === 'hydraulic_planar' || viewMode === 'weights';
 
   const toggleLeftSidebar = () => setLeftSidebarVisible((v) => !v);
   const toggleRightSidebar = () => setRightSidebarVisible((v) => !v);
@@ -45,67 +49,77 @@ export const App: React.FC = () => {
         onToggleRightSidebar={toggleRightSidebar}
       />
 
-      <WorkspaceSwitcher />
-
-      <div className="ide-workspace-body">
-        {/* Workspace 3D permanece montado para preservar o SceneManager e WebGL */}
-        <div
-          style={{
-            display: isPlanarMode ? 'none' : 'flex',
-            flex: 1,
-            width: '100%',
-            height: '100%',
-            minWidth: 0,
-            minHeight: 0,
-            overflow: 'hidden',
-          }}
-        >
-          <Sidebar
-            isVisible={leftSidebarVisible}
-            onToggleVisible={toggleLeftSidebar}
-          />
-          <CanvasViewport />
-          <RightPanel
-            isVisible={rightSidebarVisible}
-            onToggleVisible={toggleRightSidebar}
-          />
+      {!currentProject ? (
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <WelcomeScreen />
         </div>
+      ) : (
+        <>
+          <WorkspaceSwitcher />
 
-        <ElectricalPlanarView
-          leftSidebarVisible={leftSidebarVisible}
-          rightSidebarVisible={rightSidebarVisible}
-          onToggleLeftSidebar={toggleLeftSidebar}
-          onToggleRightSidebar={toggleRightSidebar}
-        />
+          <div className="ide-workspace-body">
+            {/* Workspace 3D permanece montado para preservar o SceneManager e WebGL */}
+            <div
+              style={{
+                display: isPlanarMode ? 'none' : 'flex',
+                flex: 1,
+                width: '100%',
+                height: '100%',
+                minWidth: 0,
+                minHeight: 0,
+                overflow: 'hidden',
+              }}
+            >
+              <Sidebar
+                isVisible={leftSidebarVisible}
+                onToggleVisible={toggleLeftSidebar}
+              />
+              <CanvasViewport />
+              <RightPanel
+                isVisible={rightSidebarVisible}
+                onToggleVisible={toggleRightSidebar}
+              />
+            </div>
 
-        <HydraulicPlanarView
-          leftSidebarVisible={leftSidebarVisible}
-          rightSidebarVisible={rightSidebarVisible}
-          onToggleLeftSidebar={toggleLeftSidebar}
-          onToggleRightSidebar={toggleRightSidebar}
-        />
-      </div>
+            <ElectricalPlanarView
+              leftSidebarVisible={leftSidebarVisible}
+              rightSidebarVisible={rightSidebarVisible}
+              onToggleLeftSidebar={toggleLeftSidebar}
+              onToggleRightSidebar={toggleRightSidebar}
+            />
+
+            <HydraulicPlanarView
+              leftSidebarVisible={leftSidebarVisible}
+              rightSidebarVisible={rightSidebarVisible}
+              onToggleLeftSidebar={toggleLeftSidebar}
+              onToggleRightSidebar={toggleRightSidebar}
+            />
+
+            {viewMode === 'weights' && <WeightsView />}
+          </div>
+
+          <BarTooltip />
+
+          {/* Modais da IDE */}
+          <LoadsModal />
+          <BatteryModal />
+          <MpptModal />
+          <B2bModal />
+          <UsinaModal />
+          <BomModal />
+          <PanelPresetsModal />
+          <CargoBoxPresetsModal />
+          <FridgePresetsModal />
+          <PortaPottiPresetsModal />
+          <StovePresetsModal />
+          <BatteryPresetsModal />
+          <MpptPresetsModal />
+          <B2bPresetsModal />
+        </>
+      )}
 
       <StatusBar />
-
-      <BarTooltip />
       <Toast />
-
-      {/* Modais */}
-      <LoadsModal />
-      <BatteryModal />
-      <MpptModal />
-      <B2bModal />
-      <UsinaModal />
-      <BomModal />
-      <PanelPresetsModal />
-      <CargoBoxPresetsModal />
-      <FridgePresetsModal />
-      <PortaPottiPresetsModal />
-      <StovePresetsModal />
-      <BatteryPresetsModal />
-      <MpptPresetsModal />
-      <B2bPresetsModal />
     </div>
   );
 };

@@ -139,7 +139,7 @@ export const CuttingToolbar: React.FC<CuttingToolbarProps> = ({
             href="/plano_de_corte_doblo_solar.pdf"
             download="plano_de_corte_doblo_solar.pdf"
             className="btn-compact"
-            title="Baixar PDF Técnico Completo (13 Páginas: Marcenaria, Espuma D33, Perfis Metalon e PVC)"
+            title="Baixar PDF Técnico Completo (14 Páginas: Marcenaria, Espuma D33, Perfis do Rack, PVC e Toldo)"
             style={{
               padding: '4px 9px',
               fontSize: '10.5px',

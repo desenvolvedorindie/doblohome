@@ -6,6 +6,7 @@ import { WoodPiecesTab } from './WoodPiecesTab';
 import { UpholsteryPiecesTab } from './UpholsteryPiecesTab';
 import { MetalBarsTab } from './MetalBarsTab';
 import { PvcPipesTab } from './PvcPipesTab';
+import { AwningHardwareTab } from './AwningHardwareTab';
 import {
   extractWoodCutGroups,
   extractBarStats,
@@ -14,13 +15,15 @@ import {
 } from '../../utils/woodUtils';
 import { calculateWeldedJoints } from '../../utils/weldedJointsUtils';
 import { extractPvcCutStats } from '../../utils/pvcUtils';
+import { extractAwningHardwareStats } from '../../utils/awningHardwareUtils';
 
 export type CuttingTabId =
   | 'cutting_plan'
   | 'wood_pieces'
   | 'upholstery_pieces'
   | 'metal_bars'
-  | 'pvc_pipes';
+  | 'pvc_pipes'
+  | 'awning_hardware';
 
 interface CuttingPlanSidePanelProps {
   docked?: boolean;
@@ -50,6 +53,7 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
     activePanelPreset,
     waterTank,
     setWaterTankEnabled,
+    awning,
     flashToast
   } = useSolar();
 
@@ -57,7 +61,7 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
   const [internalActiveTab, setActiveTabState] = useState<CuttingTabId>(() => {
     try {
       const v = localStorage.getItem('doblo_cutting_active_tab');
-      if (v === 'cutting_plan' || v === 'wood_pieces' || v === 'upholstery_pieces' || v === 'metal_bars' || v === 'pvc_pipes') return v;
+      if (v === 'cutting_plan' || v === 'wood_pieces' || v === 'upholstery_pieces' || v === 'metal_bars' || v === 'pvc_pipes' || v === 'awning_hardware') return v;
     } catch { }
     return 'cutting_plan';
   });
@@ -143,8 +147,8 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
         const savedCollapsed = await dbGet<boolean>('doblo_cutting_is_collapsed');
         if (mounted && savedCollapsed !== undefined && savedCollapsed !== null) setIsCollapsedState(savedCollapsed);
 
-        const savedTab = await dbGet<'cutting_plan' | 'wood_pieces' | 'upholstery_pieces' | 'metal_bars' | 'pvc_pipes'>('doblo_cutting_active_tab');
-        if (mounted && savedTab && ['cutting_plan', 'wood_pieces', 'upholstery_pieces', 'metal_bars', 'pvc_pipes'].includes(savedTab)) {
+        const savedTab = await dbGet<CuttingTabId>('doblo_cutting_active_tab');
+        if (mounted && savedTab && ['cutting_plan', 'wood_pieces', 'upholstery_pieces', 'metal_bars', 'pvc_pipes', 'awning_hardware'].includes(savedTab)) {
           setActiveTabState(savedTab);
         }
       } catch { }
@@ -198,7 +202,16 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
     return extractPvcCutStats(waterTank);
   }, [waterTank.enabled, waterTank.lengthMm, waterTank.diameterMm, waterTank.connectionPosition]);
 
-  const totalAllPieces = woodStats.totalPieces + barStats.totalPieces + (waterTank.enabled ? pvcStats.totalPieces : 0);
+  // Extração de estatísticas e plano de corte separado da ferragem do toldo overland
+  const awningStats = useMemo(() => {
+    return extractAwningHardwareStats(awning);
+  }, [awning.enabled, awning.type, awning.side, awning.lengthMm, awning.extensionMm]);
+
+  const totalAllPieces =
+    woodStats.totalPieces +
+    barStats.totalPieces +
+    (waterTank.enabled ? pvcStats.totalPieces : 0) +
+    (awning.enabled ? awningStats.totalProfilePieces : 0);
 
   // Efeito para ajustar o filtro no SceneManager quando o usuário alterna entre as abas do painel
   useEffect(() => {
@@ -211,6 +224,8 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
       if (partsFilter !== 'metal') setPartsFilter('metal');
     } else if (activeTab === 'pvc_pipes') {
       if (partsFilter !== 'pvc') setPartsFilter('pvc');
+    } else if (activeTab === 'awning_hardware') {
+      if (partsFilter !== 'awning') setPartsFilter('awning');
     } else if (activeTab === 'cutting_plan') {
       const isFoam = activeGroupKey.includes('Espuma') || (woodStats.cutGroups.find((g) => g.key === activeGroupKey)?.isUpholstery ?? false);
       const targetFilter = isFoam ? 'upholstery' : 'wood';
@@ -316,7 +331,9 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
                   ? '🔩'
                   : activeTab === 'pvc_pipes'
                     ? '💧'
-                    : '📐'}
+                    : activeTab === 'awning_hardware'
+                      ? '⛺'
+                      : '📐'}
           </span>
           <div>
             <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.01em' }}>
@@ -325,10 +342,12 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
                 : activeTab === 'wood_pieces'
                   ? 'Lista de Peças de Madeira & Marcenaria'
                   : activeTab === 'metal_bars'
-                    ? 'Lista de Corte & Perfis Estruturais (Metalon)'
+                    ? 'Lista de Corte & Perfis do Rack'
                     : activeTab === 'pvc_pipes'
                       ? "Lista de Corte & Tubulação PVC (Caixa d'Água)"
-                      : 'Plano de Corte & Otimização 2D'}
+                      : activeTab === 'awning_hardware'
+                        ? 'Plano de Corte Separado da Ferragem do Toldo'
+                        : 'Plano de Corte & Otimização 2D'}
             </h3>
             <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>
               {activeTab === 'upholstery_pieces'
@@ -336,10 +355,12 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
                 : activeTab === 'wood_pieces'
                   ? 'Compensado Naval • MDF Branco Ultra • Madeira Nobre Maciça'
                   : activeTab === 'metal_bars'
-                    ? 'Perfis Metálicos Tubulares • Alumínio & Aço Carbono'
+                    ? 'Perfis Metálicos Tubulares do Rack • Alumínio & Aço Carbono'
                     : activeTab === 'pvc_pipes'
                       ? 'Tubos Soldáveis PVC U • Joelhos 90° • Joelhos & Tampões'
-                      : 'Guillotine 2D • CorteCloud • Alumínio/Metalon • Canos PVC U'}
+                      : activeTab === 'awning_hardware'
+                        ? 'Perfis de Alumínio • Braços Radiais • Postes Telescópicos • Mancal 270°'
+                        : 'Guillotine 2D • CorteCloud • Perfis do Rack • Canos PVC U • Toldo'}
             </span>
           </div>
         </div>
@@ -350,7 +371,7 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
             href="/plano_de_corte_doblo_solar.pdf"
             download="plano_de_corte_doblo_solar.pdf"
             className="btn-compact"
-            title="Baixar Plano de Corte Completo em PDF (13 Páginas c/ Desenho dos Cortes, Espuma, Metalon e PVC)"
+            title="Baixar Plano de Corte Completo em PDF (14 Páginas c/ Desenho dos Cortes, Espuma, Perfis do Rack, PVC e Toldo)"
             style={{
               fontSize: '11px',
               padding: '4px 8px',
@@ -431,7 +452,7 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
           onClick={() => setActiveTab('metal_bars')}
           style={{ flex: '1 1 80px', fontSize: '10.5px', padding: '6px 4px', fontWeight: 700 }}
         >
-          🔩 Metalon ({barStats.totalPieces})
+          🔩 Rack ({barStats.totalPieces})
         </button>
 
         <button
@@ -447,6 +468,23 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
           title="Lista de corte dos tubos PVC e conexões hidráulicas da caixa d'água em U"
         >
           💧 Canos PVC {waterTank.enabled ? `(${pvcStats.totalPieces})` : '(Off)'}
+        </button>
+
+        <button
+          className={`btn-compact ${activeTab === 'awning_hardware' ? 'active accent-amber' : ''}`}
+          onClick={() => setActiveTab('awning_hardware')}
+          style={{
+            flex: '1 1 80px',
+            fontSize: '10.5px',
+            padding: '6px 4px',
+            fontWeight: 700,
+            opacity: awning.enabled ? 1 : 0.65,
+            borderColor: activeTab === 'awning_hardware' ? '#f59e0b' : undefined,
+            color: activeTab === 'awning_hardware' ? '#fbbf24' : undefined
+          }}
+          title="Plano de corte e cálculo separado da ferragem do toldo retrátil overland"
+        >
+          ⛺ Toldo {awning.enabled ? `(${awningStats.totalProfilePieces})` : '(Off)'}
         </button>
       </div>
 
@@ -474,6 +512,7 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
               else if (activeTab === 'wood_pieces') setPartsFilter('wood');
               else if (activeTab === 'metal_bars') setPartsFilter('metal');
               else if (activeTab === 'pvc_pipes') setPartsFilter('pvc');
+              else if (activeTab === 'awning_hardware') setPartsFilter('awning');
               else {
                 const isFoam = activeGroupKey.includes('Espuma') || (woodStats.cutGroups.find((g) => g.key === activeGroupKey)?.isUpholstery ?? false);
                 setPartsFilter(isFoam ? 'upholstery' : 'wood');
@@ -536,6 +575,15 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
           pvcStats={pvcStats}
           pvcBarStandard={pvcBarStandard}
           setPvcBarStandard={setPvcBarStandard}
+          flashToast={flashToast}
+          setPartsFilter={setPartsFilter}
+          setViewMode={setViewMode}
+        />
+      )}
+
+      {activeTab === 'awning_hardware' && (
+        <AwningHardwareTab
+          awning={awning}
           flashToast={flashToast}
           setPartsFilter={setPartsFilter}
           setViewMode={setViewMode}

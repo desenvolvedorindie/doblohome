@@ -72,7 +72,6 @@ export async function migrateAllLocalStorageToIndexedDB(): Promise<void> {
         } catch {
           await dbSet(key, raw);
         }
-        window.localStorage.removeItem(key);
       }
     }
 
@@ -96,6 +95,19 @@ export async function dbGet<T>(key: string, defaultValue?: T): Promise<T | null>
   if (!isIndexedDBAvailable()) {
     if (memoryFallbackStore.has(key)) {
       return memoryFallbackStore.get(key) as T;
+    }
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = window.localStorage.getItem(key);
+      if (raw !== null) {
+        try {
+          const parsed = JSON.parse(raw) as T;
+          memoryFallbackStore.set(key, parsed);
+          return parsed;
+        } catch {
+          memoryFallbackStore.set(key, raw as unknown as T);
+          return raw as unknown as T;
+        }
+      }
     }
     return defaultValue !== undefined ? defaultValue : null;
   }
@@ -143,16 +155,16 @@ export async function dbGet<T>(key: string, defaultValue?: T): Promise<T | null>
 }
 
 /**
- * Salva um item no IndexedDB e limpa duplicatas do LocalStorage
+ * Salva um item no IndexedDB e mantém cópia sincronizada no LocalStorage (cache síncrono rápido de inicialização)
  */
 export async function dbSet<T>(key: string, value: T): Promise<void> {
   memoryFallbackStore.set(key, value);
 
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
-      window.localStorage.removeItem(key);
+      window.localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
     } catch {
-      // Ignora erro de acesso ao localStorage
+      // Ignora erro de acesso ao localStorage (ex: cota excedida)
     }
   }
 

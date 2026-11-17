@@ -337,3 +337,136 @@ export function buildPvcCapMesh(
 
   return group;
 }
+
+/**
+ * Constrói e retorna um Mesh 3D do Tê 90° em PVC com 3 bolsas reforçadas (2 laterais + 1 derivação central)
+ */
+export function buildPvcTeeMesh(
+  diameter: number = 0.200,
+  material: THREE.Material
+): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'PvcTee90Mesh';
+
+  const r = Math.max(0.01, diameter / 2);
+  const wallT = Math.max(0.0038, r * 0.045);
+  const rOuter = r + wallT;
+  const rCollar = rOuter * 1.05;
+  const socketDepth = Math.max(0.040, r * 0.42);
+  const collarBand = Math.min(0.020, socketDepth * 0.42);
+  const radialSegments = 28;
+
+  // Comprimento do corpo reto principal (eixo Z) e ramal de derivação 90° (eixo X)
+  const runLength = Math.max(0.18, r * 2.4 + socketDepth);
+  const branchLength = rOuter + socketDepth * 0.85;
+
+  // 1. Tubo principal reto (Run ao longo de Z)
+  const runShape = new THREE.Shape();
+  runShape.absarc(0, 0, rOuter, 0, Math.PI * 2, false);
+  const runHole = new THREE.Path();
+  runHole.absarc(0, 0, r, 0, Math.PI * 2, true);
+  runShape.holes.push(runHole);
+
+  const runGeo = new THREE.ExtrudeGeometry(runShape, {
+    steps: 1,
+    depth: runLength,
+    bevelEnabled: false,
+    curveSegments: radialSegments
+  });
+  runGeo.center();
+  runGeo.computeVertexNormals();
+  const runMesh = new THREE.Mesh(runGeo, material);
+  runMesh.castShadow = true;
+  runMesh.receiveShadow = true;
+  runMesh.name = 'PvcTee_Run';
+
+  // 2. Ramal perpendicular de 90° (Branch ao longo de +X)
+  const branchGeo = new THREE.ExtrudeGeometry(runShape, {
+    steps: 1,
+    depth: branchLength,
+    bevelEnabled: false,
+    curveSegments: radialSegments
+  });
+  branchGeo.rotateY(Math.PI / 2);
+  branchGeo.computeVertexNormals();
+  const branchMesh = new THREE.Mesh(branchGeo, material);
+  branchMesh.position.set(0, 0, 0);
+  branchMesh.castShadow = true;
+  branchMesh.receiveShadow = true;
+  branchMesh.name = 'PvcTee_Branch';
+
+  // 3. Bolsas reforçadas nas 3 extremidades (-Z, +Z e +X)
+  function createCollarRing(axis: 'z_pos' | 'z_neg' | 'x_pos'): THREE.BufferGeometry {
+    const pts: THREE.Vector2[] = [];
+    pts.push(new THREE.Vector2(r, 0));
+    pts.push(new THREE.Vector2(rCollar, 0));
+    pts.push(new THREE.Vector2(rCollar, collarBand));
+    pts.push(new THREE.Vector2(rOuter, collarBand + 0.003));
+    pts.push(new THREE.Vector2(r, collarBand + 0.003));
+    const lGeo = new THREE.LatheGeometry(pts, radialSegments);
+    if (axis === 'z_pos') {
+      lGeo.rotateX(Math.PI / 2);
+    } else if (axis === 'z_neg') {
+      lGeo.rotateX(-Math.PI / 2);
+    } else {
+      lGeo.rotateZ(Math.PI / 2);
+    }
+    lGeo.computeVertexNormals();
+    return lGeo;
+  }
+
+  const collarZPosGeo = createCollarRing('z_pos');
+  const collarZPos = new THREE.Mesh(collarZPosGeo, material);
+  collarZPos.position.set(0, 0, runLength / 2);
+  collarZPos.castShadow = true;
+
+  const collarZNegGeo = createCollarRing('z_neg');
+  const collarZNeg = new THREE.Mesh(collarZNegGeo, material);
+  collarZNeg.position.set(0, 0, -runLength / 2);
+  collarZNeg.castShadow = true;
+
+  const collarXPosGeo = createCollarRing('x_pos');
+  const collarXPos = new THREE.Mesh(collarXPosGeo, material);
+  collarXPos.position.set(branchLength, 0, 0);
+  collarXPos.castShadow = true;
+
+  // Centraliza o conjunto no ponto (0, 0, 0)
+  const tempG = new THREE.Group();
+  tempG.add(runMesh, branchMesh, collarZPos, collarZNeg, collarXPos);
+  const b3 = new THREE.Box3().setFromObject(tempG);
+  const c = new THREE.Vector3();
+  b3.getCenter(c);
+
+  [runMesh, branchMesh, collarZPos, collarZNeg, collarXPos].forEach((m) => {
+    m.position.sub(c);
+    group.add(m);
+  });
+
+  // Contornos / Edge lines
+  const edgeMat = new THREE.LineBasicMaterial({
+    color: 0x38bdf8,
+    transparent: true,
+    opacity: 0.85
+  });
+  [
+    { geo: runGeo, pos: runMesh.position },
+    { geo: branchGeo, pos: branchMesh.position },
+    { geo: collarZPosGeo, pos: collarZPos.position },
+    { geo: collarZNegGeo, pos: collarZNeg.position },
+    { geo: collarXPosGeo, pos: collarXPos.position }
+  ].forEach(({ geo, pos }) => {
+    const edge = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 28), edgeMat);
+    edge.position.copy(pos);
+    group.add(edge);
+  });
+
+  // Hitbox
+  const s = new THREE.Vector3();
+  b3.getSize(s);
+  const hitGeo = new THREE.BoxGeometry(s.x, s.y, s.z);
+  const hitMesh = new THREE.Mesh(hitGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+  hitMesh.name = '__pvc_hitbox';
+  group.add(hitMesh);
+
+  return group;
+}
