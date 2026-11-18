@@ -115,7 +115,7 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
 
             {/* Vão Livre Inferior até a Bancada/Cama (Espaçamento) */}
             {(() => {
-              const bedBox = internalBoxes.find((b) => b.type === 'slat_bed') || selectedBox;
+              const bedBox = internalBoxes.find((b) => b.type === 'slat_bed' || b.hasBed) || selectedBox;
               const mattressThickMm = bedBox.mattressThicknessMm ?? 80;
               const mattressTopMm = (bedBox.heightMm ?? internalGrid.heightMm ?? 400) + mattressThickMm;
               const gapMm = selectedBox.upperCabinetBottomGapMm ?? 0;

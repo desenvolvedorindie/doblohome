@@ -29,10 +29,16 @@ export class BoxElectronicsBuilder {
     const tFront = tConfig.front;
     const tRear = tConfig.rear;
 
+    const drawerSlide = container.getObjectByName('DrawerSlide') as THREE.Group | undefined;
+    const hasBottom = Boolean(box.panels?.bottom);
+    const hasTop = box.panels?.top ?? (box.type === 'chest');
+    const bottomThickness = hasBottom ? tBottom : 0;
+    const topThickness = hasTop ? tTop : 0;
+
     // Dimensões internas úteis respeitando as espessuras reais das chapas
     const wIn = Math.max(0.10, w - tLeft - tRight);
     const lIn = Math.max(0.10, l - tFront - tRear);
-    const hIn = Math.max(0.10, h - tBottom - tTop);
+    const hIn = Math.max(0.10, h - bottomThickness - topThickness);
 
     // Material dos parafusos de fixação (aço zincado brilhante / inox)
     const screwMat = new THREE.MeshStandardMaterial({
@@ -121,11 +127,10 @@ export class BoxElectronicsBuilder {
       // Wrapper para controle independente de translação, rotação e parafusamento
       const compWrapper = new THREE.Group();
       compWrapper.name = `Installed_${item.id}_${box.id}`;
-      compWrapper.add(mesh);
 
       // Centraliza a malha no seu próprio bounding box real (incluindo aletas/dissipador de alumínio,
       // bornes, alças e tampa) e usa as dimensões reais para que nenhuma parte atravesse as paredes.
-      compWrapper.updateMatrixWorld(true);
+      mesh.updateMatrixWorld(true);
       const localBounds = new THREE.Box3().setFromObject(mesh);
       if (!localBounds.isEmpty()) {
         const realSize = new THREE.Vector3();
@@ -138,10 +143,18 @@ export class BoxElectronicsBuilder {
         compD = Math.max(compD, realSize.z);
       }
 
+      // Grupo interno de rotação para girar o componente em torno de seu próprio centro
+      const contentGroup = new THREE.Group();
+      contentGroup.name = 'Content';
+      contentGroup.add(mesh);
+      compWrapper.add(contentGroup);
+
       // Bateria é sempre na base ('bottom')
       const face = item.id === 'battery' ? 'bottom' : (item.mountFace || 'bottom');
       const pos = item.position || 'center';
-      const isRotated = Boolean(item.rotationDeg === 90);
+      const rotDeg = Number(item.rotationDeg || 0);
+      const isRotated90 = (rotDeg === 90 || rotDeg === 270);
+      const rotRad = (rotDeg * Math.PI) / 180;
 
       // Micro-deslocamentos customizados pelo usuário em milímetros
       const customOffX = (item.customOffsetXmm || 0) / 1000;
@@ -152,11 +165,13 @@ export class BoxElectronicsBuilder {
       // FIXAÇÃO 1: APOIADO NA BASE / FUNDO (FACE: 'bottom')
       // ─────────────────────────────────────────────────────────────
       if (face === 'bottom') {
-        const effW = isRotated ? compD : compW;
-        const effL = isRotated ? compW : compD;
+        const effW = isRotated90 ? compD : compW;
+        const effL = isRotated90 ? compW : compD;
 
-        // Fundo do módulo: Y = -h/2 + tBottom (apoiado diretamente sobre a chapa de piso)
-        const posY = -h / 2 + tBottom + compH / 2 + customOffY;
+        // Fundo do módulo: apoiado diretamente sobre a chapa de piso ou sobre a tampa de baixo (se existir)
+        const posY = (drawerSlide && drawerSlide.userData?.trayTopY !== undefined)
+          ? (drawerSlide.userData.trayTopY + compH / 2 + customOffY)
+          : (-h / 2 + bottomThickness + compH / 2 + customOffY);
 
         // Limites internos X/Z considerando espessuras reais de cada parede
         const xMin = -w / 2 + tRight + effW / 2;
@@ -178,7 +193,8 @@ export class BoxElectronicsBuilder {
         }
 
         compWrapper.position.set(posX + customOffX, posY, posZ + customOffZ);
-        compWrapper.rotation.y = isRotated ? Math.PI / 2 : 0;
+        compWrapper.rotation.set(0, 0, 0);
+        contentGroup.rotation.y = rotRad;
       }
       // ─────────────────────────────────────────────────────────────
       // FIXAÇÃO 2: PARAFUSADO NA PAREDE TRASEIRA (FACE: 'rear_wall')
@@ -187,9 +203,12 @@ export class BoxElectronicsBuilder {
         // Verso (dissipador) encostado na face interna da parede traseira (Z = -l/2 + tRear)
         const posZ = -l / 2 + tRear + compD / 2 + customOffZ;
 
+        const effW = isRotated90 ? compH : compW;
+        const effH = isRotated90 ? compW : compH;
+
         // X ao longo da parede
-        const xMin = -w / 2 + tRight + compW / 2;
-        const xMax = w / 2 - tLeft - compW / 2;
+        const xMin = -w / 2 + tRight + effW / 2;
+        const xMax = w / 2 - tLeft - effW / 2;
         let posX = (xMin + xMax) / 2;
         if (xMax >= xMin) {
           if (pos.includes('left')) posX = xMax;
@@ -197,18 +216,21 @@ export class BoxElectronicsBuilder {
         }
 
         // Y na parede
-        const yMin = -h / 2 + tBottom + compH / 2;
-        const yMax = h / 2 - tTop - compH / 2;
+        const yMin = (drawerSlide && drawerSlide.userData?.trayTopY !== undefined)
+          ? (drawerSlide.userData.trayTopY + effH / 2)
+          : (-h / 2 + bottomThickness + effH / 2);
+        const yMax = h / 2 - topThickness - effH / 2;
         let posY = yMin;
         if (pos.startsWith('top')) posY = yMax;
         else if (pos.startsWith('mid')) posY = (yMin + yMax) / 2;
         else if (pos.startsWith('bottom')) posY = yMin;
 
         compWrapper.position.set(posX + customOffX, posY + customOffY, posZ);
-        compWrapper.rotation.y = 0; // Frente voltada para a frente (+Z)
+        compWrapper.rotation.set(0, 0, 0); // Frente voltada para a frente (+Z)
+        contentGroup.rotation.z = -rotRad; // Rotação no plano da parede
 
         // 4 Parafusos de fixação nas abas contra a parede de compensado
-        this.addWallMountingScrews(compWrapper, compW, compH, -compD / 2, screwHeadGeo, screwMat);
+        this.addWallMountingScrews(compWrapper, effW, effH, -compD / 2, screwHeadGeo, screwMat);
       }
       // ─────────────────────────────────────────────────────────────
       // FIXAÇÃO 3: PARAFUSADO NA PAREDE DIANTEIRA (FACE: 'front_wall')
@@ -217,25 +239,31 @@ export class BoxElectronicsBuilder {
         // Verso (dissipador) encostado na face interna da parede dianteira (Z = +l/2 - tFront)
         const posZ = l / 2 - tFront - compD / 2 + customOffZ;
 
-        const xMin = -w / 2 + tRight + compW / 2;
-        const xMax = w / 2 - tLeft - compW / 2;
+        const effW = isRotated90 ? compH : compW;
+        const effH = isRotated90 ? compW : compH;
+
+        const xMin = -w / 2 + tRight + effW / 2;
+        const xMax = w / 2 - tLeft - effW / 2;
         let posX = (xMin + xMax) / 2;
         if (xMax >= xMin) {
           if (pos.includes('left')) posX = xMax;
           else if (pos.includes('right')) posX = xMin;
         }
 
-        const yMin = -h / 2 + tBottom + compH / 2;
-        const yMax = h / 2 - tTop - compH / 2;
+        const yMin = (drawerSlide && drawerSlide.userData?.trayTopY !== undefined)
+          ? (drawerSlide.userData.trayTopY + effH / 2)
+          : (-h / 2 + bottomThickness + effH / 2);
+        const yMax = h / 2 - topThickness - effH / 2;
         let posY = yMin;
         if (pos.startsWith('top')) posY = yMax;
         else if (pos.startsWith('mid')) posY = (yMin + yMax) / 2;
         else if (pos.startsWith('bottom')) posY = yMin;
 
         compWrapper.position.set(posX + customOffX, posY + customOffY, posZ);
-        compWrapper.rotation.y = Math.PI; // Frente voltada para trás (-Z)
+        compWrapper.rotation.set(0, Math.PI, 0); // Frente voltada para trás (-Z)
+        contentGroup.rotation.z = rotRad;
 
-        this.addWallMountingScrews(compWrapper, compW, compH, -compD / 2, screwHeadGeo, screwMat);
+        this.addWallMountingScrews(compWrapper, effW, effH, -compD / 2, screwHeadGeo, screwMat);
       }
       // ─────────────────────────────────────────────────────────────
       // FIXAÇÃO 4: PARAFUSADO NA PAREDE LATERAL ESQUERDA (FACE: 'left_wall')
@@ -244,26 +272,32 @@ export class BoxElectronicsBuilder {
         // Verso (dissipador) encostado na face interna da parede esquerda (+X = +w/2 - tLeft)
         const posX = w / 2 - tLeft - compD / 2 + customOffX;
 
+        const effZ = isRotated90 ? compH : compW;
+        const effH = isRotated90 ? compW : compH;
+
         // Z ao longo da lateral
-        const zMin = -l / 2 + tRear + compW / 2;
-        const zMax = l / 2 - tFront - compW / 2;
+        const zMin = -l / 2 + tRear + effZ / 2;
+        const zMax = l / 2 - tFront - effZ / 2;
         let posZ = (zMin + zMax) / 2;
         if (zMax >= zMin) {
           if (pos.includes('left')) posZ = zMin; // Em direção à traseira
           else if (pos.includes('right')) posZ = zMax; // Em direção à frente
         }
 
-        const yMin = -h / 2 + tBottom + compH / 2;
-        const yMax = h / 2 - tTop - compH / 2;
+        const yMin = (drawerSlide && drawerSlide.userData?.trayTopY !== undefined)
+          ? (drawerSlide.userData.trayTopY + effH / 2)
+          : (-h / 2 + bottomThickness + effH / 2);
+        const yMax = h / 2 - topThickness - effH / 2;
         let posY = yMin;
         if (pos.startsWith('top')) posY = yMax;
         else if (pos.startsWith('mid')) posY = (yMin + yMax) / 2;
         else if (pos.startsWith('bottom')) posY = yMin;
 
         compWrapper.position.set(posX, posY + customOffY, posZ + customOffZ);
-        compWrapper.rotation.y = -Math.PI / 2; // Frente voltada para a direita (-X)
+        compWrapper.rotation.set(0, -Math.PI / 2, 0); // Frente voltada para a direita (-X)
+        contentGroup.rotation.z = -rotRad;
 
-        this.addWallMountingScrews(compWrapper, compW, compH, -compD / 2, screwHeadGeo, screwMat);
+        this.addWallMountingScrews(compWrapper, effZ, effH, -compD / 2, screwHeadGeo, screwMat);
       }
       // ─────────────────────────────────────────────────────────────
       // FIXAÇÃO 5: PARAFUSADO NA PAREDE LATERAL DIREITA (FACE: 'right_wall')
@@ -272,25 +306,31 @@ export class BoxElectronicsBuilder {
         // Verso (dissipador) encostado na face interna da parede direita (-X = -w/2 + tRight)
         const posX = -w / 2 + tRight + compD / 2 + customOffX;
 
-        const zMin = -l / 2 + tRear + compW / 2;
-        const zMax = l / 2 - tFront - compW / 2;
+        const effZ = isRotated90 ? compH : compW;
+        const effH = isRotated90 ? compW : compH;
+
+        const zMin = -l / 2 + tRear + effZ / 2;
+        const zMax = l / 2 - tFront - effZ / 2;
         let posZ = (zMin + zMax) / 2;
         if (zMax >= zMin) {
           if (pos.includes('left')) posZ = zMax; // Em direção à frente
           else if (pos.includes('right')) posZ = zMin; // Em direção à traseira
         }
 
-        const yMin = -h / 2 + tBottom + compH / 2;
-        const yMax = h / 2 - tTop - compH / 2;
+        const yMin = (drawerSlide && drawerSlide.userData?.trayTopY !== undefined)
+          ? (drawerSlide.userData.trayTopY + effH / 2)
+          : (-h / 2 + bottomThickness + effH / 2);
+        const yMax = h / 2 - topThickness - effH / 2;
         let posY = yMin;
         if (pos.startsWith('top')) posY = yMax;
         else if (pos.startsWith('mid')) posY = (yMin + yMax) / 2;
         else if (pos.startsWith('bottom')) posY = yMin;
 
         compWrapper.position.set(posX, posY + customOffY, posZ + customOffZ);
-        compWrapper.rotation.y = Math.PI / 2; // Frente voltada para a esquerda (+X)
+        compWrapper.rotation.set(0, Math.PI / 2, 0); // Frente voltada para a esquerda (+X)
+        contentGroup.rotation.z = rotRad;
 
-        this.addWallMountingScrews(compWrapper, compW, compH, -compD / 2, screwHeadGeo, screwMat);
+        this.addWallMountingScrews(compWrapper, effZ, effH, -compD / 2, screwHeadGeo, screwMat);
       }
 
       targetParent.add(compWrapper);

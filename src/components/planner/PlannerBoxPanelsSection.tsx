@@ -436,7 +436,7 @@ export const PlannerBoxPanelsSection: React.FC<PlannerBoxPanelsSectionProps> = (
             },
             {
               key: 'top' as keyof BoxPanelsConfig,
-              label: selectedBox.type === 'chest' ? '🔝 Tampa Basculante' : selectedBox.type === 'slat_bed' ? '🔝 Estrado de Ripas' : '🔝 Tampo Superior',
+              label: selectedBox.type === 'chest' ? '🔝 Tampa Basculante' : selectedBox.type === 'vertical_lift' ? '🔝 Tampo Elevatório' : selectedBox.type === 'slat_bed' ? '🔝 Estrado de Ripas' : '🔝 Tampo Superior',
               val: selectedBox.panels?.top ?? (selectedBox.type !== 'open'),
               desc: 'Fechamento superior (+Y)'
             },

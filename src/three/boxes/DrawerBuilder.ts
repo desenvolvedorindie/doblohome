@@ -325,13 +325,13 @@ export class DrawerBuilder {
         ...box,
         thicknessMm: tTrayMm,
         panelThickness: {
-          ...box.panelThickness,
-          top: tTrayMm,
-          bottom: tTrayMm,
-          left: tTrayMm,
-          right: tTrayMm,
-          front: tTrayMm,
-          rear: tTrayMm
+          top: box.panelThickness?.top ?? tTrayMm,
+          bottom: box.panelThickness?.bottom ?? tTrayMm,
+          left: box.panelThickness?.left ?? tTrayMm,
+          right: box.panelThickness?.right ?? tTrayMm,
+          front: box.panelThickness?.front ?? tTrayMm,
+          rear: box.panelThickness?.rear ?? tTrayMm,
+          ...box.panelThickness
         }
       };
       buildHollowBox(drawerBodyGroup, dW, dH, dL, tTray, mat, edgeMat, true, box.id, container, undefined, box.name, drawerInnerBox);

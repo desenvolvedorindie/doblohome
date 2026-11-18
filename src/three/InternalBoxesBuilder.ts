@@ -22,6 +22,7 @@ import { FloorAndGridBuilder } from './boxes/FloorAndGridBuilder';
 import { DrawerBuilder } from './boxes/DrawerBuilder';
 import { ChestBuilder } from './boxes/ChestBuilder';
 import { SlatBedBuilder } from './boxes/SlatBedBuilder';
+import { VerticalLiftBuilder } from './boxes/VerticalLiftBuilder';
 import { UpperCabinetBuilder } from './boxes/UpperCabinetBuilder';
 import { BoxAccessoriesBuilder } from './boxes/BoxAccessoriesBuilder';
 import { BoxElectronicsBuilder } from './boxes/BoxElectronicsBuilder';
@@ -51,6 +52,7 @@ export class InternalBoxesBuilder {
   private floorAndGridBuilder!: FloorAndGridBuilder;
   private drawerBuilder = new DrawerBuilder();
   private chestBuilder = new ChestBuilder();
+  private verticalLiftBuilder = new VerticalLiftBuilder();
   private slatBedBuilder = new SlatBedBuilder();
   private upperCabinetBuilder = new UpperCabinetBuilder();
   private accessoriesBuilder = new BoxAccessoriesBuilder();
@@ -89,8 +91,7 @@ export class InternalBoxesBuilder {
     isolatedBoxId: string | null = null
   ) {
     this.lastUpdateArgs = [grid, boxes, selectedBoxId, previewOpen, isolatedBoxId];
-    const activeFocusBoxId = isolatedBoxId || selectedBoxId;
-    this.isolatedBoxId = activeFocusBoxId;
+    this.isolatedBoxId = isolatedBoxId;
     this.selectedBoxId = selectedBoxId;
     this.strictIsolatedBoxId = isolatedBoxId;
 
@@ -122,8 +123,8 @@ export class InternalBoxesBuilder {
     // 4. Teto / forro do campervan
     this.ceilingBuilder.buildCeiling(grid, widthM, lengthM, floorY, previewOpen);
 
-    // 5. Quando estiver dentro de um módulo ou com "Ocultar paredes" ativo, mantém piso, grid e teto fantasmas para não obstruírem
-    if (activeFocusBoxId || this.ghostWalls) {
+    // 5. Quando estiver em modo isolado ou com "Ocultar paredes" ativo, mantém piso, grid e teto fantasmas para não obstruírem
+    if (isolatedBoxId || this.ghostWalls) {
       this.applyGhostTransparency(this.floorGroup, 0.08, 0.04);
       this.applyGhostTransparency(this.gridLinesGroup, 0.08, 0.04);
       this.applyGhostTransparency(this.ceilingGroup, 0.08, 0.04);
@@ -234,7 +235,7 @@ export class InternalBoxesBuilder {
       return 0;
     });
 
-    const isAnyBedOpen = globalBedOpen || boxes.some((b) => b.type === 'slat_bed' && Boolean(b.isOpen));
+    const isAnyBedOpen = globalBedOpen || boxes.some((b) => (b.type === 'slat_bed' || b.hasBed) && Boolean(b.isBedOpen ?? (b.type === 'slat_bed' ? b.isOpen : false)));
 
     sortedBoxes.forEach((box) => {
       const colStart = Math.min(cols - 1, Math.max(0, box.colStart));
@@ -257,14 +258,16 @@ export class InternalBoxesBuilder {
       const posZ = -(rowStart + rowSpan / 2) * cellLM + offsetZM;
       const posY = floorY + boxHM / 2;
 
-      const isTargetModule = activeFocusBoxId ? box.id === activeFocusBoxId : false;
-      const isGhost = activeFocusBoxId ? box.id !== activeFocusBoxId : false;
-      const isSelected = isTargetModule ? false : false;
+      const isTargetModule = isolatedBoxId ? box.id === isolatedBoxId : false;
+      const isGhost = isolatedBoxId ? box.id !== isolatedBoxId : false;
+      const isSelected = selectedBoxId ? box.id === selectedBoxId : false;
 
       const isDrawerOpen = (box.type === 'drawer' || box.type === 'slide_tray') && Boolean(box.isOpen);
       const isChestOpen = box.type === 'chest' && Boolean(box.isOpen);
+      const isLiftOpen = box.type === 'vertical_lift' && Boolean(box.isOpen);
       const isUpperCabinetOpen = globalCabinetsOpen || Boolean(box.isUpperCabinetOpen);
-      const isBedOpen = globalBedOpen || (box.type === 'slat_bed' && Boolean(box.isOpen));
+      const hasBed = box.type === 'slat_bed' || Boolean(box.hasBed);
+      const isBedOpen = globalBedOpen || (hasBed && Boolean(box.isBedOpen ?? (box.type === 'slat_bed' ? box.isOpen : false)));
       const isShelfOpen = box.isRearShelfOpen !== undefined ? box.isRearShelfOpen : false;
 
       const boxContainer = new THREE.Group();
@@ -287,9 +290,9 @@ export class InternalBoxesBuilder {
       };
 
       // Hitbox sólida transparente: cobre todo o volume da caixa para clique e hover imediatos
-      // quando nenhum módulo está aberto. Ao entrar em um módulo ou ocultar paredes, omitimos a hitbox externa
+      // quando o módulo não está isolado. Ao isolar um módulo ou ocultar paredes, omitimos a hitbox externa
       // para permitir hover e clique direto nas peças individuais / componentes.
-      if (!activeFocusBoxId && !this.ghostWalls) {
+      if (!isolatedBoxId && !this.ghostWalls) {
         const hitGeo = new THREE.BoxGeometry(boxWM, boxHM, boxLM);
         const hitMat = new THREE.MeshBasicMaterial({
           transparent: true,
@@ -319,6 +322,18 @@ export class InternalBoxesBuilder {
       } else if (box.type === 'slat_bed') {
         // --- MÓDULO CAMA RETRÁTIL COM RIPAS ---
         this.slatBedBuilder.buildSlatBedModule(boxContainer, boxWM, boxLM, boxHM, boxMat, box, isSelected, isBedOpen, cellWM, cellLM, showMattress, boxes, grid);
+      } else if (box.type === 'vertical_lift') {
+        // --- MÓDULO EXTENSÍVEL PARA CIMA (ELEVATÓRIO COM BARRAS DE FERRO) ---
+        this.verticalLiftBuilder.buildVerticalLiftModule(
+          boxContainer,
+          boxWM,
+          boxLM,
+          boxHM,
+          boxMat,
+          box,
+          isSelected,
+          isLiftOpen
+        );
       } else {
         // --- MÓDULO BAÚ COM TAMPA OU NICHO ABERTO ---
         this.chestBuilder.buildChestModule(
@@ -331,6 +346,26 @@ export class InternalBoxesBuilder {
           isSelected,
           isChestOpen,
           box.chestHingeDirection || 'front'
+        );
+      }
+
+      // --- COMPONENTE CAMA ACOPLADO SOBRE O MÓDULO (ex: sobre bandeja corrediça, gavetão, baú ou nicho) ---
+      if (box.type !== 'slat_bed' && box.hasBed) {
+        this.slatBedBuilder.buildSlatBedModule(
+          boxContainer,
+          boxWM,
+          boxLM,
+          boxHM,
+          boxMat,
+          box,
+          isSelected,
+          isBedOpen,
+          cellWM,
+          cellLM,
+          showMattress,
+          boxes,
+          grid,
+          true // skipBaseBox = true (assenta sobre o módulo existente)
         );
       }
 
@@ -388,7 +423,7 @@ export class InternalBoxesBuilder {
           boxHM,
           box,
           isSelected,
-          isDrawerOpen || isChestOpen,
+          isDrawerOpen || isChestOpen || isLiftOpen,
           isBedOpen
         );
       }

@@ -225,3 +225,11 @@ const exportData = {
 const outputPath = path.resolve('tmp/scripts/cutting_data.json');
 fs.writeFileSync(outputPath, JSON.stringify(exportData, null, 2), 'utf-8');
 console.log(`Saved cutting plan data to ${outputPath} (${(fs.statSync(outputPath).size / 1024).toFixed(1)} KB)`);
+
+const runtimePath = path.resolve('backend/runtime/cutting_data.json');
+try {
+  fs.writeFileSync(runtimePath, JSON.stringify(exportData, null, 2), 'utf-8');
+  console.log(`Synced cutting plan data to ${runtimePath}`);
+} catch (e) {
+  // backend/runtime pode não existir em ambientes restritos
+}

@@ -28,6 +28,8 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
     updateInternalBox,
     toggleCeiling3D,
     toggleFloor3D,
+    showMattress,
+    setShowMattress,
   } = useSolar();
 
   const [wallsGhost, setWallsGhost] = useState<boolean>(
@@ -134,9 +136,9 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
           </button>
 
           {(() => {
-            const slatBeds = internalBoxes.filter((b) => b.type === 'slat_bed');
+            const slatBeds = internalBoxes.filter((b) => b.type === 'slat_bed' || b.hasBed);
             if (slatBeds.length === 0) return null;
-            const isBedOpen = isOpenPreview || slatBeds.some((b) => Boolean(b.isOpen));
+            const isBedOpen = isOpenPreview || slatBeds.some((b) => Boolean(b.isBedOpen ?? (b.type === 'slat_bed' ? b.isOpen : false)));
             return (
               <button
                 type="button"
@@ -146,7 +148,8 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
                   slatBeds.forEach((b) => {
                     const nextParts = next && b.mattressParts === 1 ? 2 : b.mattressParts;
                     updateInternalBox(b.id, {
-                      isOpen: next,
+                      ...(b.type === 'slat_bed' ? { isOpen: next } : {}),
+                      isBedOpen: next,
                       slatExtensionPercent: 100,
                       ...(nextParts !== undefined ? { mattressParts: nextParts } : {})
                     });
@@ -241,6 +244,40 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
             );
           })()}
 
+          {(() => {
+            const liftBoxes = internalBoxes.filter((b) => b.type === 'vertical_lift');
+            if (liftBoxes.length === 0) return null;
+            const allOpen = liftBoxes.every((b) => Boolean(b.isOpen));
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  liftBoxes.forEach((b) => updateInternalBox(b.id, { isOpen: !allOpen }));
+                }}
+                className="btn-compact"
+                style={{
+                  width: '100%',
+                  fontSize: '11.5px',
+                  padding: '8px 12px',
+                  fontWeight: 700,
+                  background: allOpen
+                    ? 'linear-gradient(135deg, #10b981, #059669)'
+                    : 'linear-gradient(135deg, #0284c7, #2563eb)',
+                  borderColor: allOpen ? '#34d399' : '#38bdf8',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+                title="Elevar ou recolher todos os módulos elevatórios verticais"
+              >
+                <span>{allOpen ? '⬇️' : '🏗️'}</span>
+                <span>{allOpen ? 'Elevatórios: Elevados (+Y) (Recolher)' : 'Elevar Módulos Verticais (+Y)'}</span>
+              </button>
+            );
+          })()}
+
           {hasUpperCabinets && (() => {
             const areCabinetsOpen = isCabinetsOpenPreview || internalBoxes.some((b) => b.upperCabinet && b.isUpperCabinetOpen);
             return (
@@ -270,6 +307,33 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
               </button>
             );
           })()}
+
+          {internalBoxes.some((b) => b.type === 'slat_bed' || b.hasBed) && (
+            <button
+              type="button"
+              onClick={() => setShowMattress(!showMattress)}
+              className="btn-compact"
+              style={{
+                width: '100%',
+                fontSize: '11.5px',
+                padding: '8px 12px',
+                fontWeight: 700,
+                background: showMattress
+                  ? 'rgba(15, 23, 42, 0.85)'
+                  : 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                borderColor: showMattress ? 'rgba(56, 189, 248, 0.4)' : '#fbbf24',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+              title={showMattress ? 'Ocultar o colchão no 3D para ver a estrutura da cama' : 'Exibir o colchão no 3D'}
+            >
+              <span>{showMattress ? '🛏️' : '🙈'}</span>
+              <span>{showMattress ? 'Colchão: Visível' : 'Colchão: Oculto'}</span>
+            </button>
+          )}
 
           {internalGrid.ceiling?.enabled !== false && (
             <button

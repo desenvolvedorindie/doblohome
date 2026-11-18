@@ -441,6 +441,9 @@ export class UpperCabinetTransverseBuilder {
         } else {
           const lipH = 0.025;
           const lipY = interiorBottomY + lipH / 2;
+          const lipZ = frontZ + (side === 'rear' ? -t / 2 : t / 2);
+
+          // Friso anti-queda na base inferior do nicho aberto
           addPanel(
             upperGroup,
             innerW,
@@ -448,14 +451,42 @@ export class UpperCabinetTransverseBuilder {
             t,
             0,
             lipY,
-            frontZ + (side === 'rear' ? -t / 2 : t / 2),
+            lipZ,
             cabinetMat,
             edgeMat,
             box.id,
             container,
-            `${box.name} • Armário Aéreo (${side}) Friso Anti-Queda (25mm)`,
+            `${box.name} • Armário Aéreo (${side}) Friso Anti-Queda Base (25mm)`,
             cabinetUserData
           );
+
+          // Friso anti-queda (beradinha) em TODAS as prateleiras do nicho aberto
+          if (!isDrawer) {
+            const shelfSpacing = innerH / (numShelves + 1);
+            for (let s = 1; s <= numShelves; s++) {
+              const shelfY = interiorBottomY + s * shelfSpacing;
+              const shelfLipY = shelfY + t / 2 + lipH / 2;
+              addPanel(
+                upperGroup,
+                innerW,
+                lipH,
+                t,
+                0,
+                shelfLipY,
+                lipZ,
+                cabinetMat,
+                edgeMat,
+                box.id,
+                container,
+                `${box.name} • Armário Aéreo (${side}) Friso Anti-Queda Prateleira #${s} (25mm)`,
+                {
+                  ...cabinetUserData,
+                  isUpperCabinetShelfLip: true,
+                  shelfIndex: s
+                }
+              );
+            }
+          }
         }
   }
 }

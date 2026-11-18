@@ -94,7 +94,7 @@ describe('Upper Cabinets / Armários Aéreos Opening System', () => {
 
     builder.update(grid, [box], null, { openCabinets: true });
     const woodStats = extractWoodCutGroups({ internalBoxesBuilder: builder });
-    const cabinetDoorPart = woodStats.cutGroups.find((g) => g.partType === 'cabinet' && g.label.includes('Porta c/ Trava'));
+    const cabinetDoorPart = woodStats.cutGroups.find((g) => (g.partType === 'cabinet' || g.partType === 'door') && g.label.includes('Porta c/ Trava'));
     expect(cabinetDoorPart).toBeDefined();
     expect(cabinetDoorPart?.qty).toBe(1);
   });

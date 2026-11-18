@@ -56,7 +56,7 @@ export const CanvasViewport: React.FC = () => {
         }}
       />
 
-      {activeModuleBox && (
+      {isolatedBoxId && activeModuleBox && (
         <div
           style={{
             position: 'absolute',
@@ -72,7 +72,6 @@ export const CanvasViewport: React.FC = () => {
           <button
             onClick={() => {
               setIsolatedBoxId(null);
-              setSelectedBoxId(null);
             }}
             style={{
               display: 'inline-flex',
@@ -90,9 +89,9 @@ export const CanvasViewport: React.FC = () => {
               backdropFilter: 'blur(8px)',
               transition: 'all 0.15s ease'
             }}
-            title="Voltar para visualizar e editar todos os demais baús (ou pressione ESC)"
+            title="Voltar para exibir todos os módulos (ou pressione ESC)"
           >
-            <span style={{ fontSize: '18px', lineHeight: 1 }}>←</span> Voltar (Editar demais baús)
+            <span style={{ fontSize: '18px', lineHeight: 1 }}>←</span> Voltar (Exibir todos os módulos)
           </button>
 
           <div
@@ -111,7 +110,7 @@ export const CanvasViewport: React.FC = () => {
             }}
           >
             <span style={{ color: '#38bdf8', fontWeight: 800 }}>
-              {isolatedBoxId ? '🎯 Visualização Isolada:' : '🪵 Inspecionando Módulo:'}
+              🎯 Visualização Isolada:
             </span>
             <span>{activeModuleBox.name}</span>
             <span style={{ color: '#94a3b8', fontSize: '11px', marginLeft: '6px' }}>

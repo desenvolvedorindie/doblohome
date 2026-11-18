@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSolar } from '../../context/SolarContext';
 import { InternalBoxItem } from '../../types';
+import { saveApplianceMemory, getApplianceMemory } from '../../utils/componentPositionMemory';
 
 interface PlannerStoveSectionProps {
   selectedBox: InternalBoxItem;
@@ -31,12 +32,15 @@ export const PlannerStoveSection: React.FC<PlannerStoveSectionProps> = ({
   const currentPresetId = selectedBox.stovePresetId || boxWithStove?.stovePresetId || activeStovePresetId || stovePresets[0]?.id;
   const selectedPreset = stovePresets.find(p => p.id === currentPresetId) || stovePresets[0];
 
-  const placement = selectedBox.stovePlacement || 'top';
-  const rotation = selectedBox.stoveRotation || 0;
-  const alignX = selectedBox.stoveAlignX || 'center';
-  const alignZ = selectedBox.stoveAlignZ || 'center';
-  const offsetX = selectedBox.stoveOffsetX || 0;
-  const offsetZ = selectedBox.stoveOffsetZ || 0;
+  const stoveMem = getApplianceMemory('stove');
+  const rawPlacement = selectedBox.stovePlacement ?? boxWithStove?.stovePlacement ?? stoveMem?.placement ?? 'top';
+  const placement: 'inside' | 'top' | 'rear_shelf' = rawPlacement === 'drawer' ? 'inside' : rawPlacement;
+  const rotation: 0 | 90 | 180 | 270 = (selectedBox.stoveRotation ?? boxWithStove?.stoveRotation ?? stoveMem?.rotation ?? 0) as 0 | 90 | 180 | 270;
+  const alignX: 'center' | 'left' | 'right' = (selectedBox.stoveAlignX ?? boxWithStove?.stoveAlignX ?? stoveMem?.alignX ?? 'center') as 'center' | 'left' | 'right';
+  const rawAlignZ = selectedBox.stoveAlignZ ?? boxWithStove?.stoveAlignZ ?? stoveMem?.alignZ ?? 'center';
+  const alignZ: 'center' | 'front' | 'back' = rawAlignZ === 'rear' ? 'back' : (rawAlignZ as 'center' | 'front' | 'back');
+  const offsetX = selectedBox.stoveOffsetX ?? boxWithStove?.stoveOffsetX ?? stoveMem?.offsetX ?? 0;
+  const offsetZ = selectedBox.stoveOffsetZ ?? boxWithStove?.stoveOffsetZ ?? stoveMem?.offsetZ ?? 0;
 
   // Verificação dimensional considerando orientação (0°, 90°, 180°, 270°) e local de instalação
   const isRotated = rotation === 90 || rotation === 270;
@@ -63,6 +67,14 @@ export const PlannerStoveSection: React.FC<PlannerStoveSectionProps> = ({
 
   // Função para mover o fogareiro de um módulo para outro
   const handleMoveStoveToBox = (targetBoxId: string) => {
+    saveApplianceMemory('stove', {
+      placement,
+      rotation,
+      alignX,
+      alignZ,
+      offsetX,
+      offsetZ
+    });
     setInternalBoxes((prev: InternalBoxItem[]) =>
       prev.map(b => {
         if (b.id === targetBoxId) {
@@ -70,12 +82,12 @@ export const PlannerStoveSection: React.FC<PlannerStoveSectionProps> = ({
             ...b,
             hasStove: true,
             stovePresetId: currentPresetId,
-            stovePlacement: selectedBox.stovePlacement || b.stovePlacement || 'top',
-            stoveRotation: selectedBox.stoveRotation ?? b.stoveRotation ?? 0,
-            stoveAlignX: selectedBox.stoveAlignX ?? b.stoveAlignX ?? 'center',
-            stoveAlignZ: selectedBox.stoveAlignZ ?? b.stoveAlignZ ?? 'center',
-            stoveOffsetX: selectedBox.stoveOffsetX ?? b.stoveOffsetX ?? 0,
-            stoveOffsetZ: selectedBox.stoveOffsetZ ?? b.stoveOffsetZ ?? 0
+            stovePlacement: placement,
+            stoveRotation: rotation,
+            stoveAlignX: alignX,
+            stoveAlignZ: alignZ,
+            stoveOffsetX: offsetX,
+            stoveOffsetZ: offsetZ
           };
         }
         if (b.hasStove) {
@@ -139,6 +151,14 @@ export const PlannerStoveSection: React.FC<PlannerStoveSectionProps> = ({
           type="button"
           onClick={() => {
             if (isStoveActive) {
+              saveApplianceMemory('stove', {
+                placement,
+                rotation,
+                alignX,
+                alignZ,
+                offsetX,
+                offsetZ
+              });
               updateInternalBox(selectedBox.id, {
                 hasStove: false,
                 stovePresetId: undefined
@@ -252,8 +272,10 @@ export const PlannerStoveSection: React.FC<PlannerStoveSectionProps> = ({
               <select
                 value={placement}
                 onChange={(e) => {
+                  const newPlacement = e.target.value as 'inside' | 'top' | 'rear_shelf';
+                  saveApplianceMemory('stove', { placement: newPlacement });
                   updateInternalBox(selectedBox.id, {
-                    stovePlacement: e.target.value as 'inside' | 'top' | 'rear_shelf'
+                    stovePlacement: newPlacement
                   });
                 }}
                 style={{
@@ -308,7 +330,10 @@ export const PlannerStoveSection: React.FC<PlannerStoveSectionProps> = ({
                       key={r.value}
                       type="button"
                       className={`btn-compact ${isCur ? 'active' : ''}`}
-                      onClick={() => updateInternalBox(selectedBox.id, { stoveRotation: r.value as any })}
+                      onClick={() => {
+                        saveApplianceMemory('stove', { rotation: r.value as any });
+                        updateInternalBox(selectedBox.id, { stoveRotation: r.value as any });
+                      }}
                       style={{
                         padding: '4px 2px',
                         fontSize: '9.5px',
@@ -344,7 +369,10 @@ export const PlannerStoveSection: React.FC<PlannerStoveSectionProps> = ({
                         key={a.val}
                         type="button"
                         className={`btn-compact ${isCur ? 'active' : ''}`}
-                        onClick={() => updateInternalBox(selectedBox.id, { stoveAlignX: a.val as any })}
+                        onClick={() => {
+                        saveApplianceMemory('stove', { alignX: a.val as any });
+                        updateInternalBox(selectedBox.id, { stoveAlignX: a.val as any });
+                      }}
                         style={{
                           padding: '4px 2px',
                           fontSize: '9.5px',
@@ -378,7 +406,10 @@ export const PlannerStoveSection: React.FC<PlannerStoveSectionProps> = ({
                         key={a.val}
                         type="button"
                         className={`btn-compact ${isCur ? 'active' : ''}`}
-                        onClick={() => updateInternalBox(selectedBox.id, { stoveAlignZ: a.val as any })}
+                        onClick={() => {
+                          saveApplianceMemory('stove', { alignZ: a.val as any });
+                          updateInternalBox(selectedBox.id, { stoveAlignZ: a.val as any });
+                        }}
                         style={{
                           padding: '4px 2px',
                           fontSize: '9.5px',
@@ -410,7 +441,11 @@ export const PlannerStoveSection: React.FC<PlannerStoveSectionProps> = ({
                   max="150"
                   step="5"
                   value={offsetX}
-                  onChange={(e) => updateInternalBox(selectedBox.id, { stoveOffsetX: parseInt(e.target.value, 10) })}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    saveApplianceMemory('stove', { offsetX: val });
+                    updateInternalBox(selectedBox.id, { stoveOffsetX: val });
+                  }}
                   title="Ajuste fino milimétrico para esquerda/direita na bancada"
                 />
               </div>
@@ -427,7 +462,11 @@ export const PlannerStoveSection: React.FC<PlannerStoveSectionProps> = ({
                   max="150"
                   step="5"
                   value={offsetZ}
-                  onChange={(e) => updateInternalBox(selectedBox.id, { stoveOffsetZ: parseInt(e.target.value, 10) })}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    saveApplianceMemory('stove', { offsetZ: val });
+                    updateInternalBox(selectedBox.id, { stoveOffsetZ: val });
+                  }}
                   title="Ajuste fino milimétrico para frente/fundo na bancada"
                 />
               </div>
@@ -437,7 +476,10 @@ export const PlannerStoveSection: React.FC<PlannerStoveSectionProps> = ({
               <button
                 type="button"
                 className="btn-compact"
-                onClick={() => updateInternalBox(selectedBox.id, { stoveOffsetX: 0, stoveOffsetZ: 0 })}
+                onClick={() => {
+                  saveApplianceMemory('stove', { offsetX: 0, offsetZ: 0 });
+                  updateInternalBox(selectedBox.id, { stoveOffsetX: 0, stoveOffsetZ: 0 });
+                }}
                 style={{
                   width: '100%',
                   fontSize: '9.5px',

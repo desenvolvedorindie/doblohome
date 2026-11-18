@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { InternalBoxItem, StovePreset } from '../../../types';
+import { getBoxThickness } from '../BoxGeometryHelpers';
 import { DEFAULT_STOVE_PRESETS, loadStovePresets } from '../../../data/stovePresets';
 
 /**
@@ -38,19 +39,11 @@ export function buildStoveApplianceAccessory(
   const sdRaw = preset.depth / 1000;
   const shRaw = preset.height / 1000;
 
-  let scale = 1;
-  if (placement === 'inside') {
-    const availW = Math.max(0.12, w - 0.036);
-    const availD = Math.max(0.12, l - 0.036);
-    const availH = Math.max(0.05, h - 0.024);
-    const effW = isRotated90 ? sdRaw : swRaw;
-    const effD = isRotated90 ? swRaw : sdRaw;
-    scale = Math.min(1, availW / effW, availD / effD, availH / shRaw);
-  }
-
-  const sw = swRaw * scale;
-  const sd = sdRaw * scale;
-  const sh = shRaw * scale;
+  // Dimensões físicas reais do fogareiro fixas conforme o preset (escala 1:1, nunca encolhe com o módulo)
+  const scale = 1;
+  const sw = swRaw;
+  const sd = sdRaw;
+  const sh = shRaw;
 
   const stoveGroup = new THREE.Group();
   stoveGroup.name = `StoveAppliance_${box.id}`;
@@ -351,13 +344,28 @@ export function buildStoveApplianceAccessory(
 
   // Posicionamento conforme o local escolhido
   if (placement === 'top') {
-    // Sobre o Tampo / Bancada com alinhamento e deslocamento fino configurável
-    stoveGroup.position.set(
-      alignXOffset + fineOffsetX,
-      h / 2 + sh / 2 + 0.001,
-      alignZOffset + fineOffsetZ
-    );
-    container.add(stoveGroup);
+    const liftLid = container.getObjectByName('VerticalLiftLidGroup') as THREE.Group | undefined;
+    if (liftLid) {
+      // Quando o módulo é elevatório (extensível para cima), acopla o fogareiro diretamente
+      // no grupo do tampo móvel superior, para que ele suba e desça junto com o mecanismo telescópico
+      const tConfig = getBoxThickness(box);
+      const hasTop = box.panels?.top ?? true;
+      const tTop = hasTop ? tConfig.top : 0;
+      stoveGroup.position.set(
+        alignXOffset + fineOffsetX,
+        tTop / 2 + sh / 2 + 0.001,
+        alignZOffset + fineOffsetZ
+      );
+      liftLid.add(stoveGroup);
+    } else {
+      // Sobre o Tampo / Bancada com alinhamento e deslocamento fino configurável
+      stoveGroup.position.set(
+        alignXOffset + fineOffsetX,
+        h / 2 + sh / 2 + 0.001,
+        alignZOffset + fineOffsetZ
+      );
+      container.add(stoveGroup);
+    }
   } else if (placement === 'rear_shelf') {
     const rearPivot = container.getObjectByName('RearFoldShelfPivot') as THREE.Group | undefined;
     const isRearShelfOpen = Boolean(rearPivot && Math.abs(rearPivot.rotation.x - Math.PI / 2) < 0.1);
@@ -374,7 +382,10 @@ export function buildStoveApplianceAccessory(
       rearPivot.add(uprightWrapper);
     } else {
       // Quando a prateleira traseira está fechada, guarda no interior do módulo
-      const bottomY = -h / 2 + sh / 2 + 0.018;
+      const tConfig = getBoxThickness(box);
+      const hasBottom = Boolean(box.panels?.bottom);
+      const bottomThickness = hasBottom ? tConfig.bottom : 0;
+      const bottomY = -h / 2 + sh / 2 + bottomThickness;
       stoveGroup.position.set(alignXOffset + fineOffsetX, bottomY, alignZOffset + fineOffsetZ);
       targetParent.add(stoveGroup);
     }
@@ -385,7 +396,10 @@ export function buildStoveApplianceAccessory(
       const posY = drawerSlide.userData.trayTopY + sh / 2;
       stoveGroup.position.set(posX, posY, posZ);
     } else {
-      const bottomY = -h / 2 + sh / 2 + 0.018;
+      const tConfig = getBoxThickness(box);
+      const hasBottom = Boolean(box.panels?.bottom);
+      const bottomThickness = hasBottom ? tConfig.bottom : 0;
+      const bottomY = -h / 2 + sh / 2 + bottomThickness;
       stoveGroup.position.set(alignXOffset + fineOffsetX, bottomY, alignZOffset + fineOffsetZ);
     }
     targetParent.add(stoveGroup);

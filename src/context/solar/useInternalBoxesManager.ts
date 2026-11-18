@@ -26,6 +26,7 @@ import {
   DEFAULT_CEILING_CONFIG
 } from '../../data/internalBoxesPresets';
 import { dbSet } from '../../data/db';
+import { saveElectronicMemory, saveApplianceMemory } from '../../utils/componentPositionMemory';
 
 export interface ExternalBoxFocusState {
   selectedBoxId: string | null;
@@ -123,7 +124,6 @@ export function useInternalBoxesManager(
   };
 
   const setSelectedBoxId = (id: string | null) => {
-    const prevSelected = selectedBoxId;
     setSelectedBoxIdState(id);
     if (sceneManager) {
       sceneManager.clearBarHover();
@@ -131,13 +131,6 @@ export function useInternalBoxesManager(
     if (id !== null) {
       if (isolatedBoxId && isolatedBoxId !== id) {
         setIsolatedBoxIdState(id);
-      }
-      if (
-        sceneManager &&
-        id !== prevSelected &&
-        sceneManager.internalBoxesBuilder?.boxesGroup?.getObjectByName(`BoxContainer_${id}`)
-      ) {
-        sceneManager.focusOnBox(id);
       }
     } else {
       setIsolatedBoxIdState(null);
@@ -351,6 +344,42 @@ export function useInternalBoxesManager(
 
   const removeInternalBox = (id: string) => {
     setInternalBoxesState(prev => {
+      const boxToRemove = prev.find(b => b.id === id);
+      if (boxToRemove) {
+        if (boxToRemove.electronics && boxToRemove.electronics.length > 0) {
+          boxToRemove.electronics.forEach(el => {
+            saveElectronicMemory(el.id, el);
+          });
+        }
+        if (boxToRemove.hasFridge) {
+          saveApplianceMemory('fridge', {
+            rotation: boxToRemove.fridgeRotation,
+            alignX: boxToRemove.fridgeAlignX,
+            alignZ: boxToRemove.fridgeAlignZ,
+            offsetX: boxToRemove.fridgeOffsetX,
+            offsetZ: boxToRemove.fridgeOffsetZ
+          });
+        }
+        if (boxToRemove.hasStove) {
+          saveApplianceMemory('stove', {
+            placement: boxToRemove.stovePlacement,
+            rotation: boxToRemove.stoveRotation,
+            alignX: boxToRemove.stoveAlignX,
+            alignZ: boxToRemove.stoveAlignZ,
+            offsetX: boxToRemove.stoveOffsetX,
+            offsetZ: boxToRemove.stoveOffsetZ
+          });
+        }
+        if (boxToRemove.hasPortaPotti) {
+          saveApplianceMemory('portaPotti', {
+            rotation: boxToRemove.portaPottiRotation,
+            alignX: boxToRemove.portaPottiAlignX,
+            alignZ: boxToRemove.portaPottiAlignZ,
+            offsetX: boxToRemove.portaPottiOffsetX,
+            offsetZ: boxToRemove.portaPottiOffsetZ
+          });
+        }
+      }
       const next = prev.filter(b => b.id !== id);
       if (isDbLoaded) {
         dbSet('doblo_internal_boxes', next);
@@ -366,7 +395,44 @@ export function useInternalBoxesManager(
   };
 
   const clearInternalBoxes = () => {
-    setInternalBoxesState([]);
+    setInternalBoxesState(prev => {
+      prev.forEach(box => {
+        if (box.electronics && box.electronics.length > 0) {
+          box.electronics.forEach(el => {
+            saveElectronicMemory(el.id, el);
+          });
+        }
+        if (box.hasFridge) {
+          saveApplianceMemory('fridge', {
+            rotation: box.fridgeRotation,
+            alignX: box.fridgeAlignX,
+            alignZ: box.fridgeAlignZ,
+            offsetX: box.fridgeOffsetX,
+            offsetZ: box.fridgeOffsetZ
+          });
+        }
+        if (box.hasStove) {
+          saveApplianceMemory('stove', {
+            placement: box.stovePlacement,
+            rotation: box.stoveRotation,
+            alignX: box.stoveAlignX,
+            alignZ: box.stoveAlignZ,
+            offsetX: box.stoveOffsetX,
+            offsetZ: box.stoveOffsetZ
+          });
+        }
+        if (box.hasPortaPotti) {
+          saveApplianceMemory('portaPotti', {
+            rotation: box.portaPottiRotation,
+            alignX: box.portaPottiAlignX,
+            alignZ: box.portaPottiAlignZ,
+            offsetX: box.portaPottiOffsetX,
+            offsetZ: box.portaPottiOffsetZ
+          });
+        }
+      });
+      return [];
+    });
     setSelectedBoxId(null);
     setIsolatedBoxIdState(null);
     if (sceneManager) sceneManager.focusOnBox(null);

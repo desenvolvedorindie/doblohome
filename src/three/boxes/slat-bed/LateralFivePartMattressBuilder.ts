@@ -37,6 +37,7 @@ function getUncutSeamIntervalsZ(
 export function buildLateralFivePartMattress(params: {
   container: THREE.Group;
   w: number;
+  l: number;
   direction: SlatBedDirection;
   isExtended: boolean;
   cellW: number;
@@ -53,6 +54,7 @@ export function buildLateralFivePartMattress(params: {
   const {
     container,
     w,
+    l,
     direction,
     isExtended,
     cellW,
@@ -75,7 +77,7 @@ export function buildLateralFivePartMattress(params: {
   const archW = 0.142; // ~142mm para cada caixa de roda
 
   if (isExtended) {
-    // 1. Aba Caixa de Roda do lado da base
+    // 1. Aba Caixa de Roda do lado da base (comprimento 100% de l: de -l/2 a +l/2)
     const baseArchX = direction === 'left' ? (-w / 2 - archW / 2) : (w / 2 + archW / 2);
     const baseArchRes = buildCushionMesh(
       { minX: baseArchX - archW / 2, maxX: baseArchX + archW / 2, minZ: -cushionL / 2, maxZ: cushionL / 2 },
@@ -96,7 +98,7 @@ export function buildLateralFivePartMattress(params: {
         dimH: mattressThickness,
         dimL: curL,
         thicknessMm: Math.round(mattressThickness * 1000),
-        partLabel: `Almofada Aba Caixa de Roda${baseArchRes.labelSuffix}`,
+        partLabel: `Almofada Aba Caixa de Roda Base${baseArchRes.labelSuffix}`,
         material: upholsteryMat,
         woodMaterial: upholsteryWoodMat,
         category: '🛏️ Estofaria Campervan',
@@ -107,7 +109,7 @@ export function buildLateralFivePartMattress(params: {
       container.add(baseArchRes.mesh);
     }
 
-    // 2. Três almofadas centrais
+    // 2. Três almofadas centrais cobrindo 100% da largura útil sem gaps
     const centralResults: Array<CushionMeshResult | null> = [];
     for (let i = 0; i < 3; i++) {
       const pieceCenterX = direction === 'left'
@@ -151,13 +153,15 @@ export function buildLateralFivePartMattress(params: {
     if (baseArchRes && centralResults[0]) {
       const baseSeamX = direction === 'left' ? -w / 2 : w / 2;
       const seamMinZ = Math.max(baseArchRes.actualMinZ, centralResults[0].actualMinZ);
-      const seamMaxZ = Math.min(baseArchRes.actualMaxZ, centralResults[0].actualMaxZ);
+      const seamMaxZ = Math.min(baseArchRes.actualMaxZ, centralResults[0].actualMinZ);
       for (const seg of getUncutSeamIntervalsZ(baseSeamX, seamMinZ, seamMaxZ, cutoutZones)) {
         const seamL = seg.maxZ - seg.minZ;
-        const baseSeamGeo = new THREE.BoxGeometry(0.004, mattressThickness + 0.002, seamL);
-        const baseSeamMesh = new THREE.Mesh(baseSeamGeo, seamMat);
-        baseSeamMesh.position.set(baseSeamX, mattressY, (seg.minZ + seg.maxZ) / 2);
-        container.add(baseSeamMesh);
+        if (seamL > 0.01) {
+          const baseSeamGeo = new THREE.BoxGeometry(0.004, mattressThickness + 0.002, seamL);
+          const baseSeamMesh = new THREE.Mesh(baseSeamGeo, seamMat);
+          baseSeamMesh.position.set(baseSeamX, mattressY, (seg.minZ + seg.maxZ) / 2);
+          container.add(baseSeamMesh);
+        }
       }
     }
 
@@ -173,15 +177,17 @@ export function buildLateralFivePartMattress(params: {
         const seamMaxZ = Math.min(cA.actualMaxZ, cB.actualMaxZ);
         for (const seg of getUncutSeamIntervalsZ(seamX, seamMinZ, seamMaxZ, cutoutZones)) {
           const seamL = seg.maxZ - seg.minZ;
-          const seamGeo = new THREE.BoxGeometry(0.004, mattressThickness + 0.002, seamL);
-          const seamMesh = new THREE.Mesh(seamGeo, seamMat);
-          seamMesh.position.set(seamX, mattressY, (seg.minZ + seg.maxZ) / 2);
-          container.add(seamMesh);
+          if (seamL > 0.01) {
+            const seamGeo = new THREE.BoxGeometry(0.004, mattressThickness + 0.002, seamL);
+            const seamMesh = new THREE.Mesh(seamGeo, seamMat);
+            seamMesh.position.set(seamX, mattressY, (seg.minZ + seg.maxZ) / 2);
+            container.add(seamMesh);
+          }
         }
       }
     }
 
-    // 3. Aba Caixa de Roda do lado oposto (aberto)
+    // 3. Aba Caixa de Roda do lado oposto
     const farArchX = direction === 'left' ? (-w / 2 + 3 * cellW + archW / 2) : (w / 2 - 3 * cellW - archW / 2);
     const farArchRes = buildCushionMesh(
       { minX: farArchX - archW / 2, maxX: farArchX + archW / 2, minZ: -cushionL / 2, maxZ: cushionL / 2 },
@@ -202,7 +208,7 @@ export function buildLateralFivePartMattress(params: {
         dimH: mattressThickness,
         dimL: curL,
         thicknessMm: Math.round(mattressThickness * 1000),
-        partLabel: `Almofada Aba Oposta Caixa de Roda${farArchRes.labelSuffix}`,
+        partLabel: `Almofada Aba Caixa de Roda Oposta${farArchRes.labelSuffix}`,
         material: upholsteryMat,
         woodMaterial: upholsteryWoodMat,
         category: '🛏️ Estofaria Campervan',
@@ -211,13 +217,16 @@ export function buildLateralFivePartMattress(params: {
         partType: 'upholstery'
       };
       container.add(farArchRes.mesh);
+    }
 
-      if (centralResults[2]) {
-        const farSeamX = direction === 'left' ? (-w / 2 + 3 * cellW) : (w / 2 - 3 * cellW);
-        const seamMinZ = Math.max(centralResults[2].actualMinZ, farArchRes.actualMinZ);
-        const seamMaxZ = Math.min(centralResults[2].actualMaxZ, farArchRes.actualMaxZ);
-        for (const seg of getUncutSeamIntervalsZ(farSeamX, seamMinZ, seamMaxZ, cutoutZones)) {
-          const seamL = seg.maxZ - seg.minZ;
+    // Costura com a 3ª coluna
+    if (farArchRes && centralResults[2]) {
+      const farSeamX = direction === 'left' ? (-w / 2 + 3 * cellW) : (w / 2 - 3 * cellW);
+      const seamMinZ = Math.max(farArchRes.actualMinZ, centralResults[2].actualMinZ);
+      const seamMaxZ = Math.min(farArchRes.actualMaxZ, centralResults[2].actualMinZ);
+      for (const seg of getUncutSeamIntervalsZ(farSeamX, seamMinZ, seamMaxZ, cutoutZones)) {
+        const seamL = seg.maxZ - seg.minZ;
+        if (seamL > 0.01) {
           const farSeamGeo = new THREE.BoxGeometry(0.004, mattressThickness + 0.002, seamL);
           const farSeamMesh = new THREE.Mesh(farSeamGeo, seamMat);
           farSeamMesh.position.set(farSeamX, mattressY, (seg.minZ + seg.maxZ) / 2);
@@ -226,17 +235,22 @@ export function buildLateralFivePartMattress(params: {
       }
     }
   } else {
-    // Modo sofá fechado: 3 almofadas centrais empilhadas + 2 abas de caixa de roda
-    const layerH = 0.040;
+    // 5 PARTES FECHADAS: 100% da base [-w/2, w/2] x [-l/2, l/2]
+    const closedW = w;
+    const closedL = l;
+    const layerH = 0.045;
+    const layerResults: Array<CushionMeshResult | null> = [];
     for (let p = 0; p < 3; p++) {
       const layerY = topOfSlatsY + layerH / 2 + p * (layerH + 0.001);
       const mRes = buildCushionMesh(
-        { minX: -cushionW / 2, maxX: cushionW / 2, minZ: -cushionL / 2, maxZ: cushionL / 2 },
+        { minX: -closedW / 2, maxX: closedW / 2, minZ: -closedL / 2, maxZ: closedL / 2 },
         cutoutZones,
         layerH,
         layerY,
         mattressMat
       );
+      layerResults.push(mRes);
+
       if (mRes) {
         mRes.mesh.castShadow = true;
         mRes.mesh.receiveShadow = true;
@@ -249,8 +263,8 @@ export function buildLateralFivePartMattress(params: {
           dimH: layerH,
           dimL: curL,
           thicknessMm: Math.round(layerH * 1000),
-          partLabel: `Almofada Central ${p + 1}/3 (Empilhada Sofá)${mRes.labelSuffix}`,
-          material: upholsteryMat,
+          partLabel: `Almofada Central ${p + 1}/3 (5 Partes Modo Sofá)${mRes.labelSuffix}`,
+          material: `${foamLabel} Revestida em Tecido Impermeável 5 Partes`,
           woodMaterial: upholsteryWoodMat,
           category: '🛏️ Estofaria Campervan',
           hasCabinetCutout: mRes.isCutout,
@@ -260,41 +274,56 @@ export function buildLateralFivePartMattress(params: {
         container.add(mRes.mesh);
       }
     }
-    // As duas abas de caixa de roda dobradas ficam lado a lado sobre a 3ª camada central,
-    // no mesmo plano Y perfeitamente nivelado (sem degrau flutuante)
-    const flapLayerY = topOfSlatsY + 3 * (layerH + 0.001) + layerH / 2;
+
     for (let p = 0; p < 2; p++) {
-      const fx = p === 0 ? -cushionW * 0.245 : cushionW * 0.245;
-      const fw = cushionW * 0.49;
-      const fl = cushionL;
-      const fRes = buildCushionMesh(
+      const lA = layerResults[p];
+      if (lA) {
+        const curW = lA.actualMaxX - lA.actualMinX;
+        const curL = lA.actualMaxZ - lA.actualMinZ;
+        const seamGeo = new THREE.BoxGeometry(curW + 0.002, 0.002, curL + 0.002);
+        const seamMesh = new THREE.Mesh(seamGeo, seamMat);
+        const seamCenterZ = (lA.actualMinZ + lA.actualMaxZ) / 2;
+        const seamCenterX = (lA.actualMinX + lA.actualMaxX) / 2;
+        seamMesh.position.set(seamCenterX, topOfSlatsY + (p + 1) * (layerH + 0.001) - 0.0005, seamCenterZ);
+        container.add(seamMesh);
+      }
+    }
+
+    // 2 Abas de caixa de roda dobradas lado a lado sobre a 3ª almofada central
+    const flapThickness = 0.040;
+    const flapY = topOfSlatsY + 3 * (layerH + 0.001) + flapThickness / 2;
+    for (let p = 0; p < 2; p++) {
+      const fx = p === 0 ? -closedW * 0.25 : closedW * 0.25;
+      const fw = closedW * 0.5;
+      const fl = closedL;
+      const flapRes = buildCushionMesh(
         { minX: fx - fw / 2, maxX: fx + fw / 2, minZ: -fl / 2, maxZ: fl / 2 },
         cutoutZones,
-        layerH,
-        flapLayerY,
+        flapThickness,
+        flapY,
         mattressMat
       );
-      if (fRes) {
-        fRes.mesh.castShadow = true;
-        fRes.mesh.receiveShadow = true;
-        const curW = fRes.actualMaxX - fRes.actualMinX;
-        const curL = fRes.actualMaxZ - fRes.actualMinZ;
-        fRes.mesh.userData = {
+      if (flapRes) {
+        flapRes.mesh.castShadow = true;
+        flapRes.mesh.receiveShadow = true;
+        const curW = flapRes.actualMaxX - flapRes.actualMinX;
+        const curL = flapRes.actualMaxZ - flapRes.actualMinZ;
+        flapRes.mesh.userData = {
           isWoodPart: false,
           isUpholstery: true,
           dimW: curW,
-          dimH: layerH,
+          dimH: flapThickness,
           dimL: curL,
-          thicknessMm: Math.round(layerH * 1000),
-          partLabel: `Almofada Aba Caixa de Roda Dobrada #${p + 1}${fRes.labelSuffix}`,
-          material: upholsteryMat,
+          thicknessMm: Math.round(flapThickness * 1000),
+          partLabel: `Aba Caixa de Roda Dobrada ${p + 1}/2 (5 Partes Modo Sofá)${flapRes.labelSuffix}`,
+          material: `${foamLabel} Revestida em Tecido Impermeável 5 Partes`,
           woodMaterial: upholsteryWoodMat,
           category: '🛏️ Estofaria Campervan',
-          hasCabinetCutout: fRes.isCutout,
+          hasCabinetCutout: flapRes.isCutout,
           moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
           partType: 'upholstery'
         };
-        container.add(fRes.mesh);
+        container.add(flapRes.mesh);
       }
     }
   }

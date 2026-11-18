@@ -7,7 +7,7 @@ import { StructureMaterial, AluminumColor, SteelProfileUnit, getSteelProfileSpec
 /**
  * Construtor do Quadro Base (220 x 140 cm) em Perfil 40x40 (T-Slot ou Metalon)
  * Inclui longarinas principais de 2,20m, travessas transversais de 1,32m, leito central
- * de apoio das corrediças, sapatas nas calhas da van e cantoneiras de fixação.
+ * de apoio dos perfis guia c/ parafusos deslizantes, sapatas nas calhas da van e cantoneiras de fixação.
  */
 export class BaseRackBuilder {
   static buildBaseRack(

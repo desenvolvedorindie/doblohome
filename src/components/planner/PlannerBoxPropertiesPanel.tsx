@@ -99,11 +99,13 @@ export const PlannerBoxPropertiesPanel: React.FC = () => {
                   const boxLMm = Math.max(50, Math.round(b.rowSpan * (internalGrid.lengthMm / rows) + (b.extraLengthMm || 0)));
                   const typeLabel =
                     b.type === 'chest' ? 'Baú c/ Tampa' :
+                    b.type === 'vertical_lift' ? 'Módulo Elevatório' :
                     b.type === 'drawer' ? (b.drawerMode === 'slide_tray' ? 'Bandeja Corrediça' : 'Gavetão') :
                     b.type === 'slide_tray' ? 'Bandeja Corrediça' :
-                    b.type === 'slat_bed' ? 'Cama c/ Ripas' : 'Nicho Aberto';
+                    b.type === 'slat_bed' ? (b.bedMode === 'hinged' ? 'Cama c/ Dobradiça' : 'Cama c/ Ripas') : 'Nicho Aberto';
                   const icon =
                     b.type === 'chest' ? '🧰' :
+                    b.type === 'vertical_lift' ? '🏗️' :
                     b.type === 'drawer' ? (b.drawerMode === 'slide_tray' ? '🛝' : '📦') :
                     b.type === 'slide_tray' ? '🛝' :
                     b.type === 'slat_bed' ? '🛏️' : '🚪';
@@ -142,6 +144,7 @@ export const PlannerBoxPropertiesPanel: React.FC = () => {
                             {typeLabel}
                             {b.upperCabinet ? ' • Aéreo' : ''}
                             {b.rearFoldShelf ? ' • Traseira' : ''}
+                            {b.hasBed && b.type !== 'slat_bed' ? (b.bedMode === 'hinged' ? ' • 🚪 Cama Dobradiça' : ' • 🛏️ Cama Ripas') : ''}
                             {b.hasStove ? ' • 🔥 Fogareiro' : ''}
                           </div>
                         </div>

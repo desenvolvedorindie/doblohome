@@ -24,10 +24,15 @@ export const SyncBadge: React.FC = () => {
           type="button"
           className="ide-quick-pill"
           onClick={openAuth}
-          title="Seus projetos estão salvos só neste navegador. Crie uma conta para salvar no servidor."
+          title="Fazer login ou criar conta para sincronizar seus projetos e cadastros no servidor."
+          style={{
+            background: 'rgba(56, 189, 248, 0.12)',
+            borderColor: 'rgba(56, 189, 248, 0.35)',
+            color: '#38bdf8',
+          }}
         >
-          <span>☁</span>
-          <span>Salvar na nuvem</span>
+          <span>👤</span>
+          <span>Login</span>
         </button>
       </div>
     );

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { InternalBoxItem } from '../../../types';
+import { getBoxThickness } from '../BoxGeometryHelpers';
 import { DEFAULT_FRIDGE_PRESETS, loadFridgePresets } from '../../../data/fridgePresets';
 import { DEFAULT_PORTAPOTTI_PRESETS, loadPortaPottiPresets } from '../../../data/portaPottiPresets';
 
@@ -21,9 +22,9 @@ export function buildFridgeApplianceAccessory(
   const allPresets = loadFridgePresets();
   const preset = (box.fridgePresetId && allPresets.find(p => p.id === box.fridgePresetId)) || DEFAULT_FRIDGE_PRESETS[0];
 
-  const fw = Math.min(w - 0.03, preset.width / 1000);
-  const fd = Math.min(l - 0.03, preset.depth / 1000);
-  const fh = Math.min(h - 0.02, preset.height / 1000);
+  const fw = preset.width / 1000;
+  const fd = preset.depth / 1000;
+  const fh = preset.height / 1000;
 
   const fridgeGroup = new THREE.Group();
   fridgeGroup.name = `FridgeAppliance_${box.id}`;
@@ -107,10 +108,15 @@ export function buildFridgeApplianceAccessory(
     }
   }
 
+  const isInsideDrawer = Boolean(drawerSlide && drawerSlide.userData?.dL !== undefined);
+  const trayT = (drawerSlide?.userData?.tBottom) || 0.015;
+  const availW = isInsideDrawer ? Math.max(0.01, drawerSlide.userData.dW - 2 * trayT - 0.006) : Math.max(0.01, w - 0.04);
+  const availD = isInsideDrawer ? Math.max(0.01, drawerSlide.userData.dL - 2 * trayT - 0.006) : Math.max(0.01, l - 0.04);
+
   const effectiveW = isRotated90 ? fd : fw;
   const effectiveD = isRotated90 ? fw : fd;
-  const slackX = Math.max(0, (w - 0.04 - effectiveW) / 2);
-  const slackZ = Math.max(0, (l - 0.04 - effectiveD) / 2);
+  const slackX = Math.max(0, (availW - effectiveW) / 2);
+  const slackZ = Math.max(0, (availD - effectiveD) / 2);
 
   let alignXOffset = 0;
   if (box.fridgeAlignX === 'left') alignXOffset = -slackX;
@@ -132,7 +138,10 @@ export function buildFridgeApplianceAccessory(
   } else {
     const posX = alignXOffset + fineOffsetX;
     const posZ = alignZOffset + fineOffsetZ;
-    const bottomY = -h / 2 + fh / 2 + 0.018;
+    const tConfig = getBoxThickness(box);
+    const hasBottom = Boolean(box.panels?.bottom);
+    const bottomThickness = hasBottom ? tConfig.bottom : 0;
+    const bottomY = -h / 2 + fh / 2 + bottomThickness;
     fridgeGroup.position.set(posX, bottomY, posZ);
   }
 
@@ -188,9 +197,9 @@ export function buildPortaPottiApplianceAccessory(
   const preset = (box.portaPottiPresetId && allPresets.find(p => p.id === box.portaPottiPresetId)) || DEFAULT_PORTAPOTTI_PRESETS[0];
 
   // Dimensões nominais do porta potti ajustadas à escala do módulo
-  const pw = Math.min(w - 0.03, preset.width / 1000);   // Largura (transversal)
-  const pd = Math.min(l - 0.03, preset.depth / 1000);   // Profundidade (longitudinal)
-  const ph = Math.min(h - 0.02, preset.height / 1000);  // Altura total
+  const pw = preset.width / 1000;   // Largura real do preset (transversal)
+  const pd = preset.depth / 1000;   // Profundidade real do preset (longitudinal)
+  const ph = preset.height / 1000;  // Altura total real do preset
 
   const portaPottiGroup = new THREE.Group();
   portaPottiGroup.name = `PortaPottiAppliance_${box.id}`;
@@ -212,12 +221,6 @@ export function buildPortaPottiApplianceAccessory(
     color: 0xffffff, // Branco brilhante ABS
     roughness: 0.25,
     metalness: 0.05
-  });
-
-  const darkAccentMat = new THREE.MeshStandardMaterial({
-    color: 0x334155, // Grafite escuro para travas e puxadores
-    roughness: 0.5,
-    metalness: 0.2
   });
 
   // 1. Tanque inferior de dejetos (Waste Tank) - ~48% da altura
@@ -278,44 +281,47 @@ export function buildPortaPottiApplianceAccessory(
   capMesh.position.set(pw * 0.36, -ph / 2 + lowerH + upperH + 0.007, -pd * 0.36);
   portaPottiGroup.add(capMesh);
 
-  // 6. Puxador frontal da válvula hermética antivazamento
-  const valveHandleGeo = new THREE.BoxGeometry(pw * 0.22, 0.02, 0.025);
-  const valveHandle = new THREE.Mesh(valveHandleGeo, darkAccentMat);
-  valveHandle.position.set(0, -ph / 2 + lowerH * 0.75, -pd / 2 - 0.008);
-  portaPottiGroup.add(valveHandle);
-
-  // 7. Travas laterais de desengate rápido dos dois tanques
-  const latchGeo = new THREE.BoxGeometry(0.012, lowerH * 0.35, 0.04);
-  const latchL = new THREE.Mesh(latchGeo, darkAccentMat);
-  latchL.position.set(pw / 2 + 0.003, -ph / 2 + lowerH, 0);
-  portaPottiGroup.add(latchL);
-
-  const latchR = new THREE.Mesh(latchGeo, darkAccentMat);
-  latchR.position.set(-pw / 2 - 0.003, -ph / 2 + lowerH, 0);
-  portaPottiGroup.add(latchR);
-
-  // 8. Indicador de Nível de Dejetos frontal
-  if (preset.levelIndicator) {
-    const indicatorGeo = new THREE.BoxGeometry(0.016, 0.04, 0.004);
-    const indicatorMat = new THREE.MeshStandardMaterial({
-      color: 0x10b981, // Verde de nível normal
-      emissive: 0x059669,
-      emissiveIntensity: 0.5
-    });
-    const indicatorMesh = new THREE.Mesh(indicatorGeo, indicatorMat);
-    indicatorMesh.position.set(pw * 0.32, -ph / 2 + lowerH * 0.6, -pd / 2 - 0.002);
-    portaPottiGroup.add(indicatorMesh);
+  // ── ROTAÇÃO & POSICIONAMENTO DO SANITÁRIO QUÍMICO NO MÓDULO ──
+  const isRotated90 = (box.portaPottiRotation === 90 || box.portaPottiRotation === 270);
+  if (box.portaPottiRotation !== undefined) {
+    portaPottiGroup.rotation.y = (box.portaPottiRotation * Math.PI) / 180;
   }
+
+  const isInsideDrawer = Boolean(drawerSlide && drawerSlide.userData?.dL !== undefined);
+  const trayT = (drawerSlide?.userData?.tBottom) || 0.015;
+  const availW = isInsideDrawer ? Math.max(0.01, drawerSlide.userData.dW - 2 * trayT - 0.006) : Math.max(0.01, w - 0.04);
+  const availD = isInsideDrawer ? Math.max(0.01, drawerSlide.userData.dL - 2 * trayT - 0.006) : Math.max(0.01, l - 0.04);
+
+  const effectiveW = isRotated90 ? pd : pw;
+  const effectiveD = isRotated90 ? pw : pd;
+  const slackX = Math.max(0, (availW - effectiveW) / 2);
+  const slackZ = Math.max(0, (availD - effectiveD) / 2);
+
+  let alignXOffset = 0;
+  if (box.portaPottiAlignX === 'left') alignXOffset = -slackX;
+  else if (box.portaPottiAlignX === 'right') alignXOffset = slackX;
+
+  let alignZOffset = 0;
+  if (box.portaPottiAlignZ === 'front') alignZOffset = -slackZ;
+  else if (box.portaPottiAlignZ === 'back') alignZOffset = slackZ;
+
+  const fineOffsetX = (box.portaPottiOffsetX || 0) / 1000;
+  const fineOffsetZ = (box.portaPottiOffsetZ || 0) / 1000;
 
   // Posição no interior do módulo (assentado no piso do gavetão, bandeja corrediça ou baú)
   if (drawerSlide && drawerSlide.userData?.trayTopY !== undefined) {
-    const posX = drawerSlide.userData.cabCenterX || 0;
-    const posZ = drawerSlide.userData.cabCenterZ || 0;
+    const posX = (drawerSlide.userData.cabCenterX || 0) + alignXOffset + fineOffsetX;
+    const posZ = (drawerSlide.userData.cabCenterZ || 0) + alignZOffset + fineOffsetZ;
     const posY = drawerSlide.userData.trayTopY + ph / 2;
     portaPottiGroup.position.set(posX, posY, posZ);
   } else {
-    const bottomY = -h / 2 + ph / 2 + 0.018;
-    portaPottiGroup.position.set(0, bottomY, 0);
+    const posX = alignXOffset + fineOffsetX;
+    const posZ = alignZOffset + fineOffsetZ;
+    const tConfig = getBoxThickness(box);
+    const hasBottom = Boolean(box.panels?.bottom);
+    const bottomThickness = hasBottom ? tConfig.bottom : 0;
+    const bottomY = -h / 2 + ph / 2 + bottomThickness;
+    portaPottiGroup.position.set(posX, bottomY, posZ);
   }
 
   const partData = {

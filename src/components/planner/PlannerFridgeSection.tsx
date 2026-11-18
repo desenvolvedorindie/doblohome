@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSolar } from '../../context/SolarContext';
 import { InternalBoxItem } from '../../types';
+import { saveApplianceMemory, getApplianceMemory } from '../../utils/componentPositionMemory';
 
 interface PlannerFridgeSectionProps {
   selectedBox: InternalBoxItem;
@@ -29,11 +30,13 @@ export const PlannerFridgeSection: React.FC<PlannerFridgeSectionProps> = ({
   const currentPresetId = selectedBox.fridgePresetId || boxWithFridge?.fridgePresetId || activeFridgePresetId || fridgePresets[0]?.id;
   const selectedPreset = fridgePresets.find(p => p.id === currentPresetId) || fridgePresets[0];
 
-  const rotation = selectedBox.fridgeRotation || 0;
-  const alignX = selectedBox.fridgeAlignX || 'center';
-  const alignZ = selectedBox.fridgeAlignZ || 'center';
-  const offsetX = selectedBox.fridgeOffsetX || 0;
-  const offsetZ = selectedBox.fridgeOffsetZ || 0;
+  const fridgeMem = getApplianceMemory('fridge');
+  const rotation: 0 | 90 | 180 | 270 = (selectedBox.fridgeRotation ?? boxWithFridge?.fridgeRotation ?? fridgeMem?.rotation ?? 0) as 0 | 90 | 180 | 270;
+  const alignX: 'center' | 'left' | 'right' = (selectedBox.fridgeAlignX ?? boxWithFridge?.fridgeAlignX ?? fridgeMem?.alignX ?? 'center') as 'center' | 'left' | 'right';
+  const rawAlignZ = selectedBox.fridgeAlignZ ?? boxWithFridge?.fridgeAlignZ ?? fridgeMem?.alignZ ?? 'center';
+  const alignZ: 'center' | 'front' | 'back' = rawAlignZ === 'rear' ? 'back' : (rawAlignZ as 'center' | 'front' | 'back');
+  const offsetX = selectedBox.fridgeOffsetX ?? boxWithFridge?.fridgeOffsetX ?? fridgeMem?.offsetX ?? 0;
+  const offsetZ = selectedBox.fridgeOffsetZ ?? boxWithFridge?.fridgeOffsetZ ?? fridgeMem?.offsetZ ?? 0;
 
   // Verificação dimensional considerando rotação
   const isRotated = rotation === 90 || rotation === 270;
@@ -55,6 +58,13 @@ export const PlannerFridgeSection: React.FC<PlannerFridgeSectionProps> = ({
 
   // Função para mover a geladeira de um módulo para outro
   const handleMoveFridgeToBox = (targetBoxId: string) => {
+    saveApplianceMemory('fridge', {
+      rotation,
+      alignX,
+      alignZ,
+      offsetX,
+      offsetZ
+    });
     // Remove de todas as caixas
     internalBoxes.forEach(b => {
       if (b.hasFridge && b.id !== targetBoxId) {
@@ -71,6 +81,8 @@ export const PlannerFridgeSection: React.FC<PlannerFridgeSectionProps> = ({
       fridgeRotation: rotation,
       fridgeAlignX: alignX,
       fridgeAlignZ: alignZ,
+      fridgeOffsetX: offsetX,
+      fridgeOffsetZ: offsetZ,
     });
   };
 
@@ -122,6 +134,13 @@ export const PlannerFridgeSection: React.FC<PlannerFridgeSectionProps> = ({
           type="button"
           onClick={() => {
             if (isFridgeActive) {
+              saveApplianceMemory('fridge', {
+                rotation,
+                alignX,
+                alignZ,
+                offsetX,
+                offsetZ
+              });
               updateInternalBox(selectedBox.id, {
                 hasFridge: false,
                 fridgePresetId: undefined
@@ -261,7 +280,10 @@ export const PlannerFridgeSection: React.FC<PlannerFridgeSectionProps> = ({
                       key={r.value}
                       type="button"
                       className={`btn-compact ${isCur ? 'active' : ''}`}
-                      onClick={() => updateInternalBox(selectedBox.id, { fridgeRotation: r.value as any })}
+                      onClick={() => {
+                        saveApplianceMemory('fridge', { rotation: r.value as any });
+                        updateInternalBox(selectedBox.id, { fridgeRotation: r.value as any });
+                      }}
                       style={{
                         padding: '4px 2px',
                         fontSize: '9.5px',
@@ -297,7 +319,10 @@ export const PlannerFridgeSection: React.FC<PlannerFridgeSectionProps> = ({
                         key={a.val}
                         type="button"
                         className={`btn-compact ${isCur ? 'active' : ''}`}
-                        onClick={() => updateInternalBox(selectedBox.id, { fridgeAlignX: a.val as any })}
+                        onClick={() => {
+                        saveApplianceMemory('fridge', { alignX: a.val as any });
+                        updateInternalBox(selectedBox.id, { fridgeAlignX: a.val as any });
+                      }}
                         style={{
                           padding: '4px 2px',
                           fontSize: '9.5px',
@@ -331,7 +356,10 @@ export const PlannerFridgeSection: React.FC<PlannerFridgeSectionProps> = ({
                         key={a.val}
                         type="button"
                         className={`btn-compact ${isCur ? 'active' : ''}`}
-                        onClick={() => updateInternalBox(selectedBox.id, { fridgeAlignZ: a.val as any })}
+                        onClick={() => {
+                          saveApplianceMemory('fridge', { alignZ: a.val as any });
+                          updateInternalBox(selectedBox.id, { fridgeAlignZ: a.val as any });
+                        }}
                         style={{
                           padding: '4px 2px',
                           fontSize: '9.5px',
@@ -363,7 +391,11 @@ export const PlannerFridgeSection: React.FC<PlannerFridgeSectionProps> = ({
                   max="120"
                   step="5"
                   value={offsetX}
-                  onChange={(e) => updateInternalBox(selectedBox.id, { fridgeOffsetX: parseInt(e.target.value, 10) })}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    saveApplianceMemory('fridge', { offsetX: val });
+                    updateInternalBox(selectedBox.id, { fridgeOffsetX: val });
+                  }}
                   title="Ajuste fino milimétrico para esquerda/direita"
                 />
               </div>
@@ -380,7 +412,11 @@ export const PlannerFridgeSection: React.FC<PlannerFridgeSectionProps> = ({
                   max="120"
                   step="5"
                   value={offsetZ}
-                  onChange={(e) => updateInternalBox(selectedBox.id, { fridgeOffsetZ: parseInt(e.target.value, 10) })}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    saveApplianceMemory('fridge', { offsetZ: val });
+                    updateInternalBox(selectedBox.id, { fridgeOffsetZ: val });
+                  }}
                   title="Ajuste fino milimétrico para frente/fundo"
                 />
               </div>

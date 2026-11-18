@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSolar } from '../../context/SolarContext';
 import { InternalBoxItem, InstalledElectronicItem, ElectronicMountFace, ElectronicGridPosition } from '../../types';
+import { saveElectronicMemory, getElectronicMemory } from '../../utils/componentPositionMemory';
 
 interface PlannerBatterySectionProps {
   selectedBox: InternalBoxItem;
@@ -75,15 +76,21 @@ export const PlannerBatterySection: React.FC<PlannerBatterySectionProps> = ({
           let nextElectronics: InstalledElectronicItem[] = [...(b.electronics || [])];
           if (willEnable) {
             if (!nextElectronics.some(e => e.id === 'battery')) {
+              const mem = getElectronicMemory('battery');
               nextElectronics.push({
                 id: 'battery',
-                mountFace: 'bottom',
-                position: 'rear_center',
-                rotationDeg: 0,
-                presetId: selectedPreset.id
+                mountFace: mem?.mountFace || 'bottom',
+                position: mem?.position || 'rear_center',
+                rotationDeg: mem?.rotationDeg || 0,
+                customOffsetXmm: mem?.customOffsetXmm,
+                customOffsetYmm: mem?.customOffsetYmm,
+                customOffsetZmm: mem?.customOffsetZmm,
+                presetId: mem?.presetId || selectedPreset.id
               });
             }
           } else {
+            const existingBat = nextElectronics.find(e => e.id === 'battery');
+            if (existingBat) saveElectronicMemory('battery', existingBat);
             nextElectronics = nextElectronics.filter(e => e.id !== 'battery');
           }
           return {
@@ -95,6 +102,8 @@ export const PlannerBatterySection: React.FC<PlannerBatterySectionProps> = ({
         }
         // Se estiver ativando na caixa atual, remove de qualquer outra caixa para evitar duplicidade
         if (willEnable && (b.hasBattery || b.electronics?.some(e => e.id === 'battery'))) {
+          const existingBat = b.electronics?.find(e => e.id === 'battery');
+          if (existingBat) saveElectronicMemory('battery', existingBat);
           return {
             ...b,
             hasBattery: false,
@@ -119,6 +128,7 @@ export const PlannerBatterySection: React.FC<PlannerBatterySectionProps> = ({
   };
 
   const updateBatteryItem = (updates: Partial<InstalledElectronicItem>) => {
+    saveElectronicMemory('battery', updates);
     setInternalBoxes((boxes: InternalBoxItem[]): InternalBoxItem[] => {
       return boxes.map((b): InternalBoxItem => {
         if (b.id === selectedBox.id) {
@@ -127,15 +137,15 @@ export const PlannerBatterySection: React.FC<PlannerBatterySectionProps> = ({
           const nextElectronics: InstalledElectronicItem[] = exists
             ? current.map(e => (e.id === 'battery' ? { ...e, ...updates } : e))
             : [
-                ...current,
-                {
-                  id: 'battery' as const,
-                  mountFace: 'bottom' as const,
-                  position: 'rear_center' as const,
-                  rotationDeg: 0,
-                  ...updates
-                }
-              ];
+              ...current,
+              {
+                id: 'battery' as const,
+                mountFace: 'bottom' as const,
+                position: 'rear_center' as const,
+                rotationDeg: 0,
+                ...updates
+              }
+            ];
           return {
             ...b,
             hasBattery: true,
@@ -155,9 +165,23 @@ export const PlannerBatterySection: React.FC<PlannerBatterySectionProps> = ({
           const exists = current.some(e => e.id === id);
           let nextElectronics: InstalledElectronicItem[];
           if (exists) {
+            const existing = current.find(e => e.id === id);
+            if (existing) saveElectronicMemory(id, existing);
             nextElectronics = current.filter(e => e.id !== id);
           } else {
-            nextElectronics = [...current, { id, mountFace: defaultFace, position: defaultPos, rotationDeg: 0 }];
+            const mem = getElectronicMemory(id);
+            nextElectronics = [
+              ...current,
+              {
+                id,
+                mountFace: mem?.mountFace || defaultFace,
+                position: mem?.position || defaultPos,
+                rotationDeg: mem?.rotationDeg || 0,
+                customOffsetXmm: mem?.customOffsetXmm,
+                customOffsetYmm: mem?.customOffsetYmm,
+                customOffsetZmm: mem?.customOffsetZmm
+              }
+            ];
           }
           return {
             ...b,
@@ -166,6 +190,8 @@ export const PlannerBatterySection: React.FC<PlannerBatterySectionProps> = ({
         }
         // Se ativou nesta caixa, remove de outras
         if (currentBoxElectronics.every(e => e.id !== id) && b.electronics?.some(e => e.id === id)) {
+          const existing = b.electronics?.find(e => e.id === id);
+          if (existing) saveElectronicMemory(id, existing);
           return {
             ...b,
             electronics: (b.electronics || []).filter(e => e.id !== id)
@@ -359,7 +385,7 @@ export const PlannerBatterySection: React.FC<PlannerBatterySectionProps> = ({
               </label>
               <select
                 value={batteryInThisBox?.rotationDeg || 0}
-                onChange={(e) => updateBatteryItem({ rotationDeg: Number(e.target.value) as 0 | 90 })}
+                onChange={(e) => updateBatteryItem({ rotationDeg: Number(e.target.value) })}
                 style={{
                   width: '100%',
                   background: 'rgba(15, 23, 42, 0.9)',
@@ -371,7 +397,9 @@ export const PlannerBatterySection: React.FC<PlannerBatterySectionProps> = ({
                 }}
               >
                 <option value={0}>0° (Longitudinal: L {selectedPreset.dimensionsMm.width} × P {selectedPreset.dimensionsMm.depth}mm)</option>
-                <option value={90}>90° (Transversal: L {selectedPreset.dimensionsMm.depth} × P {selectedPreset.dimensionsMm.width}mm)</option>
+                <option value={90}>90° (Transversal / Latitudinal: L {selectedPreset.dimensionsMm.depth} × P {selectedPreset.dimensionsMm.width}mm)</option>
+                <option value={180}>180° (Longitudinal Invertida)</option>
+                <option value={270}>270° (Transversal / Latitudinal Invertida)</option>
               </select>
             </div>
           </div>

@@ -169,4 +169,46 @@ describe('Checagem de colisão dos componentes nos módulos', () => {
     expect(doorMeshes.length).toBeGreaterThan(0);
     expect(doorMeshes[0].userData.thicknessMm).toBe(9);
   });
+
+  it('destaca apenas os componentes colididos e NÃO o módulo de madeira em si', () => {
+    const builder = new InternalBoxesBuilder();
+    const scene = new THREE.Scene();
+    scene.add(builder.group);
+    const box = makeBox({
+      colSpan: 2,
+      rowSpan: 2,
+      electronics: [
+        { id: 'battery', mountFace: 'bottom', position: 'center', rotationDeg: 0 },
+        { id: 'b2b', mountFace: 'bottom', position: 'center', rotationDeg: 0 }
+      ]
+    });
+    builder.update({ ...DEFAULT_INTERNAL_GRID, colsX: 2, rowsZ: 2 }, [box], null, false, null);
+    const r = ModuleCollisionChecker.check(builder.boxesGroup, [box]);
+    const issue = r.issues.find((i) => i.kind === 'overlap')!;
+    const container = builder.boxesGroup.children[0];
+
+    // Colete um mesh de madeira do baú
+    let woodMesh: THREE.Mesh | null = null;
+    container.traverse((c: any) => {
+      if (c.isMesh && c.userData?.isWoodPart) woodMesh = c;
+    });
+    expect(woodMesh).not.toBeNull();
+    const origWoodMat = woodMesh!.material;
+
+    // Quando setHoverFocus for chamado mesmo com container na lista (ou os objetos colididos)
+    ModuleCollisionChecker.setHoverFocus([issue.objectA!, issue.objectB!, container], scene);
+
+    // O mesh de madeira NÃO deve ter o material de destaque hover aplicado
+    expect(woodMesh!.material).toBe(origWoodMat);
+
+    // Já os componentes devem ter sido destacados
+    let componentMesh: THREE.Mesh | null = null;
+    issue.objectA!.traverse((c: any) => {
+      if (c.isMesh && !c.userData?.isScrew && !c.userData?.isWoodPart) componentMesh = c;
+    });
+    expect(componentMesh).not.toBeNull();
+    expect(componentMesh!.material).not.toBe(origWoodMat);
+
+    ModuleCollisionChecker.clearHoverFocus();
+  });
 });

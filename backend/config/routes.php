@@ -25,5 +25,8 @@ return [
     "GET presets/<type:($presetTypes)>" => 'api/preset/view',
     "PUT presets/<type:($presetTypes)>" => 'api/preset/save',
 
+    'GET cutting/pdf' => 'api/cutting/pdf',
+    'POST cutting/pdf' => 'api/cutting/pdf',
+
     'OPTIONS <path:.*>' => 'api/health/options',
 ];

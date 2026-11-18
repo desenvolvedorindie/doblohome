@@ -16,6 +16,7 @@ import {
 import { calculateWeldedJoints } from '../../utils/weldedJointsUtils';
 import { extractPvcCutStats } from '../../utils/pvcUtils';
 import { extractAwningHardwareStats } from '../../utils/awningHardwareUtils';
+import { API_URL } from '../../sync/config';
 
 export type CuttingTabId =
   | 'cutting_plan'
@@ -279,36 +280,36 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
       style={
         docked
           ? {
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              padding: '10px 12px',
-              gap: '10px',
-              background: 'transparent',
-            }
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            padding: '10px 12px',
+            gap: '10px',
+            background: 'transparent',
+          }
           : {
-              position: 'fixed',
-              top: '64px',
-              bottom: '16px',
-              left: isDockLeft ? '16px' : undefined,
-              right: !isDockLeft ? '16px' : undefined,
-              width: panelWidth,
-              maxWidth: 'calc(100vw - 32px)',
-              zIndex: 995,
-              background: 'rgba(10, 15, 26, 0.96)',
-              backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(56, 189, 248, 0.35)',
-              borderRadius: '12px',
-              boxShadow: isDockLeft ? '12px 0 32px rgba(0, 0, 0, 0.6)' : '-12px 0 32px rgba(0, 0, 0, 0.6)',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              transition: 'width 0.22s ease-in-out',
-              padding: '12px',
-              gap: '10px',
-            }
+            position: 'fixed',
+            top: '64px',
+            bottom: '16px',
+            left: isDockLeft ? '16px' : undefined,
+            right: !isDockLeft ? '16px' : undefined,
+            width: panelWidth,
+            maxWidth: 'calc(100vw - 32px)',
+            zIndex: 995,
+            background: 'rgba(10, 15, 26, 0.96)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            borderRadius: '12px',
+            boxShadow: isDockLeft ? '12px 0 32px rgba(0, 0, 0, 0.6)' : '-12px 0 32px rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            transition: 'width 0.22s ease-in-out',
+            padding: '12px',
+            gap: '10px',
+          }
       }
     >
       {/* ─── 1. CABEÇALHO DO PAINEL LATERAL ─── */}
@@ -368,7 +369,7 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
         {/* Botões de Ação do Painel (PDF, Dock, Largura, Colapsar) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <a
-            href="/plano_de_corte_doblo_solar.pdf"
+            href={`${API_URL}/cutting/pdf`}
             download="plano_de_corte_doblo_solar.pdf"
             className="btn-compact"
             title="Baixar Plano de Corte Completo em PDF (14 Páginas c/ Desenho dos Cortes, Espuma, Perfis do Rack, PVC e Toldo)"

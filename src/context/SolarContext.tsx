@@ -270,7 +270,11 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     sceneManager.onBoxDoubleClick = (boxId: string | null) => {
-      boxesMgr.setIsolatedBoxId(boxId);
+      if (!boxId) {
+        boxesMgr.setIsolatedBoxId(null);
+      } else {
+        boxesMgr.setIsolatedBoxId(boxesMgr.isolatedBoxId === boxId ? null : boxId);
+      }
     };
 
     sceneManager.onRulerStateChange = (state) => {

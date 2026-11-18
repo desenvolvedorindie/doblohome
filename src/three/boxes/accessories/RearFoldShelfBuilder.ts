@@ -19,27 +19,52 @@ export function buildRearFoldShelfAccessory(
   // permanecendo estática na face traseira mesmo quando uma gaveta/bandeja corrediça se abre.
   const targetParent = container;
 
-  // Cálculo da mão francesa comercial ideal pela altura disponível
-  const bracketSpec = getFoldingBracketForHeight(Math.round(h * 1000), box.rearShelfBracketInches);
+  // Descontos necessários da altura do móvel:
+  // - 22mm de recuo superior padrão para o eixo/pivô da mão francesa
+  // - 18mm de folga inferior do assoalho/piso da Doblò para pega de dedos e não raspar no piso
+  const BASE_TOP_MARGIN_M = 0.022;
+  const BOTTOM_CLEARANCE_M = 0.018;
+
+  // Deslocamento vertical para subir ou descer a prateleira:
+  // offsetY > 0: desce em direção ao piso
+  // offsetY < 0: sobe em direção ao topo (limitado a -0.010m para não ultrapassar a borda superior)
+  const rawOffsetY = (box.rearShelfOffsetYMm || 0) / 1000;
+  const maxDownM = Math.max(0, h - BASE_TOP_MARGIN_M - BOTTOM_CLEARANCE_M - 0.08);
+  const offsetY = Math.max(-0.010, Math.min(maxDownM, rawOffsetY));
+
+  const isDrawer = box.type === 'drawer';
+  const faceZ = isDrawer ? -l / 2 - PLYWOOD_THICKNESS : -l / 2;
+  const D_b = 0.016; // 16mm profundidade da canaleta da mão francesa
+  const pivotY = h / 2 - BASE_TOP_MARGIN_M - offsetY;
+  const pivotZ = faceZ - D_b + 0.004;
+
+  // Regra técnica: ao fechar (rebatida para baixo), o tampo não pode ultrapassar o final do móvel:
+  // O tamanho do tampo fica estritamente limitado pela diferença desse deslocamento para o final
+  const maxAllowedDepthM = Math.max(0.08, pivotY + h / 2 - BOTTOM_CLEARANCE_M);
+
+  // Largura útil da prateleira ao abrir (dimensão que rebate na vertical contra a altura do móvel)
+  // Limitada estritamente à distância restante até o final do móvel:
+  const configuredDepthM = box.rearShelfDepthMm ? box.rearShelfDepthMm / 1000 : undefined;
+  const shelfH = configuredDepthM ? Math.min(configuredDepthM, maxAllowedDepthM) : maxAllowedDepthM;
+
+  // Comprimento / extensão transversal da prateleira ao longo da largura do móvel:
+  const maxAllowedWidthM = Math.max(0.15, w - 0.020);
+  const configuredWidthM = box.rearShelfWidthMm ? box.rearShelfWidthMm / 1000 : undefined;
+  const shelfW = configuredWidthM ? Math.min(configuredWidthM, maxAllowedWidthM) : Math.max(0.15, w - 0.030);
+
+  // Cálculo da mão francesa comercial ideal pela altura disponível e profundidade da bancada
+  const bracketSpec = getFoldingBracketForHeight(Math.round(h * 1000), box.rearShelfBracketInches, Math.round(shelfH * 1000));
 
   // Dimensões da prancha da prateleira decorativa
   const shelfTMm = box.panelThickness?.shelf || 18;
   const shelfT = shelfTMm / 1000;
-  const shelfW = Math.max(0.15, w - 0.03); // Margem de 1.5cm de cada lado para a moldura do baú
-  const shelfH = Math.max(0.15, Math.min(h - 0.04, 0.38)); // Profundidade da bancada
 
   // Geometria estrutural da mão francesa (padrão comercial em chapa de aço inox estampada)
   const W_b = 0.022; // 22mm largura da canaleta
-  const D_b = 0.016; // 16mm profundidade da canaleta
   const t_s = 0.002; // 2mm espessura da chapa estampada
 
   const Hv = Math.min(shelfH * 0.65, bracketSpec.heightMm / 1000);
   const Lh = Math.min(shelfH * 0.85, bracketSpec.lengthMm / 1000);
-
-  const isDrawer = box.type === 'drawer';
-  const faceZ = isDrawer ? -l / 2 - PLYWOOD_THICKNESS : -l / 2;
-  const pivotY = h / 2 - 0.022;
-  const pivotZ = faceZ - D_b + 0.004;
 
   // Materiais dos suportes dobráveis em aço inoxidável escovado brilhante
   const bracketSteelMat = new THREE.MeshStandardMaterial({

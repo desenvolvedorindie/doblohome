@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSolar } from '../../context/SolarContext';
 import { InternalBoxItem, InstalledElectronicItem, ElectronicMountFace, ElectronicGridPosition } from '../../types';
+import { saveElectronicMemory, getElectronicMemory } from '../../utils/componentPositionMemory';
 
 interface PlannerMpptSectionProps {
   selectedBox: InternalBoxItem;
@@ -39,9 +40,25 @@ export const PlannerMpptSection: React.FC<PlannerMpptSectionProps> = ({
   // Verificação dimensional
   const boxHMm = selectedBox.heightMm;
   const face = mpptInThisBox?.mountFace || 'left_wall';
-  const reqW = selectedPreset?.dimensionsMm.width || 202;
-  const reqH = selectedPreset?.dimensionsMm.height || 215;
-  const reqD = selectedPreset?.dimensionsMm.depth || 100;
+  const rawW = selectedPreset?.dimensionsMm.width || 202;
+  const rawH = selectedPreset?.dimensionsMm.height || 215;
+  const rawD = selectedPreset?.dimensionsMm.depth || 100;
+
+  const rotDeg = mpptInThisBox?.rotationDeg || 0;
+  const isRotated90 = rotDeg === 90 || rotDeg === 270;
+
+  // Dimensões nominais considerando a rotação na face
+  const reqW = face === 'bottom'
+    ? (isRotated90 ? rawD : rawW)
+    : (isRotated90 ? rawH : rawW);
+
+  const reqH = face === 'bottom'
+    ? rawH
+    : (isRotated90 ? rawW : rawH);
+
+  const reqD = face === 'bottom'
+    ? (isRotated90 ? rawW : rawD)
+    : rawD;
 
   // Dimensão da face correspondente
   let availableW = boxWMm;
@@ -58,7 +75,7 @@ export const PlannerMpptSection: React.FC<PlannerMpptSectionProps> = ({
   }
 
   const clearanceW = availableW - reqW;
-  const clearanceH = availableH - reqH;
+  const clearanceH = availableH - (face === 'bottom' ? reqD : reqH);
   const fitsW = clearanceW >= 0;
   const fitsH = clearanceH >= 0;
   const fitsAll = fitsW && fitsH;
@@ -72,15 +89,21 @@ export const PlannerMpptSection: React.FC<PlannerMpptSectionProps> = ({
           let nextElectronics: InstalledElectronicItem[] = [...(b.electronics || [])];
           if (willEnable) {
             if (!nextElectronics.some(e => e.id === 'mppt')) {
+              const mem = getElectronicMemory('mppt');
               nextElectronics.push({
                 id: 'mppt',
-                mountFace: 'left_wall',
-                position: 'top_left',
-                rotationDeg: 0,
-                presetId: selectedPreset.id
+                mountFace: mem?.mountFace || 'left_wall',
+                position: mem?.position || 'top_left',
+                rotationDeg: mem?.rotationDeg || 0,
+                customOffsetXmm: mem?.customOffsetXmm,
+                customOffsetYmm: mem?.customOffsetYmm,
+                customOffsetZmm: mem?.customOffsetZmm,
+                presetId: mem?.presetId || selectedPreset.id
               });
             }
           } else {
+            const existing = nextElectronics.find(e => e.id === 'mppt');
+            if (existing) saveElectronicMemory('mppt', existing);
             nextElectronics = nextElectronics.filter(e => e.id !== 'mppt');
           }
           return {
@@ -90,6 +113,8 @@ export const PlannerMpptSection: React.FC<PlannerMpptSectionProps> = ({
         }
         // Remove de outra caixa ao ativar nesta
         if (willEnable && b.electronics?.some(e => e.id === 'mppt')) {
+          const existing = b.electronics?.find(e => e.id === 'mppt');
+          if (existing) saveElectronicMemory('mppt', existing);
           return {
             ...b,
             electronics: (b.electronics || []).filter(e => e.id !== 'mppt')
@@ -108,6 +133,7 @@ export const PlannerMpptSection: React.FC<PlannerMpptSectionProps> = ({
   };
 
   const updateMpptItem = (updates: Partial<InstalledElectronicItem>) => {
+    saveElectronicMemory('mppt', updates);
     setInternalBoxes((boxes: InternalBoxItem[]): InternalBoxItem[] => {
       return boxes.map((b): InternalBoxItem => {
         if (b.id === selectedBox.id) {
@@ -335,6 +361,41 @@ export const PlannerMpptSection: React.FC<PlannerMpptSectionProps> = ({
                 <option value="bottom_center">Inferior Centro</option>
                 <option value="bottom_right">Inferior Direito</option>
               </select>
+            </div>
+          </div>
+
+          {/* Orientação / Rotação */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
+            <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>
+              Orientação / Rotação:
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+              {[
+                { label: face === 'bottom' ? '0° (Transv./Lat.)' : '0° (Vertical/Padrão)', value: 0 },
+                { label: face === 'bottom' ? '90° (Longitudinal)' : '90° (Horizontal)', value: 90 },
+                { label: '180° (Invertida)', value: 180 },
+                { label: face === 'bottom' ? '270° (Longit. 2)' : '270° (Horizontal 2)', value: 270 }
+              ].map(r => {
+                const isCur = rotDeg === r.value;
+                return (
+                  <button
+                    key={r.value}
+                    type="button"
+                    className={`btn-compact ${isCur ? 'active' : ''}`}
+                    onClick={() => updateMpptItem({ rotationDeg: r.value })}
+                    style={{
+                      padding: '4px 2px',
+                      fontSize: '9.5px',
+                      fontWeight: 700,
+                      background: isCur ? 'rgba(56, 189, 248, 0.3)' : 'rgba(30, 41, 59, 0.6)',
+                      borderColor: isCur ? '#38bdf8' : '#334155',
+                      color: isCur ? '#38bdf8' : '#cbd5e1'
+                    }}
+                  >
+                    {r.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

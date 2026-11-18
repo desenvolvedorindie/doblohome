@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSolar } from '../../context/SolarContext';
 import { InternalBoxItem, InstalledElectronicItem, ElectronicMountFace, ElectronicGridPosition } from '../../types';
+import { saveElectronicMemory, getElectronicMemory } from '../../utils/componentPositionMemory';
 
 interface PlannerB2bSectionProps {
   selectedBox: InternalBoxItem;
@@ -39,9 +40,25 @@ export const PlannerB2bSection: React.FC<PlannerB2bSectionProps> = ({
   // Verificação dimensional
   const boxHMm = selectedBox.heightMm;
   const face = b2bInThisBox?.mountFace || 'right_wall';
-  const reqW = selectedPreset?.dimensionsMm.width || 190;
-  const reqH = selectedPreset?.dimensionsMm.height || 130;
-  const reqD = selectedPreset?.dimensionsMm.depth || 58;
+  const rawW = selectedPreset?.dimensionsMm.width || 190;
+  const rawH = selectedPreset?.dimensionsMm.height || 130;
+  const rawD = selectedPreset?.dimensionsMm.depth || 58;
+
+  const rotDeg = b2bInThisBox?.rotationDeg || 0;
+  const isRotated90 = rotDeg === 90 || rotDeg === 270;
+
+  // Dimensões nominais considerando a rotação na face
+  const reqW = face === 'bottom'
+    ? (isRotated90 ? rawD : rawW)
+    : (isRotated90 ? rawH : rawW);
+
+  const reqH = face === 'bottom'
+    ? rawH
+    : (isRotated90 ? rawW : rawH);
+
+  const reqD = face === 'bottom'
+    ? (isRotated90 ? rawW : rawD)
+    : rawD;
 
   // Dimensão da face correspondente
   let availableW = boxWMm;
@@ -58,7 +75,7 @@ export const PlannerB2bSection: React.FC<PlannerB2bSectionProps> = ({
   }
 
   const clearanceW = availableW - reqW;
-  const clearanceH = availableH - reqH;
+  const clearanceH = availableH - (face === 'bottom' ? reqD : reqH);
   const fitsW = clearanceW >= 0;
   const fitsH = clearanceH >= 0;
   const fitsAll = fitsW && fitsH;
@@ -72,15 +89,21 @@ export const PlannerB2bSection: React.FC<PlannerB2bSectionProps> = ({
           let nextElectronics: InstalledElectronicItem[] = [...(b.electronics || [])];
           if (willEnable) {
             if (!nextElectronics.some(e => e.id === 'b2b')) {
+              const mem = getElectronicMemory('b2b');
               nextElectronics.push({
                 id: 'b2b',
-                mountFace: 'right_wall',
-                position: 'top_left',
-                rotationDeg: 0,
-                presetId: selectedPreset.id
+                mountFace: mem?.mountFace || 'right_wall',
+                position: mem?.position || 'top_left',
+                rotationDeg: mem?.rotationDeg || 0,
+                customOffsetXmm: mem?.customOffsetXmm,
+                customOffsetYmm: mem?.customOffsetYmm,
+                customOffsetZmm: mem?.customOffsetZmm,
+                presetId: mem?.presetId || selectedPreset.id
               });
             }
           } else {
+            const existing = nextElectronics.find(e => e.id === 'b2b');
+            if (existing) saveElectronicMemory('b2b', existing);
             nextElectronics = nextElectronics.filter(e => e.id !== 'b2b');
           }
           return {
@@ -90,6 +113,8 @@ export const PlannerB2bSection: React.FC<PlannerB2bSectionProps> = ({
         }
         // Remove de outra caixa ao ativar nesta
         if (willEnable && b.electronics?.some(e => e.id === 'b2b')) {
+          const existing = b.electronics?.find(e => e.id === 'b2b');
+          if (existing) saveElectronicMemory('b2b', existing);
           return {
             ...b,
             electronics: (b.electronics || []).filter(e => e.id !== 'b2b')
@@ -108,6 +133,7 @@ export const PlannerB2bSection: React.FC<PlannerB2bSectionProps> = ({
   };
 
   const updateB2bItem = (updates: Partial<InstalledElectronicItem>) => {
+    saveElectronicMemory('b2b', updates);
     setInternalBoxes((boxes: InternalBoxItem[]): InternalBoxItem[] => {
       return boxes.map((b): InternalBoxItem => {
         if (b.id === selectedBox.id) {
@@ -340,29 +366,45 @@ export const PlannerB2bSection: React.FC<PlannerB2bSectionProps> = ({
             </div>
           </div>
 
-          {/* Rotação e Specs */}
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginTop: '2px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '10px', color: '#94a3b8' }}>Orientação:</label>
-              <button
-                type="button"
-                onClick={() => updateB2bItem({ rotationDeg: b2bInThisBox?.rotationDeg === 90 ? 0 : 90 })}
-                className="btn-compact"
-                style={{
-                  fontSize: '10px',
-                  padding: '2px 8px',
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  color: '#fbbf24',
-                  borderColor: '#f59e0b'
-                }}
-              >
-                🔄 {b2bInThisBox?.rotationDeg === 90 ? 'Girar para Vertical (0°)' : 'Girar Horizontal (90°)'}
-              </button>
+          {/* Orientação / Rotação e Specs */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>
+                Orientação / Rotação:
+              </span>
+              <span style={{ fontSize: '9.5px', color: '#fbbf24', fontWeight: 600 }}>
+                ⚡ {selectedPreset.chargingAmps}A ({Math.round(selectedPreset.chargingAmps * selectedPreset.voltageOut)}W) • {selectedPreset.voltageIn}V ➔ {selectedPreset.voltageOut}V
+              </span>
             </div>
 
-            <span style={{ fontSize: '9.5px', color: '#fbbf24', fontWeight: 600 }}>
-              ⚡ {selectedPreset.chargingAmps}A ({Math.round(selectedPreset.chargingAmps * selectedPreset.voltageOut)}W) • {selectedPreset.voltageIn}V ➔ {selectedPreset.voltageOut}V
-            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+              {[
+                { label: face === 'bottom' ? '0° (Transv./Lat.)' : '0° (Vertical/Padrão)', value: 0 },
+                { label: face === 'bottom' ? '90° (Longitudinal)' : '90° (Horizontal)', value: 90 },
+                { label: '180° (Invertida)', value: 180 },
+                { label: face === 'bottom' ? '270° (Longit. 2)' : '270° (Horizontal 2)', value: 270 }
+              ].map(r => {
+                const isCur = rotDeg === r.value;
+                return (
+                  <button
+                    key={r.value}
+                    type="button"
+                    className={`btn-compact ${isCur ? 'active' : ''}`}
+                    onClick={() => updateB2bItem({ rotationDeg: r.value })}
+                    style={{
+                      padding: '4px 2px',
+                      fontSize: '9.5px',
+                      fontWeight: 700,
+                      background: isCur ? 'rgba(245, 158, 11, 0.3)' : 'rgba(30, 41, 59, 0.6)',
+                      borderColor: isCur ? '#f59e0b' : '#334155',
+                      color: isCur ? '#fde68a' : '#cbd5e1'
+                    }}
+                  >
+                    {r.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Diagnóstico Dimensional */}

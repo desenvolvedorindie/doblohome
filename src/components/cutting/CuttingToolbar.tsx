@@ -1,5 +1,6 @@
 import React from 'react';
 import { SheetStandard, MaterialGroup } from './types';
+import { API_URL } from '../../sync/config';
 
 interface CuttingToolbarProps {
   sheetStandard: SheetStandard;
@@ -136,7 +137,7 @@ export const CuttingToolbar: React.FC<CuttingToolbarProps> = ({
           )}
 
           <a
-            href="/plano_de_corte_doblo_solar.pdf"
+            href={`${API_URL}/cutting/pdf`}
             download="plano_de_corte_doblo_solar.pdf"
             className="btn-compact"
             title="Baixar PDF Técnico Completo (14 Páginas: Marcenaria, Espuma D33, Perfis do Rack, PVC e Toldo)"

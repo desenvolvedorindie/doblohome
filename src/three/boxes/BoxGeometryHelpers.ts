@@ -437,9 +437,11 @@ export function buildHollowBox(
   const hasRight = panelsConfig?.right ?? true;
   const hasFront = panelsConfig?.front ?? true;
   const hasRear = panelsConfig?.rear ?? true;
+  const hasTop = panelsConfig?.top ?? false;
 
   const tConfig = getBoxThickness(box);
   const tBottom = tConfig.bottom;
+  const tTop = tConfig.top;
   const tLeft = tConfig.left;
   const tRight = tConfig.right;
   const tFront = tConfig.front;
@@ -456,10 +458,15 @@ export function buildHollowBox(
   const usableL = Math.max(0.01, l - zBackDiscount);
   const zCenterOffset = zBackDiscount / 2; // Desloca o corpo +tRear/2 para frente para deixar o espaço da chapa traseira inteiriça
 
-  // Se laterais forem externas passantes ('sides_outside'), as laterais vão até o piso (-h/2 a +h/2) e o fundo base fica embutido entre as laterais.
-  // Se 'top_bottom_cap' (padrão), o fundo base tem largura total w e as paredes apoiam sobre ele.
-  const wallH = (hasBottom && !isSidesOutside) ? Math.max(0.01, h - tBottom) : h;
-  const wallY = (hasBottom && !isSidesOutside) ? (-h / 2 + tBottom + wallH / 2) : 0;
+  // Tamponamento correto:
+  // Se 'sides_outside', as laterais vão até o teto/piso (-h/2 a +h/2, altura h).
+  // Se 'top_bottom_cap' (padrão), o tampo e o fundo cobrem as laterais, portanto as laterais devem descontar tTop e tBottom.
+  const wallH = !isSidesOutside
+    ? Math.max(0.01, h - (hasBottom ? tBottom : 0) - (hasTop ? tTop : 0))
+    : (hasBottom ? Math.max(0.01, h - tBottom) : h);
+  const wallY = !isSidesOutside
+    ? (-h / 2 + (hasBottom ? tBottom : 0) + wallH / 2)
+    : (hasBottom ? (-h / 2 + tBottom + wallH / 2) : 0);
   const prefix = boxName ? `${boxName} • ` : '';
 
   const xMin = hasRight ? (-w / 2 + tRight) : (-w / 2);
@@ -499,9 +506,9 @@ export function buildHollowBox(
     );
   }
 
-  // Altura e Y da parede frontal e do fundo embutido (descontando a base mesmo quando isSidesOutside)
-  const frontRearH = hasBottom ? Math.max(0.01, h - tBottom) : h;
-  const frontRearY = hasBottom ? (-h / 2 + tBottom + frontRearH / 2) : 0;
+  // Altura e Y da parede frontal e do fundo embutido (descontando a base e o tampo superior para encaixe perfeito)
+  const frontRearH = Math.max(0.01, h - (hasBottom ? tBottom : 0) - (hasTop ? tTop : 0));
+  const frontRearY = -h / 2 + (hasBottom ? tBottom : 0) + frontRearH / 2;
 
   // Parede Frontal (+Z, em direção aos bancos dianteiros)
   if (hasFront) {

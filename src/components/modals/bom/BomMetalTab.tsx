@@ -367,10 +367,10 @@ export const BomMetalTab: React.FC<BomMetalTabProps> = ({
             <td>Fechamento e proteção das extremidades abertas das travessas superiores e tubos 30×30</td>
           </tr>
           <tr>
-            <td><strong>Trilho Telescópico Heavy Duty</strong></td>
-            <td>Corrediça aço zincado/inox · curso 900 mm · 80–120 kg</td>
-            <td>2–4 pares</td>
-            <td>Guias para expansão suave das gavetas</td>
+            <td><strong>Sistema Deslizante: Perfil Alumínio + Parafusos Guia</strong></td>
+            <td>Parafusos M8 Inox flangeados + arruelas/buchas deslizantes de Nylon/Teflon entre 2 perfis de alumínio (sem corrediças metálicas)</td>
+            <td>4–8 parafusos guia M8 c/ porcas auto-travantes e arruelas deslizantes</td>
+            <td>Deslizamento suave e livre de oxidação no rack de teto (elimina risco de emperramento por poeira/lama)</td>
           </tr>
           <tr>
             <td><strong>Cantoneiras T-Slot / Esquadros Metalon</strong></td>
@@ -379,7 +379,7 @@ export const BomMetalTab: React.FC<BomMetalTabProps> = ({
             <td>Conexão de perfis estruturais em ângulo 90°</td>
           </tr>
           {internalBoxes.filter((b) => b.rearFoldShelf).map((b) => {
-            const bracketSpec = getFoldingBracketForHeight(b.heightMm, b.rearShelfBracketInches);
+            const bracketSpec = getFoldingBracketForHeight(b.heightMm, b.rearShelfBracketInches, b.rearShelfDepthMm);
             return (
               <tr key={`shelf-bracket-${b.id}`}>
                 <td><strong>Suporte Articulado Dobrável Inox c/ Trava {bracketSpec.inches}" ({bracketSpec.lengthMm} mm) (Par 2PCS)</strong></td>

@@ -118,7 +118,7 @@ export function calculateWeightBalance(params: WeightCalculatorParams): WeightBa
   // ==========================================
   const isSteel = structureMaterial === 'steel';
   const isAluTube = structureMaterial === 'aluminum_tube';
-  const isTelescopic = cargoBox.isTelescopic !== false;
+  const isTelescopic = cargoBox?.isTelescopic !== false;
 
   const refArea40 = 4 * 0.0020 * (0.040 - 0.0020);
   const curArea40 = 4 * (metalonThickness40 / 1000) * (0.040 - metalonThickness40 / 1000);
@@ -150,13 +150,13 @@ export function calculateWeightBalance(params: WeightCalculatorParams): WeightBa
   // Bandejas retráteis dos leitos solares
   const nominalTrays = stackLevels * (isSteel ? 5.2 : isAluTube ? 1.2 : 2.3);
   const traysWeight = +(nominalTrays * k30).toFixed(1);
-  const slidesWeight = Math.max(0, stackLevels - 1) * 3.4;
-  const slidingSystemWeight = +(traysWeight + slidesWeight).toFixed(1);
+  const guideHardwareWeight = Math.max(0, stackLevels - 1) * 0.8; // Parafusos guia M8 inox + arruelas de nylon/teflon + perfil guia
+  const slidingSystemWeight = +(traysWeight + guideHardwareWeight).toFixed(1);
 
   items.push({
     id: 'sliding_trays_slides',
-    name: 'Bandejas dos Leitos Solares & Corrediças Pesadas',
-    specification: `${stackLevels} Níveis retráteis c/ trilhos telescópicos de aço`,
+    name: 'Bandejas Solares & Guias c/ Parafusos Deslizantes',
+    specification: `${stackLevels} Níveis retráteis c/ perfis guia de alumínio e parafusos guia M8 inox (sem corrediças metálicas)`,
     category: 'roof',
     categoryLabel: 'Teto & Estrutura',
     location: 'Rack de Teto',
@@ -295,12 +295,14 @@ export function calculateWeightBalance(params: WeightCalculatorParams): WeightBa
     // Compensado 15mm ~9.75 kg/m², MDF 15mm ~11.25 kg/m²
     const unitDensity = box.material === 'white_mdf' ? 11.25 : box.material === 'dark_wood' ? 10.5 : 9.75;
     const woodKg = +(areaM2 * unitDensity).toFixed(1);
-    const hardwareKg = box.type === 'drawer' ? 3.5 : 1.5; // Corrediças telescópicas ou dobradiças
+    const hardwareKg = box.type === 'drawer' ? 3.5 : box.type === 'vertical_lift' ? 4.5 : 1.5; // Corrediças, barras pantográficas de elevação ou dobradiças
     const boxTotalKg = +(woodKg + hardwareKg).toFixed(1);
 
     const typeDesc =
       box.type === 'drawer'
         ? 'Gavetão Telescópico'
+        : box.type === 'vertical_lift'
+        ? 'Módulo Elevatório Vertical (Extensível)'
         : box.type === 'slat_bed'
       ? 'Base de Cama / Estrado Ripado'
       : box.type === 'chest'
@@ -319,7 +321,7 @@ export function calculateWeightBalance(params: WeightCalculatorParams): WeightBa
       quantity: 1,
       unitWeightKg: boxTotalKg,
       totalWeightKg: boxTotalKg,
-      icon: box.type === 'drawer' ? '🗄️' : '📦',
+      icon: box.type === 'drawer' ? '🗄️' : box.type === 'vertical_lift' ? '🏗️' : '📦',
     });
   });
 

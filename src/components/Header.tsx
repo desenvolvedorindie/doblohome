@@ -5,6 +5,7 @@ import { ViewMode } from '../types';
 import { CreateProjectModal } from './modals/CreateProjectModal';
 import { ProjectListModal } from './modals/ProjectListModal';
 import { SyncBadge } from './auth/SyncBadge';
+import { API_URL } from '../sync/config';
 import {
   PanelLeftIcon,
   PanelRightIcon,
@@ -126,9 +127,9 @@ export const Header: React.FC<HeaderProps> = ({
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen().catch(() => { });
     } else {
-      document.documentElement.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => { });
     }
   };
 
@@ -284,7 +285,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
                 <div className="ide-menu-separator" />
                 <a
-                  href="/plano_de_corte_doblo_solar.pdf"
+                  href={`${API_URL}/cutting/pdf`}
                   download="plano_de_corte_doblo_solar.pdf"
                   className="ide-menu-item"
                   style={{ textDecoration: 'none' }}

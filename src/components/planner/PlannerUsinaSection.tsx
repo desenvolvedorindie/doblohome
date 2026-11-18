@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSolar } from '../../context/SolarContext';
 import { InternalBoxItem, InstalledElectronicItem, ElectronicMountFace, ElectronicGridPosition, UsinaModelRating } from '../../types';
+import { saveElectronicMemory, getElectronicMemory } from '../../utils/componentPositionMemory';
 
 interface PlannerUsinaSectionProps {
   selectedBox: InternalBoxItem;
@@ -45,9 +46,21 @@ export const PlannerUsinaSection: React.FC<PlannerUsinaSectionProps> = ({
   // Verificação dimensional
   const boxHMm = selectedBox.heightMm;
   const face = usinaInThisBox?.mountFace || 'bottom';
-  const reqW = dims.width;
-  const reqH = dims.height;
-  const reqD = dims.depth;
+  const rotDeg = usinaInThisBox?.rotationDeg || 0;
+  const isRotated90 = rotDeg === 90 || rotDeg === 270;
+
+  // Dimensões nominais considerando a rotação na face
+  const reqW = face === 'bottom'
+    ? (isRotated90 ? dims.depth : dims.width)
+    : (isRotated90 ? dims.height : dims.width);
+
+  const reqH = face === 'bottom'
+    ? dims.height
+    : (isRotated90 ? dims.width : dims.height);
+
+  const reqD = face === 'bottom'
+    ? (isRotated90 ? dims.width : dims.depth)
+    : dims.depth;
 
   // Dimensão da face correspondente
   let availableW = boxWMm;
@@ -78,14 +91,20 @@ export const PlannerUsinaSection: React.FC<PlannerUsinaSectionProps> = ({
           let nextElectronics: InstalledElectronicItem[] = [...(b.electronics || [])];
           if (willEnable) {
             if (!nextElectronics.some(e => e.id === 'usina')) {
+              const mem = getElectronicMemory('usina');
               nextElectronics.push({
                 id: 'usina',
-                mountFace: 'bottom',
-                position: 'center',
-                rotationDeg: 0
+                mountFace: mem?.mountFace || 'bottom',
+                position: mem?.position || 'center',
+                rotationDeg: mem?.rotationDeg || 0,
+                customOffsetXmm: mem?.customOffsetXmm,
+                customOffsetYmm: mem?.customOffsetYmm,
+                customOffsetZmm: mem?.customOffsetZmm
               });
             }
           } else {
+            const existing = nextElectronics.find(e => e.id === 'usina');
+            if (existing) saveElectronicMemory('usina', existing);
             nextElectronics = nextElectronics.filter(e => e.id !== 'usina');
           }
           return {
@@ -95,6 +114,8 @@ export const PlannerUsinaSection: React.FC<PlannerUsinaSectionProps> = ({
         }
         // Remove de outra caixa ao ativar nesta
         if (willEnable && b.electronics?.some(e => e.id === 'usina')) {
+          const existing = b.electronics?.find(e => e.id === 'usina');
+          if (existing) saveElectronicMemory('usina', existing);
           return {
             ...b,
             electronics: (b.electronics || []).filter(e => e.id !== 'usina')
@@ -112,6 +133,7 @@ export const PlannerUsinaSection: React.FC<PlannerUsinaSectionProps> = ({
   };
 
   const updateUsinaItem = (updates: Partial<InstalledElectronicItem>) => {
+    saveElectronicMemory('usina', updates);
     setInternalBoxes((boxes: InternalBoxItem[]): InternalBoxItem[] => {
       return boxes.map((b): InternalBoxItem => {
         if (b.id === selectedBox.id) {
@@ -358,31 +380,47 @@ export const PlannerUsinaSection: React.FC<PlannerUsinaSectionProps> = ({
             </div>
           </div>
 
-          {/* Rotação e Status Shore Power */}
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginTop: '2px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '10px', color: '#94a3b8' }}>Orientação:</label>
-              <button
-                type="button"
-                onClick={() => updateUsinaItem({ rotationDeg: usinaInThisBox?.rotationDeg === 90 ? 0 : 90 })}
-                className="btn-compact"
-                style={{
-                  fontSize: '10px',
-                  padding: '2px 8px',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  color: '#f87171',
-                  borderColor: '#ef4444'
-                }}
-              >
-                🔄 {usinaInThisBox?.rotationDeg === 90 ? 'Girar Longitudinal (0°)' : 'Girar Transversal (90°)'}
-              </button>
+          {/* Orientação / Rotação e Status Shore Power */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>
+                Orientação / Rotação:
+              </span>
+              <span style={{ fontSize: '9.5px', color: usinaCharger.isConnectedAC ? '#86efac' : '#94a3b8', fontWeight: 600 }}>
+                {usinaCharger.isConnectedAC
+                  ? `⚡ Injetando ${usinaCharger.chargingAmps}A (${Math.round(usinaCharger.chargingAmps * usinaCharger.voltageOut)}W)`
+                  : `🔌 Desconectado (${usinaCharger.modelRating}A máx)`}
+              </span>
             </div>
 
-            <span style={{ fontSize: '9.5px', color: usinaCharger.isConnectedAC ? '#86efac' : '#94a3b8', fontWeight: 600 }}>
-              {usinaCharger.isConnectedAC
-                ? `⚡ Injetando ${usinaCharger.chargingAmps}A (${Math.round(usinaCharger.chargingAmps * usinaCharger.voltageOut)}W)`
-                : `🔌 Desconectado (${usinaCharger.modelRating}A máx)`}
-            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+              {[
+                { label: face === 'bottom' ? '0° (Transv./Lat.)' : '0° (Horizontal)', value: 0 },
+                { label: face === 'bottom' ? '90° (Longitudinal)' : '90° (Vertical)', value: 90 },
+                { label: '180° (Invertida)', value: 180 },
+                { label: face === 'bottom' ? '270° (Longit. 2)' : '270° (Vertical 2)', value: 270 }
+              ].map(r => {
+                const isCur = rotDeg === r.value;
+                return (
+                  <button
+                    key={r.value}
+                    type="button"
+                    className={`btn-compact ${isCur ? 'active' : ''}`}
+                    onClick={() => updateUsinaItem({ rotationDeg: r.value })}
+                    style={{
+                      padding: '4px 2px',
+                      fontSize: '9.5px',
+                      fontWeight: 700,
+                      background: isCur ? 'rgba(239, 68, 68, 0.3)' : 'rgba(30, 41, 59, 0.6)',
+                      borderColor: isCur ? '#ef4444' : '#334155',
+                      color: isCur ? '#fca5a5' : '#cbd5e1'
+                    }}
+                  >
+                    {r.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Diagnóstico Dimensional */}

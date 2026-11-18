@@ -58,13 +58,42 @@ function createMockSceneManager(builder: InternalBoxesBuilder, camera: THREE.Per
 }
 
 describe('Module Focus & Wood-Part Exclusive Hover', () => {
-  it('ghosts other boxes, floor, and ceiling when a module is entered via selectedBoxId or isolatedBoxId', () => {
+  it('single click (selectedBoxId) selects module for editing without isolating or ghosting others', () => {
     const builder = new InternalBoxesBuilder();
     const grid = { ...DEFAULT_INTERNAL_GRID };
     const boxes = INTERNAL_BOXES_PRESETS[0].boxes;
 
-    // Entra no módulo apenas via selectedBoxId (clique simples no 3D/grid/lista)
+    // 1 clique apenas seleciona para edição
     builder.update(grid, boxes, 'box_power_1', false, null);
+
+    expect(builder.isolatedBoxId).toBeNull();
+    expect(builder.selectedBoxId).toBe('box_power_1');
+
+    const otherBox = builder.boxesGroup.getObjectByName('BoxContainer_box_clothes_2')!;
+    expect(otherBox).toBeDefined();
+
+    // Outros módulos NÃO devem virar fantasmas
+    otherBox.traverse((obj: any) => {
+      if (obj.isMesh) {
+        expect(obj.userData?.isGhost).toBeFalsy();
+      }
+    });
+
+    // Piso e teto NÃO devem virar fantasmas
+    builder.floorGroup.traverse((obj: any) => {
+      if (obj.isMesh) {
+        expect(obj.userData?.isGhost).toBeFalsy();
+      }
+    });
+  });
+
+  it('double click (isolatedBoxId) isolates the module and ghosts other boxes, floor, and ceiling', () => {
+    const builder = new InternalBoxesBuilder();
+    const grid = { ...DEFAULT_INTERNAL_GRID };
+    const boxes = INTERNAL_BOXES_PRESETS[0].boxes;
+
+    // 2 cliques isolam o módulo
+    builder.update(grid, boxes, 'box_power_1', false, 'box_power_1');
 
     expect(builder.isolatedBoxId).toBe('box_power_1');
     expect(builder.selectedBoxId).toBe('box_power_1');

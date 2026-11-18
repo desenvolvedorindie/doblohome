@@ -94,23 +94,27 @@ export function parseProfileThickness(profileSpec: string, barLabel: string = ''
   const specLower = (profileSpec || '').toLowerCase();
   const labelLower = (barLabel || '').toLowerCase();
 
-  // 1. Detecta acessórios e ferragens mecânicas (sapatas, corrediças, trilhos)
+  // 1. Detecta acessórios e ferragens mecânicas (sapatas, corrediças, trilhos, parafusos guia)
   const isAccessory =
     specLower.includes('trilho') ||
     specLower.includes('corrediça') ||
     specLower.includes('sapata') ||
     specLower.includes('laminado') ||
+    specLower.includes('parafuso guia') ||
+    specLower.includes('perfil guia') ||
     labelLower.includes('sapata') ||
     labelLower.includes('trilho') ||
-    labelLower.includes('corrediça');
+    labelLower.includes('corrediça') ||
+    labelLower.includes('parafuso guia') ||
+    labelLower.includes('perfil guia');
 
   if (isAccessory) {
     return {
       thicknessMm: 0,
       gaugeLabel: 'Ferragem / Acessório',
       sectionCategory: 'accessories',
-      groupTitle: '⚙️ FERRAGENS & PERFIS ESPECIAIS DE MONTAGEM (SAPATAS / TRILHOS)',
-      groupSubtitle: 'Sapatas de fixação na calha da Doblò e trilhos corrediça telescópicos heavy-duty'
+      groupTitle: '⚙️ FERRAGENS & PERFIS ESPECIAIS DE MONTAGEM (SAPATAS / TRILHOS / GUIAS)',
+      groupSubtitle: 'Sapatas de fixação na calha da Doblò, perfis guia de alumínio e parafusos deslizantes em aço inox'
     };
   }
 

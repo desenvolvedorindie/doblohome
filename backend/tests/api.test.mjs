@@ -267,5 +267,16 @@ await test('presets isolados por usuário', async () => {
   assert.equal(r.data.exists, false);
 });
 
+console.log('Plano de Corte');
+await test('GET /cutting/pdf retorna application/pdf válido', async () => {
+  const res = await fetch(`${API}/cutting/pdf`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'application/pdf');
+  const buffer = await res.arrayBuffer();
+  assert.ok(buffer.byteLength > 10000, `Tamanho esperado > 10KB, obtido: ${buffer.byteLength}`);
+  const headerStr = String.fromCharCode(...new Uint8Array(buffer.slice(0, 5)));
+  assert.equal(headerStr, '%PDF-');
+});
+
 console.log(`\n${passed} passaram, ${failures.length} falharam`);
 process.exit(failures.length ? 1 : 0);

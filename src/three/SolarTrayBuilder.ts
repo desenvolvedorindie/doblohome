@@ -103,7 +103,7 @@ export class SolarTrayBuilder {
   }
 
   /**
-   * Constrói um nível completo (Nível 1 ou 2) configurando bandejas e corrediças telescópicas
+   * Constrói um nível completo (Nível 1 ou 2) configurando bandejas e perfis guia c/ parafusos deslizantes
    */
   static buildLevel(
     levelNumber: number,

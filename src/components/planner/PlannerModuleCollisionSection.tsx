@@ -124,7 +124,7 @@ export const PlannerModuleCollisionSection: React.FC = () => {
               key={i}
               onClick={() => setSelectedBoxId?.(issue.boxId)}
               onMouseEnter={() => {
-                const targets = [issue.objectA, issue.objectB, issue.boxRoot].filter(Boolean);
+                const targets = [issue.objectA, issue.objectB].filter(Boolean) as any[];
                 sceneManager?.hoverCollisionObjects(targets);
               }}
               onMouseLeave={() => sceneManager?.hoverCollisionObjects(null)}

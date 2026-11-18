@@ -113,7 +113,7 @@ function computeInteriorBounds(
   const hasRight = item?.panels?.right ?? true;
   const hasFront = item?.panels?.front ?? true;
   const hasRear = item?.panels?.rear ?? true;
-  const hasBottom = item?.panels?.bottom ?? true;
+  const hasBottom = Boolean(item?.panels?.bottom);
 
   return new THREE.Box3(
     new THREE.Vector3(-w / 2 + (hasRight ? t.right : 0), -h / 2 + (hasBottom ? t.bottom : 0), -l / 2 + (hasRear ? t.rear : 0)),
@@ -291,9 +291,13 @@ export const ModuleCollisionChecker = {
   }),
 
   highlight(root: THREE.Object3D) {
+    if (!root) return;
+    // Nunca destaca o móvel/baú em si, apenas o componente colidido
+    if (root.userData?.isInternalBoxRoot || root.name.startsWith('InternalBox_')) return;
     root.traverse((c) => {
       const mesh = c as THREE.Mesh;
-      if (!mesh.isMesh || mesh.userData?.isScrew) return;
+      if (!mesh.isMesh || mesh.userData?.isScrew || mesh.userData?.isWoodPart) return;
+      if (mesh.name === '__box_hitbox' || mesh.userData?.isInternalBoxHitbox) return;
       if (!this._saved.has(mesh)) this._saved.set(mesh, mesh.material);
       mesh.material = this._mat;
     });
@@ -303,9 +307,11 @@ export const ModuleCollisionChecker = {
     this.clearHoverFocus();
     targets.forEach((root) => {
       if (!root) return;
+      // Garante que se um módulo for acidentalmente passado, o móvel em si não seja destacado
+      if (root.userData?.isInternalBoxRoot || root.name.startsWith('InternalBox_')) return;
       root.traverse((c) => {
         const mesh = c as THREE.Mesh;
-        if (!mesh.isMesh || mesh.userData?.isScrew) return;
+        if (!mesh.isMesh || mesh.userData?.isScrew || mesh.userData?.isWoodPart) return;
         if (mesh.name === '__box_hitbox' || mesh.userData?.isInternalBoxHitbox) return;
         if (!this._hoverSaved.has(mesh)) {
           this._hoverSaved.set(mesh, mesh.material);
@@ -315,6 +321,12 @@ export const ModuleCollisionChecker = {
       if (scene) {
         const helper = new THREE.BoxHelper(root, 0xfacc15);
         helper.name = '__collision_hover_helper';
+        if (helper.material && (helper.material as any).depthTest !== undefined) {
+          (helper.material as any).depthTest = false;
+          (helper.material as any).transparent = true;
+          (helper.material as any).opacity = 0.95;
+        }
+        helper.renderOrder = 999;
         scene.add(helper);
         this._hoverHelpers.push(helper);
       }

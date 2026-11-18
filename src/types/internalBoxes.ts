@@ -1,6 +1,8 @@
 import type { InstalledElectronicItem } from './electronics';
 
-export type InternalBoxType = 'chest' | 'drawer' | 'slide_tray' | 'open' | 'slat_bed';
+export type InternalBoxType = 'chest' | 'drawer' | 'slide_tray' | 'open' | 'slat_bed' | 'vertical_lift';
+export type LiftMechanismType = 'pantograph' | 'telescopic';
+export type BedMode = 'slat' | 'hinged'; // Modo da cama: 'slat' (retrátil com ripas) ou 'hinged' (articulada com dobradiça)
 export type DrawerMode = 'drawer' | 'slide_tray'; // Gaveteiro fechado alto vs Bandeja corrediça rasa
 export type InternalBoxMaterial = 'plywood' | 'dark_wood' | 'white_mdf' | 'aluminum_box';
 export type RearShelfFinish = 'pine_block' | 'teak' | 'dark_wood' | 'plywood';
@@ -57,13 +59,15 @@ export const FOLDING_BRACKET_SPECS: FoldingBracketSpec[] = [
  * Suporta os tamanhos padronizados comerciais: 8", 10", 12", 16", 18" e 20".
  * Substitui pistões a gás por suporte mecânico de alta rigidez com trava rápida e gatilho.
  */
-export function getFoldingBracketForHeight(boxHeightMm: number, manualInches?: number): FoldingBracketSpec {
+export function getFoldingBracketForHeight(boxHeightMm: number, manualInches?: number, shelfDepthMm?: number): FoldingBracketSpec {
   if (manualInches) {
     const found = FOLDING_BRACKET_SPECS.find((s) => s.inches === manualInches);
     if (found) return found;
   }
-  // A prancha recolhida na vertical precisa caber na face do baú com folga de segurança de ~25mm
-  const targetMaxL = Math.max(180, boxHeightMm - 25);
+  // A prancha recolhida na vertical precisa caber na face do baú com folga de segurança de ~40mm (descontos de pivô e piso)
+  // E o braço horizontal da mão francesa não deve exceder a profundidade/largura útil da prateleira
+  const maxFromBox = Math.max(180, boxHeightMm - 40);
+  const targetMaxL = shelfDepthMm ? Math.min(maxFromBox, shelfDepthMm + 10) : maxFromBox;
   const eligible = FOLDING_BRACKET_SPECS.filter((s) => s.lengthMm <= targetMaxL);
   if (eligible.length > 0) {
     return eligible[eligible.length - 1];
@@ -197,6 +201,20 @@ export function getUpperCabinetShelfDoorDiscountMm(box: {
 }
 
 /**
+ * Calcula o curso máximo de elevação vertical do módulo (em mm).
+ * Segue estritamente a física e desenho técnico dos pistões a gás industriais (DIN 71805 / Stabilus):
+ * A haste não pode estender mais do que o curso útil que cabe alojado dentro do cilindro fechado.
+ */
+export function calculateMaxVerticalLift(heightMm: number): number {
+  const safeH = Math.max(100, Math.round(heightMm) || 400);
+  const innerHMm = Math.max(50, safeH - 30); // Desconta tampo e fundo de 15mm
+  const closedDistMm = Math.max(50, innerHMm - 50); // Desconta ancoragens/sapatas superior e inferior
+  const cylLenMm = Math.max(40, closedDistMm - 52); // Desconta rótulas e retentor do cilindro
+  const maxStrokeMm = Math.max(30, Math.round(cylLenMm - 20)); // Curso útil da haste dentro do cilindro
+  return Math.min(safeH, maxStrokeMm);
+}
+
+/**
  * Calcula quais direções estão desobstruídas (vazias) para o deslizamento de uma gaveta ou bandeja corrediça.
  * Se houver outro módulo adjacente na direção correspondente, a direção é marcada como bloqueada.
  */
@@ -314,6 +332,9 @@ export interface InternalBoxItem {
   rearShelfFinish?: RearShelfFinish; // Acabamento da madeira da prateleira decorativa
   rearShelfBracketInches?: number;   // Medida comercial em polegadas da mão francesa (8", 10", 12", 14", 16", 18", 20", 24"). Se omitido, calcula automaticamente pela altura!
   isRearShelfOpen?: boolean;     // Estado aberto/fechado da prateleira traseira
+  rearShelfOffsetYMm?: number;   // Deslocamento vertical da prateleira rebatível em mm (0 = topo padrão, valores positivos para descer ao longo da face traseira)
+  rearShelfDepthMm?: number;     // Largura da prateleira ao abrir (profundidade da bancada) em mm. Limitada à altura do baú menos descontos de articulação e piso: max = heightMm - 40mm
+  rearShelfWidthMm?: number;     // Extensão / comprimento transversal da prateleira em mm (ao longo da largura do móvel, máx = widthMm - 20mm)
   upperCabinet?: boolean;        // Armário aéreo de quina sobre a caixa até o teto da Doblò
   upperCabinetDepthMm?: number;  // Largura para trás / Profundidade longitudinal em mm (Z) ou transversal (X) se lateral
   upperCabinetWidthMm?: number;  // Largura transversal do armário em mm (X) ou comprimento (Z) se lateral
@@ -337,7 +358,17 @@ export interface InternalBoxItem {
   upperCabinetBackCoverMode?: BackPanelCoverMode; // Modo de fechamento do fundo do armário aéreo: 'inset' (embutido nas 4 partes) ou 'overlay_all' (tampo traseiro cobrindo as 5 partes)
   boxJointStyle?: BoxJointStyle; // Tipo de montagem das chapas do módulo/baú inferior: 'sides_outside', 'top_bottom_cap' ou 'back_over_all'
   boxBackCoverMode?: BackPanelCoverMode; // Modo de fechamento do fundo do módulo/baú inferior: 'inset' (embutido nas 4 partes em volta) ou 'overlay_all' (tampo fechando as 5 partes)
+  openShelves?: number;          // Quantidade de prateleiras internas para nicho aberto inferior (0 a 3, padrão 0)
+  liftHeightMm?: number;         // Altura de elevação vertical do módulo extensível em mm (limitada à altura heightMm do móvel)
+  liftMechanism?: LiftMechanismType; // Tipo estrutural do mecanismo de ferro: 'pantograph' (Tesoura em X) ou 'telescopic' (4 Colunas Guia de Canto)
   drawerMode?: DrawerMode;       // Alternância entre 'drawer' (gaveteiro alto fechado) ou 'slide_tray' (bandeja corrediça rasa)
+  hasBed?: boolean;              // Componente Cama (Sofá-Cama) acoplado sobre o módulo (permite combinar com bandeja corrediça, gavetão, baú ou nicho)
+  isBedOpen?: boolean;           // Estado aberto/estendido individual da cama acoplada (independente da gaveta/bandeja)
+  bedMode?: BedMode;             // Modo da cama: 'slat' (retrátil com ripas) ou 'hinged' (articulada com dobradiça)
+  hingedBedSurface?: 'panel' | 'slatted'; // Superfície da cama dobradiça: 'panel' (tampo inteiriço) ou 'slatted' (estrado ripado ventilado)
+  slatMaterial?: InternalBoxMaterial; // Madeira/material das ripas (ou tampo/folha da cama dobrável). Padrão: material do módulo
+  bedLegMaterial?: InternalBoxMaterial; // Madeira/material dos pés da cama. Padrão: material do módulo
+  hingedBedLeafSizeMm?: number;  // Tamanho (largura ou comprimento na direção de abertura) da folha dobrável em mm (limitado ao tamanho do módulo)
   hasCentralTable?: boolean;     // Mesa dinette central removível c/ pedestal náutico
   centralTable?: CentralTableConfig; // Configuração dimensional e de deslocamento da mesa central
   hasLedCorner?: boolean;        // Perfil cantoneira de quina com LED na parte de baixo do módulo
@@ -351,6 +382,11 @@ export interface InternalBoxItem {
   fridgeOffsetZ?: number;        // Deslocamento fino longitudinal em mm (-150 a +150mm)
   hasPortaPotti?: boolean;       // Vaso sanitário químico portátil instalado no interior do módulo (gavetão, bandeja ou baú)
   portaPottiPresetId?: string;   // ID do preset de porta potti selecionado (ex: 'seaflo-20l')
+  portaPottiRotation?: 0 | 90 | 180 | 270; // Rotação horizontal do vaso sanitário (0°, 90°, 180°, 270°)
+  portaPottiAlignX?: 'center' | 'left' | 'right'; // Alinhamento lateral no interior do módulo
+  portaPottiAlignZ?: 'center' | 'front' | 'back'; // Alinhamento longitudinal no interior do módulo
+  portaPottiOffsetX?: number;    // Deslocamento fino lateral em mm (-150 a +150mm)
+  portaPottiOffsetZ?: number;    // Deslocamento fino longitudinal em mm (-150 a +150mm)
   hasStove?: boolean;            // Fogareiro portátil instalado no módulo (interior, tampo ou mesa traseira)
   stovePresetId?: string;        // ID do preset de fogareiro selecionado (ex: 'ntk-duo-ceramik')
   stovePlacement?: 'inside' | 'top' | 'rear_shelf'; // Local de instalação do fogareiro no módulo

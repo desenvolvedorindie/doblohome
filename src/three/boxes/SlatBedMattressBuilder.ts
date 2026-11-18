@@ -25,11 +25,12 @@ export interface SlatMattressParams {
 
 export class SlatBedMattressBuilder {
   buildMattress(params: SlatMattressParams) {
-    const { container, w, l, h, box, slatT, direction, isExtended, cellWM, cellLM, allBoxes, grid } = params;
+    const { container, w, l, h, box, slatT, direction, isExtended, extRatio, cellWM, cellLM, allBoxes, grid } = params;
     const isSelected = params.isSelected ?? false;
     const showMattress = params.showMattress ?? true;
     const parts = box.mattressParts ?? 2;
-    const topOfSlatsY = h / 2;
+    const isHinged = box.bedMode === 'hinged';
+    const topOfSlatsY = (isHinged && !isExtended) ? (h / 2 + slatT) : (h / 2);
 
     if (!showMattress) {
       return;
@@ -69,9 +70,6 @@ export class SlatBedMattressBuilder {
     const seamMat = new THREE.MeshBasicMaterial({ color: 0x1e293b });
 
     if (direction === 'left' || direction === 'right') {
-      // As almofadas do colchão ocupam exatamente N partes da largura/divisão total da Doblò:
-      // - 3 partes = 3 terços da largura útil da Doblò (1200mm / 3 = 400mm cada parte)
-      // - 4 partes = 4 quartos da largura útil da Doblò (1200mm / 4 = 300mm cada parte)
       const gridWidthM = grid ? grid.widthMm / 1000 : (cellWM ? cellWM * 3 : w * 2);
       const cellW =
         parts === 4
@@ -79,13 +77,16 @@ export class SlatBedMattressBuilder {
           : parts === 3 || parts === 5
             ? gridWidthM / 3
             : (cellWM || w);
-      const cushionW = cellW - 0.012;
-      const cushionL = l - 0.016;
+
+      // O colchão ocupa 100% da área da cama (sem subtrair folgas arbitrárias de 12mm ou 16mm)
+      const cushionW = cellW;
+      const cushionL = l;
 
       if (parts === 5) {
         buildLateralFivePartMattress({
           container,
           w,
+          l,
           direction,
           isExtended,
           cellW,
@@ -103,6 +104,8 @@ export class SlatBedMattressBuilder {
         buildLateralStandardMattress({
           container,
           w,
+          l,
+          box,
           direction,
           isExtended,
           parts,
@@ -127,10 +130,12 @@ export class SlatBedMattressBuilder {
           : parts === 3
             ? gridLengthM / 3
             : (cellLM || l);
+
       buildLongitudinalMattress({
         container,
         w,
         l,
+        box,
         direction,
         isExtended,
         parts,

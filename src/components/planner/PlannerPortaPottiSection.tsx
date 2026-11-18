@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSolar } from '../../context/SolarContext';
 import { InternalBoxItem } from '../../types';
+import { saveApplianceMemory, getApplianceMemory } from '../../utils/componentPositionMemory';
 
 interface PlannerPortaPottiSectionProps {
   selectedBox: InternalBoxItem;
@@ -14,20 +15,38 @@ export const PlannerPortaPottiSection: React.FC<PlannerPortaPottiSectionProps> =
   boxLMm
 }) => {
   const {
+    internalBoxes,
     updateInternalBox,
+    setInternalBoxes,
+    setSelectedBoxId,
     portaPottiPresets,
     activePortaPottiPresetId,
     openModal
   } = useSolar();
 
   const isPortaPottiActive = !!selectedBox.hasPortaPotti;
-  const currentPresetId = selectedBox.portaPottiPresetId || activePortaPottiPresetId || portaPottiPresets[0]?.id;
+
+  // Encontra qual módulo possui o sanitário atualmente (caso não seja este)
+  const boxWithPortaPotti = internalBoxes.find(b => b.hasPortaPotti);
+
+  const currentPresetId = selectedBox.portaPottiPresetId || boxWithPortaPotti?.portaPottiPresetId || activePortaPottiPresetId || portaPottiPresets[0]?.id;
   const selectedPreset = portaPottiPresets.find(p => p.id === currentPresetId) || portaPottiPresets[0];
 
-  // Verificação dimensional
+  const portaPottiMem = getApplianceMemory('portaPotti');
+  const rotation: 0 | 90 | 180 | 270 = (selectedBox.portaPottiRotation ?? boxWithPortaPotti?.portaPottiRotation ?? portaPottiMem?.rotation ?? 0) as 0 | 90 | 180 | 270;
+  const alignX: 'center' | 'left' | 'right' = (selectedBox.portaPottiAlignX ?? boxWithPortaPotti?.portaPottiAlignX ?? portaPottiMem?.alignX ?? 'center') as 'center' | 'left' | 'right';
+  const rawAlignZ = selectedBox.portaPottiAlignZ ?? boxWithPortaPotti?.portaPottiAlignZ ?? portaPottiMem?.alignZ ?? 'center';
+  const alignZ: 'front' | 'center' | 'back' = rawAlignZ === 'rear' ? 'back' : (rawAlignZ as 'front' | 'center' | 'back');
+  const offsetX = selectedBox.portaPottiOffsetX ?? boxWithPortaPotti?.portaPottiOffsetX ?? portaPottiMem?.offsetX ?? 0;
+  const offsetZ = selectedBox.portaPottiOffsetZ ?? boxWithPortaPotti?.portaPottiOffsetZ ?? portaPottiMem?.offsetZ ?? 0;
+
+  // Verificação dimensional considerando orientação (0°, 90°, 180°, 270°)
+  const isRotated = rotation === 90 || rotation === 270;
   const boxHMm = selectedBox.heightMm;
-  const reqW = selectedPreset ? selectedPreset.width : 404;
-  const reqD = selectedPreset ? selectedPreset.depth : 353;
+  const rawW = selectedPreset ? selectedPreset.width : 404;
+  const rawD = selectedPreset ? selectedPreset.depth : 353;
+  const reqW = isRotated ? rawD : rawW;
+  const reqD = isRotated ? rawW : rawD;
   const reqH = selectedPreset ? selectedPreset.height : 390;
 
   const clearanceW = boxWMm - reqW;
@@ -38,6 +57,42 @@ export const PlannerPortaPottiSection: React.FC<PlannerPortaPottiSectionProps> =
   const fitsD = clearanceD >= 0;
   const fitsH = clearanceH >= 0;
   const fitsAll = fitsW && fitsD && fitsH;
+
+  // Função para mover o sanitário de um módulo para outro
+  const handleMovePortaPottiToBox = (targetBoxId: string) => {
+    saveApplianceMemory('portaPotti', {
+      rotation,
+      alignX,
+      alignZ,
+      offsetX,
+      offsetZ
+    });
+    setInternalBoxes((prev: InternalBoxItem[]) =>
+      prev.map(b => {
+        if (b.id === targetBoxId) {
+          return {
+            ...b,
+            hasPortaPotti: true,
+            portaPottiPresetId: currentPresetId,
+            portaPottiRotation: rotation,
+            portaPottiAlignX: alignX,
+            portaPottiAlignZ: alignZ,
+            portaPottiOffsetX: offsetX,
+            portaPottiOffsetZ: offsetZ
+          };
+        }
+        if (b.hasPortaPotti) {
+          return {
+            ...b,
+            hasPortaPotti: false,
+            portaPottiPresetId: undefined
+          };
+        }
+        return b;
+      })
+    );
+    setSelectedBoxId(targetBoxId);
+  };
 
   return (
     <div
@@ -71,22 +126,36 @@ export const PlannerPortaPottiSection: React.FC<PlannerPortaPottiSectionProps> =
                 borderRadius: '4px'
               }}
             >
-              {isPortaPottiActive ? 'INSTALADO NO MÓDULO' : 'SEM SANITÁRIO'}
+              {isPortaPottiActive ? 'INSTALADO NO MÓDULO' : (boxWithPortaPotti ? `INSTALADO EM: ${boxWithPortaPotti.name.toUpperCase()}` : 'SEM SANITÁRIO')}
             </span>
           </div>
           <div style={{ fontSize: '9.5px', color: '#94a3b8', lineHeight: 1.35 }}>
-            Instala um modelo 3D realista do vaso sanitário químico portátil no interior deste módulo (gavetão corrediço, bandeja rasa ou baú), com validação das dimensões e folgas de abertura da tampa.
+            {isPortaPottiActive
+              ? 'Sanitário ativo neste módulo. Configure a rotação, alinhamento e deslocamento fino no espaço interno.'
+              : (boxWithPortaPotti
+                  ? `O vaso sanitário está no módulo "${boxWithPortaPotti.name}". Clique no botão para movê-lo para cá.`
+                  : 'Instala um modelo 3D realista do vaso sanitário químico portátil no interior deste módulo (gavetão corrediço, bandeja rasa ou baú).')}
           </div>
         </div>
 
         <button
           type="button"
           onClick={() => {
-            const willEnable = !isPortaPottiActive;
-            updateInternalBox(selectedBox.id, {
-              hasPortaPotti: willEnable,
-              portaPottiPresetId: willEnable ? currentPresetId : undefined
-            });
+            if (isPortaPottiActive) {
+              saveApplianceMemory('portaPotti', {
+                rotation,
+                alignX,
+                alignZ,
+                offsetX,
+                offsetZ
+              });
+              updateInternalBox(selectedBox.id, {
+                hasPortaPotti: false,
+                portaPottiPresetId: undefined
+              });
+            } else {
+              handleMovePortaPottiToBox(selectedBox.id);
+            }
           }}
           className="btn-compact"
           style={{
@@ -99,7 +168,7 @@ export const PlannerPortaPottiSection: React.FC<PlannerPortaPottiSectionProps> =
             borderRadius: '6px'
           }}
         >
-          {isPortaPottiActive ? '✓ Desinstalar' : '+ Instalar Porta Potti'}
+          {isPortaPottiActive ? '✓ Desinstalar' : (boxWithPortaPotti ? '⇄ Mover para cá' : '+ Instalar Porta Potti')}
         </button>
       </div>
 
@@ -154,6 +223,234 @@ export const PlannerPortaPottiSection: React.FC<PlannerPortaPottiSectionProps> =
             >
               ⚙️ Presets
             </button>
+          </div>
+
+          {/* Escolha do Módulo de Instalação (se houver mais de 1) */}
+          {internalBoxes.length > 1 && (
+            <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+              <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                📍 Módulo Onde o Sanitário Fica Instalado:
+              </label>
+              <select
+                value={selectedBox.id}
+                onChange={(e) => handleMovePortaPottiToBox(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'rgba(30, 41, 59, 0.95)',
+                  border: '1px solid #334155',
+                  color: '#f8fafc',
+                  padding: '5px 8px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontWeight: 600
+                }}
+              >
+                {internalBoxes.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.type === 'drawer' ? 'Gaveta' : b.type === 'chest' ? 'Baú' : 'Módulo'}) {b.id === selectedBox.id ? '★ (Atual)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Posicionamento, Rotação e Deslocamento Fino */}
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.7)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              borderRadius: '6px',
+              padding: '10px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}
+          >
+            <div style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.4px' }}>
+              📐 POSIÇÃO &amp; ORIENTAÇÃO NO MÓDULO
+            </div>
+
+            {/* Rotação Horizontal */}
+            <div>
+              <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                Orientação / Rotação:
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+                {[
+                  { label: '0° (Frente)', value: 0 },
+                  { label: '90° (Lateral)', value: 90 },
+                  { label: '180° (Invertida)', value: 180 },
+                  { label: '270° (Lateral 2)', value: 270 }
+                ].map(r => {
+                  const isCur = rotation === r.value;
+                  return (
+                    <button
+                      key={r.value}
+                      type="button"
+                      className={`btn-compact ${isCur ? 'active' : ''}`}
+                      onClick={() => {
+                        saveApplianceMemory('portaPotti', { rotation: r.value as any });
+                        updateInternalBox(selectedBox.id, { portaPottiRotation: r.value as any });
+                      }}
+                      style={{
+                        padding: '4px 2px',
+                        fontSize: '9.5px',
+                        fontWeight: 700,
+                        background: isCur ? 'rgba(56, 189, 248, 0.3)' : 'rgba(30, 41, 59, 0.6)',
+                        borderColor: isCur ? '#38bdf8' : '#334155',
+                        color: isCur ? '#38bdf8' : '#cbd5e1'
+                      }}
+                    >
+                      {r.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Alinhamento X (Lateral) e Z (Profundidade) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '2px' }}>
+              {/* Alinhamento Lateral X */}
+              <div>
+                <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                  Alinhamento Lateral (X):
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px' }}>
+                  {[
+                    { label: 'Esq', val: 'left' },
+                    { label: 'Centro', val: 'center' },
+                    { label: 'Dir', val: 'right' }
+                  ].map(a => {
+                    const isCur = alignX === a.val;
+                    return (
+                      <button
+                        key={a.val}
+                        type="button"
+                        className={`btn-compact ${isCur ? 'active' : ''}`}
+                        onClick={() => {
+                          saveApplianceMemory('portaPotti', { alignX: a.val as any });
+                          updateInternalBox(selectedBox.id, { portaPottiAlignX: a.val as any });
+                        }}
+                        style={{
+                          padding: '4px 2px',
+                          fontSize: '9.5px',
+                          fontWeight: 700,
+                          background: isCur ? 'rgba(56, 189, 248, 0.3)' : 'rgba(30, 41, 59, 0.6)',
+                          borderColor: isCur ? '#38bdf8' : '#334155',
+                          color: isCur ? '#38bdf8' : '#cbd5e1'
+                        }}
+                      >
+                        {a.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Alinhamento Profundidade Z */}
+              <div>
+                <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                  Alinhamento Profundidade (Z):
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px' }}>
+                  {[
+                    { label: 'Frente', val: 'front' },
+                    { label: 'Centro', val: 'center' },
+                    { label: 'Fundo', val: 'back' }
+                  ].map(a => {
+                    const isCur = alignZ === a.val;
+                    return (
+                      <button
+                        key={a.val}
+                        type="button"
+                        className={`btn-compact ${isCur ? 'active' : ''}`}
+                        onClick={() => {
+                          saveApplianceMemory('portaPotti', { alignZ: a.val as any });
+                          updateInternalBox(selectedBox.id, { portaPottiAlignZ: a.val as any });
+                        }}
+                        style={{
+                          padding: '4px 2px',
+                          fontSize: '9.5px',
+                          fontWeight: 700,
+                          background: isCur ? 'rgba(56, 189, 248, 0.3)' : 'rgba(30, 41, 59, 0.6)',
+                          borderColor: isCur ? '#38bdf8' : '#334155',
+                          color: isCur ? '#38bdf8' : '#cbd5e1'
+                        }}
+                      >
+                        {a.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Ajustes Finos de Deslocamento em Milímetros (Offsets) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px', paddingTop: '6px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: '#94a3b8', marginBottom: '2px' }}>
+                  <span>Offset Lateral (X):</span>
+                  <strong style={{ color: '#38bdf8' }}>{offsetX > 0 ? `+${offsetX}` : offsetX} mm</strong>
+                </div>
+                <input
+                  type="range"
+                  className="custom-slider"
+                  min="-150"
+                  max="150"
+                  step="5"
+                  value={offsetX}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    saveApplianceMemory('portaPotti', { offsetX: val });
+                    updateInternalBox(selectedBox.id, { portaPottiOffsetX: val });
+                  }}
+                  title="Ajuste fino milimétrico para esquerda/direita no módulo"
+                />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: '#94a3b8', marginBottom: '2px' }}>
+                  <span>Offset Profundidade (Z):</span>
+                  <strong style={{ color: '#38bdf8' }}>{offsetZ > 0 ? `+${offsetZ}` : offsetZ} mm</strong>
+                </div>
+                <input
+                  type="range"
+                  className="custom-slider"
+                  min="-150"
+                  max="150"
+                  step="5"
+                  value={offsetZ}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    saveApplianceMemory('portaPotti', { offsetZ: val });
+                    updateInternalBox(selectedBox.id, { portaPottiOffsetZ: val });
+                  }}
+                  title="Ajuste fino milimétrico para frente/fundo no módulo"
+                />
+              </div>
+            </div>
+
+            {(offsetX !== 0 || offsetZ !== 0) && (
+              <button
+                type="button"
+                className="btn-compact"
+                onClick={() => {
+                  saveApplianceMemory('portaPotti', { offsetX: 0, offsetZ: 0 });
+                  updateInternalBox(selectedBox.id, { portaPottiOffsetX: 0, portaPottiOffsetZ: 0 });
+                }}
+                style={{
+                  width: '100%',
+                  fontSize: '9.5px',
+                  padding: '3px 8px',
+                  color: '#94a3b8',
+                  background: 'rgba(30, 41, 59, 0.5)',
+                  borderColor: 'rgba(148, 163, 184, 0.3)',
+                  marginTop: '2px'
+                }}
+              >
+                ↺ Resetar Ajuste Fino para Centro (0, 0 mm)
+              </button>
+            )}
           </div>
 
           {/* Card com Detalhes do Porta Potti Selecionado */}

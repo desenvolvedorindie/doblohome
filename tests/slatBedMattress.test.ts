@@ -404,7 +404,7 @@ describe('SlatBedMattressBuilder - Floating and Cutout Tests', () => {
     expect((baseArch.userData as any).hasCabinetCutout).toBe(true);
     expect((baseArch.userData as any).woodMaterial).toBe('Espuma D45 (Colchão)');
     expect((baseArch.userData as any).thicknessMm).toBe(100);
-    expect((baseArch.userData as any).dimL).toBeCloseTo(1.423, 2);
+    expect((baseArch.userData as any).dimL).toBeCloseTo(1.431, 2);
   });
 
   it('verifies parts lineup and collection retain nominal thickness and cabinet cutouts even when bed is closed', async () => {

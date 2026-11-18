@@ -55,14 +55,8 @@ Thumbs.db
 coverage/
 *.lcov
 
-# Python cache & virtual environments (scripts auxiliares)
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-.venv/
-ENV/
+# Generated cutting plan PDFs
+plano_de_corte_*.pdf
+public/plano_de_corte_*.pdf
+dist/plano_de_corte_*.pdf
 
