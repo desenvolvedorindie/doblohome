@@ -41,14 +41,15 @@ export function isAncestorVisible(node: THREE.Object3D): boolean {
 export function findIsolatedBoxWoodHoverTarget(
   sceneManager: any,
   activeContainer: THREE.Object3D
-): THREE.Mesh | null {
+): THREE.Object3D | null {
   const intersects = sceneManager.raycaster.intersectObjects([activeContainer], true);
-  let foundWoodMesh: THREE.Mesh | null = null;
+  const ghostWalls = Boolean(sceneManager.internalBoxesBuilder?.ghostWalls);
 
   for (const hit of intersects) {
     const obj = hit.object;
     if (!isAncestorVisible(obj)) continue;
     if ((obj as any).isSprite || (obj as any).isLine || (obj as any).isLineSegments) continue;
+    if (obj.userData?.isNominalUpholstery) continue;
     if (
       obj.name === '__box_hitbox' ||
       obj.name === '__hitbox' ||
@@ -59,28 +60,26 @@ export function findIsolatedBoxWoodHoverTarget(
     }
 
     let cur: THREE.Object3D | null = obj;
-    let isNonWoodFeature = false;
-    let woodObj: THREE.Mesh | null = null;
     while (cur && cur !== activeContainer) {
       const ud = cur.userData || {};
-      if (ud.isElectrical || ud.isAppliance || ud.isUpholstery || ud.isHardware) {
-        isNonWoodFeature = true;
+      if (ud.isElectrical) {
+        return ud.electricalRoot || cur;
+      }
+      if (ud.isAppliance) {
+        return ud.applianceRoot || cur;
+      }
+      if (!ghostWalls && (ud.isUpholstery || ud.isHardware)) {
+        if ((cur as any).isMesh) return cur;
         break;
       }
-      if (ud.isWoodPart === true && (cur as any).isMesh) {
-        woodObj = cur as THREE.Mesh;
-        break;
+      if (!ghostWalls && ud.isWoodPart === true && (cur as any).isMesh) {
+        return cur as THREE.Mesh;
       }
       cur = cur.parent;
     }
-
-    if (isNonWoodFeature || !woodObj) continue;
-
-    foundWoodMesh = woodObj;
-    break;
   }
 
-  return foundWoodMesh;
+  return null;
 }
 
 export function resolveSceneHoverTarget(
@@ -152,7 +151,7 @@ export function resolveSceneHoverTarget(
         applianceNode = obj;
       } else {
         let p: THREE.Object3D | null = obj.parent;
-        for (let depth = 0; depth < 4 && p && p !== sceneManager.scene; depth++, p = p.parent) {
+        for (let depth = 0; depth < 6 && p && p !== sceneManager.scene; depth++, p = p.parent) {
           if (p.userData && p.userData.isAppliance) {
             applianceNode = p;
             break;
@@ -164,19 +163,13 @@ export function resolveSceneHoverTarget(
         target = applianceNode.userData?.applianceRoot || applianceNode.parent || applianceNode;
         break;
       }
-
-      const mesh = obj as THREE.Mesh;
-      if (mesh.isMesh && mesh.material) {
-        const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-        const matAny = mat as any;
-        if (matAny.opacity === 0) continue;
-        const transparent = matAny.transparent === true;
-        const opacity = typeof matAny.opacity === 'number' ? matAny.opacity : 1;
-        if (!transparent || opacity > 0.7) {
-          break;
-        }
-      }
     }
+  }
+
+  // Se "Ocultar paredes (ver só componentes)" está ativo na tela de Módulos,
+  // não faz hover em paredes, caixas externas, assoalho ou teto — apenas nos componentes!
+  if (!target && sceneManager.viewMode === 'internal_boxes' && sceneManager.internalBoxesBuilder?.ghostWalls) {
+    return null;
   }
 
   if (!target) {
@@ -185,6 +178,7 @@ export function resolveSceneHoverTarget(
       if (!isAncestorVisible(obj)) continue;
 
       if ((obj as any).isSprite || (obj as any).isLine || (obj as any).isLineSegments) continue;
+      if (obj.userData?.isNominalUpholstery) continue;
       if (isCeilingObject(obj, sceneManager)) {
         // Se houver uma caixa ou equipamento interno sob o raio e a câmera estiver acima olhando para baixo, prioriza o módulo interno
         const hasBoxUnderRay = intersects.some((h) => {

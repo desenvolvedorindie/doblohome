@@ -92,7 +92,7 @@ export interface SolarContextType {
 
   hoveredBar: BarMeasurementData | null;
   hoverPos: { x: number; y: number };
-  activeModal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'battery-presets' | 'mppt-presets' | 'b2b-presets' | 'help' | null;
+  activeModal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'battery-presets' | 'mppt-presets' | 'b2b-presets' | 'help' | 'about' | null;
   toastMessage: string | null;
 
   panelPresets: SolarPanelPreset[];
@@ -119,6 +119,8 @@ export interface SolarContextType {
   setInternalGrid: (grid: InternalGridConfig | ((prev: InternalGridConfig) => InternalGridConfig)) => void;
   setCeiling: (updates: Partial<CeilingConfig> | ((prev: CeilingConfig) => Partial<CeilingConfig>)) => void;
   toggleCeiling3D: () => void;
+  toggleFloor3D: () => void;
+  toggleFloorEnabled: () => void;
   internalBoxes: InternalBoxItem[];
   setInternalBoxes: (boxes: InternalBoxItem[] | ((prev: InternalBoxItem[]) => InternalBoxItem[])) => void;
   selectedBoxId: string | null;
@@ -229,7 +231,7 @@ export interface SolarContextType {
   setSunHour: (hour: number) => void;
   takeScreenshot: () => void;
 
-  openModal: (modal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'battery-presets' | 'mppt-presets' | 'b2b-presets' | 'help' | null) => void;
+  openModal: (modal: 'loads' | 'battery' | 'mppt' | 'bom' | 'b2b' | 'usina' | 'panel-presets' | 'cargo-presets' | 'fridge-presets' | 'portapotti-presets' | 'stove-presets' | 'battery-presets' | 'mppt-presets' | 'b2b-presets' | 'help' | 'about' | null) => void;
   closeModal: () => void;
   flashToast: (msg: string) => void;
 

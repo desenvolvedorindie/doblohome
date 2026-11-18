@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSolar } from '../../context/SolarContext';
-import { InternalBoxItem, BoxPanelsConfig, BoxJointStyle, BackPanelCoverMode } from '../../types';
+import { InternalBoxItem, BoxPanelsConfig, BoxPanelThicknessConfig, BoxJointStyle, BackPanelCoverMode } from '../../types';
 
 interface PlannerBoxPanelsSectionProps {
   selectedBox: InternalBoxItem;
@@ -8,9 +8,392 @@ interface PlannerBoxPanelsSectionProps {
 
 export const PlannerBoxPanelsSection: React.FC<PlannerBoxPanelsSectionProps> = ({ selectedBox }) => {
   const { updateInternalBox } = useSolar();
+  const [showPerFaceThickness, setShowPerFaceThickness] = useState<boolean>(() => {
+    const pt = selectedBox.panelThickness;
+    if (!pt) return false;
+    return Boolean(pt.rear || pt.front || pt.left || pt.right || pt.bottom || pt.cabinet || pt.slat || pt.shelf);
+  });
+
+  const baseThicknessMm = selectedBox.thicknessMm || 15;
+  const pt = selectedBox.panelThickness || {};
+  const hasCustomPartThickness = Object.values(pt).some((v) => v !== undefined);
+
+  const setPartThickness = (key: keyof BoxPanelThicknessConfig, val: number | undefined) => {
+    const next: BoxPanelThicknessConfig = { ...(selectedBox.panelThickness || {}) };
+    if (val === undefined) {
+      delete next[key];
+    } else {
+      next[key] = val;
+    }
+    updateInternalBox(selectedBox.id, { panelThickness: next });
+  };
 
   return (
     <>
+      {/* Espessura das Chapas, Porta e Bandeja Corrediça */}
+      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(148, 163, 184, 0.2)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', gap: '6px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '11px', color: '#38bdf8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            🪵 Espessura de Cada Parte do Módulo
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '9.5px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+              Padrão: {baseThicknessMm} mm
+            </span>
+            {hasCustomPartThickness && (
+              <button
+                type="button"
+                className="btn-compact"
+                onClick={() => updateInternalBox(selectedBox.id, { panelThickness: {} })}
+                style={{ fontSize: '9px', padding: '2px 6px', color: '#f87171', borderColor: 'rgba(239,68,68,0.35)' }}
+                title="Voltar todas as partes para a espessura padrão do corpo"
+              >
+                ↺ Igualar Tudo ({baseThicknessMm}mm)
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: '10px',
+            background: 'rgba(15, 23, 42, 0.6)',
+            border: '1px solid rgba(56, 189, 248, 0.25)',
+            borderRadius: '8px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}
+        >
+          {/* 1. Espessura Geral (Padrão do Corpo do Módulo) */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#e2e8f0' }}>
+                📦 Espessura Base (Padrão do Módulo):
+              </span>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                {baseThicknessMm} mm
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
+              {[6, 9, 12, 15, 18, 20].map((mmVal) => {
+                const isAct = baseThicknessMm === mmVal;
+                return (
+                  <button
+                    key={mmVal}
+                    type="button"
+                    className={`btn-compact ${isAct ? 'active' : ''}`}
+                    onClick={() => updateInternalBox(selectedBox.id, { thicknessMm: mmVal })}
+                    style={{ fontSize: '10px', padding: '4px 2px', fontWeight: 700 }}
+                  >
+                    {mmVal}mm
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. Espessura do Fundo Traseiro (ex: 6mm compensado fino p/ fechar fundo) */}
+          <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.15)', paddingTop: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#a78bfa' }}>
+                ⬇️ Fundo Traseiro (Parede Porta-Malas):
+              </span>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: '#a78bfa', fontFamily: 'var(--font-mono)' }}>
+                {pt.rear ?? baseThicknessMm} mm {pt.rear === undefined ? '(padrão)' : ''}
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+              {[4, 6, 9, 12, 15, 18, 20].map((mmVal) => {
+                const currentRearMm = pt.rear ?? baseThicknessMm;
+                const isAct = currentRearMm === mmVal;
+                return (
+                  <button
+                    key={mmVal}
+                    type="button"
+                    className={`btn-compact ${isAct ? 'active' : ''}`}
+                    onClick={() => setPartThickness('rear', mmVal)}
+                    style={{
+                      fontSize: '10px',
+                      padding: '4px 2px',
+                      fontWeight: 700,
+                      borderColor: isAct ? '#8b5cf6' : undefined,
+                      color: isAct ? '#c4b5fd' : undefined
+                    }}
+                    title={`Definir espessura do fundo traseiro em ${mmVal} mm`}
+                  >
+                    {mmVal}mm
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3. Espessura do Fundo Inferior (Base / Piso do Módulo) */}
+          <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.15)', paddingTop: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#38bdf8' }}>
+                ⏹️ Fundo da Base (Piso Inferior):
+              </span>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                {pt.bottom ?? baseThicknessMm} mm {pt.bottom === undefined ? '(padrão)' : ''}
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+              {[4, 6, 9, 12, 15, 18, 20].map((mmVal) => {
+                const currentBottomMm = pt.bottom ?? baseThicknessMm;
+                const isAct = currentBottomMm === mmVal;
+                return (
+                  <button
+                    key={mmVal}
+                    type="button"
+                    className={`btn-compact ${isAct ? 'active' : ''}`}
+                    onClick={() => setPartThickness('bottom', mmVal)}
+                    style={{ fontSize: '10px', padding: '4px 2px', fontWeight: 700 }}
+                    title={`Definir espessura da base inferior em ${mmVal} mm`}
+                  >
+                    {mmVal}mm
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 4. Espessura do Tampo Superior / Tampa Basculante */}
+          <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.15)', paddingTop: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#cbd5e1' }}>
+                🔝 Tampo / Tampa Superior:
+              </span>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                {pt.top ?? baseThicknessMm} mm {pt.top === undefined ? '(padrão)' : ''}
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
+              {[6, 9, 12, 15, 18, 25].map((mmVal) => {
+                const currentTopMm = pt.top ?? baseThicknessMm;
+                const isAct = currentTopMm === mmVal;
+                return (
+                  <button
+                    key={mmVal}
+                    type="button"
+                    className={`btn-compact ${isAct ? 'active' : ''}`}
+                    onClick={() => setPartThickness('top', mmVal)}
+                    style={{ fontSize: '10px', padding: '4px 2px', fontWeight: 700 }}
+                  >
+                    {mmVal}mm
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 5. Espessura da Porta (Armário Aéreo, Porta Basculante ou Frente de Gaveta) */}
+          <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.15)', paddingTop: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#fbbf24' }}>
+                🚪 Porta / Frente Externa:
+              </span>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: '#fbbf24', fontFamily: 'var(--font-mono)' }}>
+                {pt.door ?? (selectedBox.upperCabinet && (selectedBox.upperCabinetClosure ?? 'sliding_doors') === 'sliding_doors' ? 6 : baseThicknessMm)} mm
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+              {[4, 6, 9, 12, 15, 18, 20].map((mmVal) => {
+                const currentDoorMm =
+                  pt.door ??
+                  (selectedBox.upperCabinet && (selectedBox.upperCabinetClosure ?? 'sliding_doors') === 'sliding_doors'
+                    ? 6
+                    : baseThicknessMm);
+                const isAct = currentDoorMm === mmVal;
+                return (
+                  <button
+                    key={mmVal}
+                    type="button"
+                    className={`btn-compact ${isAct ? 'active' : ''}`}
+                    onClick={() => setPartThickness('door', mmVal)}
+                    style={{
+                      fontSize: '10px',
+                      padding: '4px 2px',
+                      fontWeight: 700,
+                      borderColor: isAct ? '#f59e0b' : undefined,
+                      color: isAct ? '#fbbf24' : undefined
+                    }}
+                    title={`Definir espessura da porta/frente em ${mmVal} mm`}
+                  >
+                    {mmVal}mm
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 6. Espessura da Bandeja Corrediça / Gaveta Interna */}
+          <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.15)', paddingTop: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#34d399' }}>
+                🛝 Bandeja Corrediça / Gaveta Interna:
+              </span>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: '#34d399', fontFamily: 'var(--font-mono)' }}>
+                {pt.tray ?? baseThicknessMm} mm {pt.tray === undefined ? '(padrão)' : ''}
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
+              {[6, 9, 12, 15, 18, 20].map((mmVal) => {
+                const currentTrayMm = pt.tray ?? baseThicknessMm;
+                const isAct = currentTrayMm === mmVal;
+                return (
+                  <button
+                    key={mmVal}
+                    type="button"
+                    className={`btn-compact ${isAct ? 'active' : ''}`}
+                    onClick={() => setPartThickness('tray', mmVal)}
+                    style={{
+                      fontSize: '10px',
+                      padding: '4px 2px',
+                      fontWeight: 700,
+                      borderColor: isAct ? '#10b981' : undefined,
+                      color: isAct ? '#34d399' : undefined
+                    }}
+                    title={`Definir espessura da bandeja corrediça/gaveta em ${mmVal} mm`}
+                  >
+                    {mmVal}mm
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Botão para expandir Laterais, Frente, Armário Aéreo, Ripas e Mesa */}
+          <button
+            type="button"
+            className="btn-compact"
+            onClick={() => setShowPerFaceThickness(!showPerFaceThickness)}
+            style={{
+              marginTop: '2px',
+              fontSize: '10px',
+              padding: '5px 8px',
+              background: showPerFaceThickness ? 'rgba(56, 189, 248, 0.15)' : 'rgba(30, 41, 59, 0.5)',
+              border: '1px dashed rgba(56, 189, 248, 0.4)',
+              borderRadius: '6px',
+              color: '#cbd5e1',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontWeight: 700
+            }}
+          >
+            <span>⚙️ Customizar Frente, Laterais, Aéreo, Ripas e Mesa Individualmente</span>
+            <span>{showPerFaceThickness ? '▲ Recolher' : '▼ Expandir'}</span>
+          </button>
+
+          {showPerFaceThickness && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '7px',
+                padding: '8px',
+                background: 'rgba(2, 6, 23, 0.55)',
+                borderRadius: '6px',
+                borderLeft: '2px solid #38bdf8'
+              }}
+            >
+              {(
+                [
+                  {
+                    key: 'front' as keyof BoxPanelThicknessConfig,
+                    label: '⬆️ Parede Frontal (Bancos)',
+                    options: [4, 6, 9, 12, 15, 18, 20],
+                    fallback: baseThicknessMm
+                  },
+                  {
+                    key: 'left' as keyof BoxPanelThicknessConfig,
+                    label: '⬅️ Lateral Esquerda (Motorista)',
+                    options: [6, 9, 12, 15, 18, 20, 25],
+                    fallback: baseThicknessMm
+                  },
+                  {
+                    key: 'right' as keyof BoxPanelThicknessConfig,
+                    label: '➡️ Lateral Direita (Passageiro)',
+                    options: [6, 9, 12, 15, 18, 20, 25],
+                    fallback: baseThicknessMm
+                  },
+                  {
+                    key: 'cabinet' as keyof BoxPanelThicknessConfig,
+                    label: '🗄️ Corpo do Armário Aéreo',
+                    options: [6, 9, 12, 15, 18, 20],
+                    fallback: baseThicknessMm
+                  },
+                  {
+                    key: 'slat' as keyof BoxPanelThicknessConfig,
+                    label: '🛏️ Ripas da Cama Retrátil',
+                    options: [9, 12, 15, 18, 20, 25],
+                    fallback: baseThicknessMm
+                  },
+                  {
+                    key: 'shelf' as keyof BoxPanelThicknessConfig,
+                    label: '🪵 Mesa / Prateleira Traseira',
+                    options: [12, 15, 18, 20, 25],
+                    fallback: 18
+                  }
+                ]
+              ).map((part) => {
+                const currentVal = pt[part.key] ?? part.fallback;
+                const isCustom = pt[part.key] !== undefined;
+                return (
+                  <div key={part.key}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                      <span style={{ fontSize: '9.5px', fontWeight: 700, color: isCustom ? '#38bdf8' : '#cbd5e1' }}>
+                        {part.label}:
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '9.5px', fontWeight: 800, color: isCustom ? '#38bdf8' : '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+                          {currentVal} mm {!isCustom ? '(auto)' : ''}
+                        </span>
+                        {isCustom && (
+                          <button
+                            type="button"
+                            onClick={() => setPartThickness(part.key, undefined)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#94a3b8',
+                              cursor: 'pointer',
+                              fontSize: '9px',
+                              padding: '0 2px'
+                            }}
+                            title="Restaurar padrão"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${part.options.length}, 1fr)`, gap: '3px' }}>
+                      {part.options.map((mmVal) => {
+                        const isAct = currentVal === mmVal;
+                        return (
+                          <button
+                            key={mmVal}
+                            type="button"
+                            className={`btn-compact ${isAct ? 'active' : ''}`}
+                            onClick={() => setPartThickness(part.key, mmVal)}
+                            style={{ fontSize: '9.5px', padding: '3px 2px', fontWeight: 700 }}
+                          >
+                            {mmVal}mm
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Tamponamento & Fechamento de Chapas (15mm) */}
       <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(148, 163, 184, 0.2)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
@@ -59,9 +442,9 @@ export const PlannerBoxPanelsSection: React.FC<PlannerBoxPanelsSectionProps> = (
             },
             {
               key: 'bottom' as keyof BoxPanelsConfig,
-              label: '⏹️ Fundo da Base',
+              label: '⏹️ Tampo de Baixo (Fundo)',
               val: selectedBox.panels?.bottom ?? false,
-              desc: 'Chapa extra no piso (-Y)'
+              desc: 'Chapa de fundo do módulo (-Y)'
             }
           ].map((panel) => {
             const isActive = panel.val;

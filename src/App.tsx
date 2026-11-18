@@ -24,12 +24,13 @@ import { StovePresetsModal } from './components/modals/StovePresetsModal';
 import { BatteryPresetsModal } from './components/modals/BatteryPresetsModal';
 import { MpptPresetsModal } from './components/modals/MpptPresetsModal';
 import { B2bPresetsModal } from './components/modals/B2bPresetsModal';
+import { AboutModal } from './components/modals/AboutModal';
 import { ElectricalPlanarView } from './components/electrical/ElectricalPlanarView';
 import { HydraulicPlanarView } from './components/hydraulic/HydraulicPlanarView';
 import { WeightsView } from './components/weights/WeightsView';
 
 export const App: React.FC = () => {
-  const { viewMode } = useSolar();
+  const { viewMode, activeModal, closeModal } = useSolar();
   const { currentProject } = useProject();
   const [leftSidebarVisible, setLeftSidebarVisible] = useState<boolean>(true);
   const [rightSidebarVisible, setRightSidebarVisible] = useState<boolean>(true);
@@ -120,6 +121,7 @@ export const App: React.FC = () => {
 
       <StatusBar />
       <Toast />
+      <AboutModal isOpen={activeModal === 'about'} onClose={closeModal} />
     </div>
   );
 };

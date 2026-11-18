@@ -42,8 +42,8 @@ export const PlannerFloorGrid: React.FC<PlannerFloorGridProps> = ({
   );
 
   const occupiedVolumeL = internalBoxes.reduce((acc, box) => {
-    const boxWM = (box.colSpan * (internalGrid.widthMm / cols)) / 1000;
-    const boxLM = (box.rowSpan * (internalGrid.lengthMm / rows)) / 1000;
+    const boxWM = Math.max(0.05, (box.colSpan * (internalGrid.widthMm / cols) + (box.extraWidthMm || 0)) / 1000);
+    const boxLM = Math.max(0.05, (box.rowSpan * (internalGrid.lengthMm / rows) + (box.extraLengthMm || 0)) / 1000);
     const boxHM = (box.heightMm || internalGrid.heightMm) / 1000;
     return acc + Math.round(boxWM * boxLM * boxHM * 1000);
   }, 0);
@@ -229,8 +229,8 @@ export const PlannerFloorGrid: React.FC<PlannerFloorGridProps> = ({
               const isSelected = box.id === selectedBoxId;
               const isIsolated = box.id === isolatedBoxId;
               const isGhosted = Boolean(isolatedBoxId && !isIsolated);
-              const boxWMm = Math.round(box.colSpan * (internalGrid.widthMm / cols));
-              const boxLMm = Math.round(box.rowSpan * (internalGrid.lengthMm / rows));
+              const boxWMm = Math.max(50, Math.round(box.colSpan * (internalGrid.widthMm / cols) + (box.extraWidthMm || 0)));
+              const boxLMm = Math.max(50, Math.round(box.rowSpan * (internalGrid.lengthMm / rows) + (box.extraLengthMm || 0)));
               const boxVolL = Math.round((boxWMm * boxLMm * (box.heightMm || internalGrid.heightMm)) / 1_000_000);
 
               return (

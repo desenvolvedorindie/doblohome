@@ -285,6 +285,20 @@ export function useInternalBoxesManager(
     setCeiling(prev => ({ visibleIn3D: !(prev.visibleIn3D !== false) }));
   };
 
+  const toggleFloor3D = () => {
+    setInternalGrid(prev => ({
+      ...prev,
+      floorVisibleIn3D: !(prev.floorVisibleIn3D !== false)
+    }));
+  };
+
+  const toggleFloorEnabled = () => {
+    setInternalGrid(prev => ({
+      ...prev,
+      hasFloor: !(prev.hasFloor !== false)
+    }));
+  };
+
   const setInternalBoxes = (newBoxes: InternalBoxItem[] | ((prev: InternalBoxItem[]) => InternalBoxItem[])) => {
     setInternalBoxesState(prev => {
       const next = typeof newBoxes === 'function' ? newBoxes(prev) : newBoxes;
@@ -368,6 +382,8 @@ export function useInternalBoxesManager(
     setInternalGrid,
     setCeiling,
     toggleCeiling3D,
+    toggleFloor3D,
+    toggleFloorEnabled,
     internalBoxes,
     setInternalBoxesState,
     setInternalBoxes,

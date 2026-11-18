@@ -88,6 +88,7 @@ export class InternalBoxesBuilder {
     previewOpen: boolean | InternalBoxesPreviewOptions = false,
     isolatedBoxId: string | null = null
   ) {
+    this.lastUpdateArgs = [grid, boxes, selectedBoxId, previewOpen, isolatedBoxId];
     const activeFocusBoxId = isolatedBoxId || selectedBoxId;
     this.isolatedBoxId = activeFocusBoxId;
     this.selectedBoxId = selectedBoxId;
@@ -121,16 +122,22 @@ export class InternalBoxesBuilder {
     // 4. Teto / forro do campervan
     this.ceilingBuilder.buildCeiling(grid, widthM, lengthM, floorY, previewOpen);
 
-    // 5. Quando estiver dentro de um módulo, mantém piso, grid e teto fantasmas para não obstruírem
-    if (activeFocusBoxId) {
+    // 5. Quando estiver dentro de um módulo ou com "Ocultar paredes" ativo, mantém piso, grid e teto fantasmas para não obstruírem
+    if (activeFocusBoxId || this.ghostWalls) {
       this.applyGhostTransparency(this.floorGroup, 0.08, 0.04);
       this.applyGhostTransparency(this.gridLinesGroup, 0.08, 0.04);
       this.applyGhostTransparency(this.ceilingGroup, 0.08, 0.04);
     }
   }
 
-  private applyGhostTransparency(group: THREE.Object3D, meshOpacity: number = 0.08, lineOpacity: number = 0.04) {
-    group.traverse((child: any) => {
+  private applyGhostTransparency(
+    group: THREE.Object3D,
+    meshOpacity: number = 0.08,
+    lineOpacity: number = 0.04,
+    skip?: (o: THREE.Object3D) => boolean
+  ) {
+    const visit = (child: any) => {
+      if (skip && skip(child)) return;
       if (child.name === '__box_hitbox' || child.userData?.isInternalBoxHitbox) return;
       child.userData = { ...(child.userData || {}), isGhost: true };
       if (child.isMesh) {
@@ -161,7 +168,25 @@ export class InternalBoxesBuilder {
           child.material = Array.isArray(origMat) ? origMat.map(cloneLineMat) : cloneLineMat(origMat);
         }
       }
-    });
+      child.children.slice().forEach(visit);
+    };
+    visit(group);
+  }
+
+  /** Raiz de um componente instalado (bateria, geladeira, etc.) */
+  private static isInstalledComponent(o: THREE.Object3D): boolean {
+    return ['Installed_', 'FridgeAppliance_', 'PortaPottiAppliance_', 'StoveAppliance_', 'StoveRearShelfUpright_']
+      .some((p) => o.name.startsWith(p));
+  }
+
+  /** Quando ativo, paredes/painéis dos módulos ficam translúcidos e só os componentes aparecem sólidos. */
+  ghostWalls = false;
+  private lastUpdateArgs: Parameters<InternalBoxesBuilder['update']> | null = null;
+
+  setGhostWalls(value: boolean) {
+    if (this.ghostWalls === value) return;
+    this.ghostWalls = value;
+    if (this.lastUpdateArgs) this.update(...this.lastUpdateArgs);
   }
 
   private clearGroup(g: THREE.Group) {
@@ -217,14 +242,19 @@ export class InternalBoxesBuilder {
       const rowStart = Math.min(rows - 1, Math.max(0, box.rowStart));
       const rowSpan = Math.min(rows - rowStart, Math.max(1, box.rowSpan));
 
-      // Dimensões exatas pelas células do grid: sem folgas/espaçamento entre caixas vizinhas
-      const boxWM = Math.max(0.05, colSpan * cellWM);
-      const boxLM = Math.max(0.05, rowSpan * cellLM);
+      const extraWM = (box.extraWidthMm || 0) / 1000;
+      const extraLM = (box.extraLengthMm || 0) / 1000;
+      const offsetXM = (box.offsetXMm || 0) / 1000;
+      const offsetZM = (box.offsetZMm || 0) / 1000;
+
+      // Dimensões pelas células do grid + acréscimo/redução fina em mm quando configurado
+      const boxWM = Math.max(0.05, colSpan * cellWM + extraWM);
+      const boxLM = Math.max(0.05, rowSpan * cellLM + extraLM);
       const boxHM = Math.max(0.05, (box.heightMm ?? grid.heightMm) / 1000);
 
       // Posicionamento X: Da esquerda para a direita na visão traseira (+X para -X)
-      const posX = (widthM / 2) - (colStart + colSpan / 2) * cellWM;
-      const posZ = -(rowStart + rowSpan / 2) * cellLM;
+      const posX = (widthM / 2) - (colStart + colSpan / 2) * cellWM + offsetXM;
+      const posZ = -(rowStart + rowSpan / 2) * cellLM + offsetZM;
       const posY = floorY + boxHM / 2;
 
       const isTargetModule = activeFocusBoxId ? box.id === activeFocusBoxId : false;
@@ -257,9 +287,9 @@ export class InternalBoxesBuilder {
       };
 
       // Hitbox sólida transparente: cobre todo o volume da caixa para clique e hover imediatos
-      // quando nenhum módulo está aberto. Ao entrar em um módulo, omitimos a hitbox externa
-      // para permitir hover e clique direto nas peças individuais de madeira.
-      if (!activeFocusBoxId) {
+      // quando nenhum módulo está aberto. Ao entrar em um módulo ou ocultar paredes, omitimos a hitbox externa
+      // para permitir hover e clique direto nas peças individuais / componentes.
+      if (!activeFocusBoxId && !this.ghostWalls) {
         const hitGeo = new THREE.BoxGeometry(boxWM, boxHM, boxLM);
         const hitMat = new THREE.MeshBasicMaterial({
           transparent: true,
@@ -359,7 +389,7 @@ export class InternalBoxesBuilder {
           box,
           isSelected,
           isDrawerOpen || isChestOpen,
-          isAnyBedOpen
+          isBedOpen
         );
       }
 
@@ -369,7 +399,12 @@ export class InternalBoxesBuilder {
         this.applyGhostTransparency(boxContainer, 0.08, 0.04);
       }
 
+      if (this.ghostWalls && !isGhost) {
+        this.applyGhostTransparency(boxContainer, 0.10, 0.10, InternalBoxesBuilder.isInstalledComponent);
+      }
+
       this.boxesGroup.add(boxContainer);
     });
   }
 }
+

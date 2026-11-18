@@ -1,0 +1,27 @@
+{
+    "name": "doblo/api",
+    "description": "DobloHome Studio - API REST (Yii2)",
+    "type": "project",
+    "license": "proprietary",
+    "minimum-stability": "stable",
+    "require": {
+        "php": ">=8.2",
+        "yiisoft/yii2": "~2.0.54",
+        "yiisoft/yii2-symfonymailer": "~2.0.3"
+    },
+    "config": {
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true
+        },
+        "process-timeout": 1800,
+        "fxp-asset": {
+            "enabled": false
+        }
+    },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://asset-packagist.org"
+        }
+    ]
+}

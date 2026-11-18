@@ -20,12 +20,19 @@ export class BoxElectronicsBuilder {
 
     // Se for gaveta deslizante, anexa ao grupo da gaveta móvel para deslizar junto ao abrir
     const targetParent = (container.getObjectByName('DrawerSlide') as THREE.Group) || container;
-    const t = PLYWOOD_THICKNESS; // 15mm
+    const tConfig = getBoxThickness(box);
+    const t = tConfig.default || PLYWOOD_THICKNESS;
+    const tTop = tConfig.top;
+    const tBottom = tConfig.bottom;
+    const tLeft = tConfig.left;
+    const tRight = tConfig.right;
+    const tFront = tConfig.front;
+    const tRear = tConfig.rear;
 
-    // Dimensões internas úteis
-    const wIn = Math.max(0.10, w - 2 * t);
-    const lIn = Math.max(0.10, l - 2 * t);
-    const hIn = Math.max(0.10, h - t);
+    // Dimensões internas úteis respeitando as espessuras reais das chapas
+    const wIn = Math.max(0.10, w - tLeft - tRight);
+    const lIn = Math.max(0.10, l - tFront - tRear);
+    const hIn = Math.max(0.10, h - tBottom - tTop);
 
     // Material dos parafusos de fixação (aço zincado brilhante / inox)
     const screwMat = new THREE.MeshStandardMaterial({
@@ -116,6 +123,21 @@ export class BoxElectronicsBuilder {
       compWrapper.name = `Installed_${item.id}_${box.id}`;
       compWrapper.add(mesh);
 
+      // Centraliza a malha no seu próprio bounding box real (incluindo aletas/dissipador de alumínio,
+      // bornes, alças e tampa) e usa as dimensões reais para que nenhuma parte atravesse as paredes.
+      compWrapper.updateMatrixWorld(true);
+      const localBounds = new THREE.Box3().setFromObject(mesh);
+      if (!localBounds.isEmpty()) {
+        const realSize = new THREE.Vector3();
+        const realCenter = new THREE.Vector3();
+        localBounds.getSize(realSize);
+        localBounds.getCenter(realCenter);
+        mesh.position.sub(realCenter);
+        compW = Math.max(compW, realSize.x);
+        compH = Math.max(compH, realSize.y);
+        compD = Math.max(compD, realSize.z);
+      }
+
       // Bateria é sempre na base ('bottom')
       const face = item.id === 'battery' ? 'bottom' : (item.mountFace || 'bottom');
       const pos = item.position || 'center';
@@ -133,21 +155,27 @@ export class BoxElectronicsBuilder {
         const effW = isRotated ? compD : compW;
         const effL = isRotated ? compW : compD;
 
-        // Fundo do módulo: Y = -h/2 + t (apoiado diretamente sobre a chapa de piso)
-        const posY = -h / 2 + t + compH / 2 + customOffY;
+        // Fundo do módulo: Y = -h/2 + tBottom (apoiado diretamente sobre a chapa de piso)
+        const posY = -h / 2 + tBottom + compH / 2 + customOffY;
 
-        // Espaço disponível para posicionamento no plano XZ
-        const spanX = Math.max(0, (wIn - effW) / 2);
-        const spanZ = Math.max(0, (lIn - effL) / 2);
+        // Limites internos X/Z considerando espessuras reais de cada parede
+        const xMin = -w / 2 + tRight + effW / 2;
+        const xMax = w / 2 - tLeft - effW / 2;
+        const zMin = -l / 2 + tRear + effL / 2;
+        const zMax = l / 2 - tFront - effL / 2;
 
-        let posX = 0;
-        let posZ = 0;
+        let posX = (xMin + xMax) / 2;
+        let posZ = (zMin + zMax) / 2;
 
-        if (pos.includes('left')) posX = spanX;
-        else if (pos.includes('right')) posX = -spanX;
+        if (xMax >= xMin) {
+          if (pos.includes('left')) posX = xMax;
+          else if (pos.includes('right')) posX = xMin;
+        }
 
-        if (pos.includes('front')) posZ = spanZ;
-        else if (pos.includes('rear')) posZ = -spanZ;
+        if (zMax >= zMin) {
+          if (pos.includes('front')) posZ = zMax;
+          else if (pos.includes('rear')) posZ = zMin;
+        }
 
         compWrapper.position.set(posX + customOffX, posY, posZ + customOffZ);
         compWrapper.rotation.y = isRotated ? Math.PI / 2 : 0;
@@ -156,20 +184,25 @@ export class BoxElectronicsBuilder {
       // FIXAÇÃO 2: PARAFUSADO NA PAREDE TRASEIRA (FACE: 'rear_wall')
       // ─────────────────────────────────────────────────────────────
       else if (face === 'rear_wall') {
-        // Verso encostado na face interna da parede traseira (Z = -l/2 + t)
-        const posZ = -l / 2 + t + compD / 2 + customOffZ;
+        // Verso (dissipador) encostado na face interna da parede traseira (Z = -l/2 + tRear)
+        const posZ = -l / 2 + tRear + compD / 2 + customOffZ;
 
         // X ao longo da parede
-        const spanX = Math.max(0, (wIn - compW) / 2);
-        let posX = 0;
-        if (pos.includes('left')) posX = spanX;
-        else if (pos.includes('right')) posX = -spanX;
+        const xMin = -w / 2 + tRight + compW / 2;
+        const xMax = w / 2 - tLeft - compW / 2;
+        let posX = (xMin + xMax) / 2;
+        if (xMax >= xMin) {
+          if (pos.includes('left')) posX = xMax;
+          else if (pos.includes('right')) posX = xMin;
+        }
 
         // Y na parede
-        let posY = -h / 2 + t + compH / 2;
-        if (pos.startsWith('top')) posY = h / 2 - t - compH / 2;
-        else if (pos.startsWith('mid')) posY = 0;
-        else if (pos.startsWith('bottom')) posY = -h / 2 + t + compH / 2;
+        const yMin = -h / 2 + tBottom + compH / 2;
+        const yMax = h / 2 - tTop - compH / 2;
+        let posY = yMin;
+        if (pos.startsWith('top')) posY = yMax;
+        else if (pos.startsWith('mid')) posY = (yMin + yMax) / 2;
+        else if (pos.startsWith('bottom')) posY = yMin;
 
         compWrapper.position.set(posX + customOffX, posY + customOffY, posZ);
         compWrapper.rotation.y = 0; // Frente voltada para a frente (+Z)
@@ -181,18 +214,23 @@ export class BoxElectronicsBuilder {
       // FIXAÇÃO 3: PARAFUSADO NA PAREDE DIANTEIRA (FACE: 'front_wall')
       // ─────────────────────────────────────────────────────────────
       else if (face === 'front_wall') {
-        // Verso encostado na face interna da parede dianteira (Z = +l/2 - t)
-        const posZ = l / 2 - t - compD / 2 + customOffZ;
+        // Verso (dissipador) encostado na face interna da parede dianteira (Z = +l/2 - tFront)
+        const posZ = l / 2 - tFront - compD / 2 + customOffZ;
 
-        const spanX = Math.max(0, (wIn - compW) / 2);
-        let posX = 0;
-        if (pos.includes('left')) posX = spanX;
-        else if (pos.includes('right')) posX = -spanX;
+        const xMin = -w / 2 + tRight + compW / 2;
+        const xMax = w / 2 - tLeft - compW / 2;
+        let posX = (xMin + xMax) / 2;
+        if (xMax >= xMin) {
+          if (pos.includes('left')) posX = xMax;
+          else if (pos.includes('right')) posX = xMin;
+        }
 
-        let posY = -h / 2 + t + compH / 2;
-        if (pos.startsWith('top')) posY = h / 2 - t - compH / 2;
-        else if (pos.startsWith('mid')) posY = 0;
-        else if (pos.startsWith('bottom')) posY = -h / 2 + t + compH / 2;
+        const yMin = -h / 2 + tBottom + compH / 2;
+        const yMax = h / 2 - tTop - compH / 2;
+        let posY = yMin;
+        if (pos.startsWith('top')) posY = yMax;
+        else if (pos.startsWith('mid')) posY = (yMin + yMax) / 2;
+        else if (pos.startsWith('bottom')) posY = yMin;
 
         compWrapper.position.set(posX + customOffX, posY + customOffY, posZ);
         compWrapper.rotation.y = Math.PI; // Frente voltada para trás (-Z)
@@ -203,19 +241,24 @@ export class BoxElectronicsBuilder {
       // FIXAÇÃO 4: PARAFUSADO NA PAREDE LATERAL ESQUERDA (FACE: 'left_wall')
       // ─────────────────────────────────────────────────────────────
       else if (face === 'left_wall') {
-        // Verso encostado na face interna da parede esquerda (+X = +w/2 - t)
-        const posX = w / 2 - t - compD / 2 + customOffX;
+        // Verso (dissipador) encostado na face interna da parede esquerda (+X = +w/2 - tLeft)
+        const posX = w / 2 - tLeft - compD / 2 + customOffX;
 
         // Z ao longo da lateral
-        const spanZ = Math.max(0, (lIn - compW) / 2);
-        let posZ = 0;
-        if (pos.includes('left')) posZ = -spanZ; // Em direção à traseira
-        else if (pos.includes('right')) posZ = spanZ; // Em direção à frente
+        const zMin = -l / 2 + tRear + compW / 2;
+        const zMax = l / 2 - tFront - compW / 2;
+        let posZ = (zMin + zMax) / 2;
+        if (zMax >= zMin) {
+          if (pos.includes('left')) posZ = zMin; // Em direção à traseira
+          else if (pos.includes('right')) posZ = zMax; // Em direção à frente
+        }
 
-        let posY = -h / 2 + t + compH / 2;
-        if (pos.startsWith('top')) posY = h / 2 - t - compH / 2;
-        else if (pos.startsWith('mid')) posY = 0;
-        else if (pos.startsWith('bottom')) posY = -h / 2 + t + compH / 2;
+        const yMin = -h / 2 + tBottom + compH / 2;
+        const yMax = h / 2 - tTop - compH / 2;
+        let posY = yMin;
+        if (pos.startsWith('top')) posY = yMax;
+        else if (pos.startsWith('mid')) posY = (yMin + yMax) / 2;
+        else if (pos.startsWith('bottom')) posY = yMin;
 
         compWrapper.position.set(posX, posY + customOffY, posZ + customOffZ);
         compWrapper.rotation.y = -Math.PI / 2; // Frente voltada para a direita (-X)
@@ -226,18 +269,23 @@ export class BoxElectronicsBuilder {
       // FIXAÇÃO 5: PARAFUSADO NA PAREDE LATERAL DIREITA (FACE: 'right_wall')
       // ─────────────────────────────────────────────────────────────
       else if (face === 'right_wall') {
-        // Verso encostado na face interna da parede direita (-X = -w/2 + t)
-        const posX = -w / 2 + t + compD / 2 + customOffX;
+        // Verso (dissipador) encostado na face interna da parede direita (-X = -w/2 + tRight)
+        const posX = -w / 2 + tRight + compD / 2 + customOffX;
 
-        const spanZ = Math.max(0, (lIn - compW) / 2);
-        let posZ = 0;
-        if (pos.includes('left')) posZ = spanZ; // Em direção à frente
-        else if (pos.includes('right')) posZ = -spanZ; // Em direção à traseira
+        const zMin = -l / 2 + tRear + compW / 2;
+        const zMax = l / 2 - tFront - compW / 2;
+        let posZ = (zMin + zMax) / 2;
+        if (zMax >= zMin) {
+          if (pos.includes('left')) posZ = zMax; // Em direção à frente
+          else if (pos.includes('right')) posZ = zMin; // Em direção à traseira
+        }
 
-        let posY = -h / 2 + t + compH / 2;
-        if (pos.startsWith('top')) posY = h / 2 - t - compH / 2;
-        else if (pos.startsWith('mid')) posY = 0;
-        else if (pos.startsWith('bottom')) posY = -h / 2 + t + compH / 2;
+        const yMin = -h / 2 + tBottom + compH / 2;
+        const yMax = h / 2 - tTop - compH / 2;
+        let posY = yMin;
+        if (pos.startsWith('top')) posY = yMax;
+        else if (pos.startsWith('mid')) posY = (yMin + yMax) / 2;
+        else if (pos.startsWith('bottom')) posY = yMin;
 
         compWrapper.position.set(posX, posY + customOffY, posZ + customOffZ);
         compWrapper.rotation.y = Math.PI / 2; // Frente voltada para a esquerda (+X)
@@ -271,6 +319,7 @@ export class BoxElectronicsBuilder {
       [xOff, -yOff]
     ].forEach(([sx, sy]) => {
       const screw = new THREE.Mesh(geo, mat);
+      screw.userData.isScrew = true;
       screw.position.set(sx, sy, zPos);
       parent.add(screw);
     });

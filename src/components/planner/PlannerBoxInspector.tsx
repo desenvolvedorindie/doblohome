@@ -46,8 +46,14 @@ export const PlannerBoxInspector: React.FC<PlannerBoxInspectorProps> = ({ cols: 
   const selectedBox = internalBoxes.find((b) => b.id === selectedBoxId);
   if (!selectedBox) return null;
 
-  const boxWMm = Math.round(selectedBox.colSpan * (internalGrid.widthMm / cols));
-  const boxLMm = Math.round(selectedBox.rowSpan * (internalGrid.lengthMm / rows));
+  const baseBoxWMm = Math.round(selectedBox.colSpan * (internalGrid.widthMm / cols));
+  const baseBoxLMm = Math.round(selectedBox.rowSpan * (internalGrid.lengthMm / rows));
+  const extraWMm = selectedBox.extraWidthMm || 0;
+  const extraLMm = selectedBox.extraLengthMm || 0;
+  const offsetXMm = selectedBox.offsetXMm || 0;
+  const offsetZMm = selectedBox.offsetZMm || 0;
+  const boxWMm = Math.max(50, baseBoxWMm + extraWMm);
+  const boxLMm = Math.max(50, baseBoxLMm + extraLMm);
 
   return (
     <div
@@ -155,15 +161,39 @@ export const PlannerBoxInspector: React.FC<PlannerBoxInspectorProps> = ({ cols: 
               {selectedBox.heightMm} mm <span style={{ color: '#94a3b8', fontSize: '10.5px', fontWeight: 600 }}>({(selectedBox.heightMm / 10).toFixed(0)} cm)</span>
             </span>
           </div>
-          <input
-            type="range"
-            min={200}
-            max={700}
-            step={10}
-            value={selectedBox.heightMm}
-            onChange={(e) => updateInternalBox(selectedBox.id, { heightMm: Number(e.target.value) })}
-            style={{ width: '100%', accentColor: '#38bdf8' }}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input
+              type="range"
+              min={200}
+              max={700}
+              step={1}
+              value={selectedBox.heightMm}
+              onChange={(e) => updateInternalBox(selectedBox.id, { heightMm: Number(e.target.value) })}
+              style={{ flex: 1, accentColor: '#38bdf8' }}
+            />
+            <input
+              type="number"
+              min={100}
+              max={1200}
+              step={1}
+              value={selectedBox.heightMm}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (!isNaN(v) && v >= 50) updateInternalBox(selectedBox.id, { heightMm: v });
+              }}
+              style={{
+                width: '56px',
+                background: 'rgba(15, 23, 42, 0.9)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                borderRadius: '4px',
+                padding: '2px 4px',
+                color: '#fff',
+                fontSize: '11px',
+                fontWeight: 700,
+                textAlign: 'center'
+              }}
+            />
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginTop: '6px' }}>
             {[300, 350, 400, 450, 500].map((hVal) => (
               <button
@@ -284,6 +314,207 @@ export const PlannerBoxInspector: React.FC<PlannerBoxInspectorProps> = ({ cols: 
             >
               Mover Trás ⬇
             </button>
+          </div>
+        </div>
+
+        {/* Acréscimo / Ajuste Fino de Dimensões e Deslocamento além das Colunas Iguais do Grid */}
+        <div
+          style={{
+            borderTop: '1px solid rgba(148, 163, 184, 0.18)',
+            paddingTop: '10px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span>➕</span>
+              <span>3. Acréscimo Fino & Deslocamento (Fora da Divisão Igual):</span>
+            </span>
+            {(extraWMm !== 0 || extraLMm !== 0 || offsetXMm !== 0 || offsetZMm !== 0) && (
+              <button
+                type="button"
+                className="btn-compact"
+                onClick={() =>
+                  updateInternalBox(selectedBox.id, {
+                    extraWidthMm: 0,
+                    extraLengthMm: 0,
+                    offsetXMm: 0,
+                    offsetZMm: 0
+                  })
+                }
+                style={{ fontSize: '9.5px', padding: '2px 7px', color: '#94a3b8' }}
+                title="Zerar acréscimos e deslocamentos deste módulo"
+              >
+                ↺ Zerar Ajustes
+              </button>
+            )}
+          </div>
+          <div style={{ fontSize: '9.5px', color: '#94a3b8', lineHeight: 1.35 }}>
+            Como o grid divide em colunas iguais ({baseBoxWMm} × {baseBoxLMm} mm), use os controles abaixo para dar <strong>acréscimo ou redução em milímetros</strong> na largura/comprimento ou deslocar o módulo:
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            {/* Acréscimo de Largura (X) */}
+            <div style={{ background: 'rgba(15, 23, 42, 0.55)', padding: '7px 8px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '3px' }}>
+                <span style={{ color: '#cbd5e1', fontWeight: 700 }}>↔ Acréscimo Largura:</span>
+                <strong style={{ color: extraWMm !== 0 ? '#fbbf24' : '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                  {extraWMm >= 0 ? `+${extraWMm}` : extraWMm} mm ({boxWMm} mm)
+                </strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <input
+                  type="range"
+                  min={-250}
+                  max={400}
+                  step={1}
+                  value={extraWMm}
+                  onChange={(e) => updateInternalBox(selectedBox.id, { extraWidthMm: Number(e.target.value) })}
+                  style={{ flex: 1, accentColor: '#f59e0b' }}
+                />
+                <input
+                  type="number"
+                  min={-400}
+                  max={600}
+                  step={1}
+                  value={extraWMm}
+                  onChange={(e) => updateInternalBox(selectedBox.id, { extraWidthMm: Number(e.target.value) || 0 })}
+                  style={{
+                    width: '52px',
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                    borderRadius: '4px',
+                    padding: '2px 4px',
+                    color: '#fff',
+                    fontSize: '10.5px',
+                    fontWeight: 700,
+                    textAlign: 'center'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Acréscimo de Comprimento (Z) */}
+            <div style={{ background: 'rgba(15, 23, 42, 0.55)', padding: '7px 8px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '3px' }}>
+                <span style={{ color: '#cbd5e1', fontWeight: 700 }}>↕ Acréscimo Compr.:</span>
+                <strong style={{ color: extraLMm !== 0 ? '#fbbf24' : '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                  {extraLMm >= 0 ? `+${extraLMm}` : extraLMm} mm ({boxLMm} mm)
+                </strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <input
+                  type="range"
+                  min={-250}
+                  max={400}
+                  step={1}
+                  value={extraLMm}
+                  onChange={(e) => updateInternalBox(selectedBox.id, { extraLengthMm: Number(e.target.value) })}
+                  style={{ flex: 1, accentColor: '#f59e0b' }}
+                />
+                <input
+                  type="number"
+                  min={-400}
+                  max={600}
+                  step={1}
+                  value={extraLMm}
+                  onChange={(e) => updateInternalBox(selectedBox.id, { extraLengthMm: Number(e.target.value) || 0 })}
+                  style={{
+                    width: '52px',
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                    borderRadius: '4px',
+                    padding: '2px 4px',
+                    color: '#fff',
+                    fontSize: '10.5px',
+                    fontWeight: 700,
+                    textAlign: 'center'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Deslocamento Lateral (Offset X) */}
+            <div style={{ background: 'rgba(15, 23, 42, 0.55)', padding: '7px 8px', borderRadius: '6px', border: '1px solid rgba(148, 163, 184, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '3px' }}>
+                <span style={{ color: '#cbd5e1', fontWeight: 700 }}>⇄ Deslocar Esq/Dir (X):</span>
+                <strong style={{ color: offsetXMm !== 0 ? '#38bdf8' : '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+                  {offsetXMm >= 0 ? `+${offsetXMm}` : offsetXMm} mm
+                </strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <input
+                  type="range"
+                  min={-250}
+                  max={250}
+                  step={1}
+                  value={offsetXMm}
+                  onChange={(e) => updateInternalBox(selectedBox.id, { offsetXMm: Number(e.target.value) })}
+                  style={{ flex: 1, accentColor: '#38bdf8' }}
+                />
+                <input
+                  type="number"
+                  min={-400}
+                  max={400}
+                  step={1}
+                  value={offsetXMm}
+                  onChange={(e) => updateInternalBox(selectedBox.id, { offsetXMm: Number(e.target.value) || 0 })}
+                  style={{
+                    width: '52px',
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                    borderRadius: '4px',
+                    padding: '2px 4px',
+                    color: '#fff',
+                    fontSize: '10.5px',
+                    fontWeight: 700,
+                    textAlign: 'center'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Deslocamento Longitudinal (Offset Z) */}
+            <div style={{ background: 'rgba(15, 23, 42, 0.55)', padding: '7px 8px', borderRadius: '6px', border: '1px solid rgba(148, 163, 184, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '3px' }}>
+                <span style={{ color: '#cbd5e1', fontWeight: 700 }}>⇅ Deslocar Frente/Trás (Z):</span>
+                <strong style={{ color: offsetZMm !== 0 ? '#38bdf8' : '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+                  {offsetZMm >= 0 ? `+${offsetZMm}` : offsetZMm} mm
+                </strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <input
+                  type="range"
+                  min={-250}
+                  max={250}
+                  step={1}
+                  value={offsetZMm}
+                  onChange={(e) => updateInternalBox(selectedBox.id, { offsetZMm: Number(e.target.value) })}
+                  style={{ flex: 1, accentColor: '#38bdf8' }}
+                />
+                <input
+                  type="number"
+                  min={-400}
+                  max={400}
+                  step={1}
+                  value={offsetZMm}
+                  onChange={(e) => updateInternalBox(selectedBox.id, { offsetZMm: Number(e.target.value) || 0 })}
+                  style={{
+                    width: '52px',
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                    borderRadius: '4px',
+                    padding: '2px 4px',
+                    color: '#fff',
+                    fontSize: '10.5px',
+                    fontWeight: 700,
+                    textAlign: 'center'
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>

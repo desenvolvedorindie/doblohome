@@ -4,6 +4,7 @@ import { useProject } from '../context/ProjectContext';
 import { ViewMode } from '../types';
 import { CreateProjectModal } from './modals/CreateProjectModal';
 import { ProjectListModal } from './modals/ProjectListModal';
+import { SyncBadge } from './auth/SyncBadge';
 import {
   PanelLeftIcon,
   PanelRightIcon,
@@ -15,7 +16,7 @@ import {
   FolderClosedIcon,
 } from './layout/IdeIcons';
 
-type MenuKey = 'arquivo' | 'cadastros' | 'energia' | 'visualizar' | null;
+type MenuKey = 'arquivo' | 'cadastros' | 'energia' | 'visualizar' | 'ajuda' | null;
 
 const WORKSPACE_SUBTITLES: Record<ViewMode, string> = {
   internal_boxes: 'Módulos',
@@ -497,11 +498,43 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
           </div>
+
+          {/* Menu: Ajuda */}
+          <div className="ide-menu-wrapper" onMouseEnter={() => hoverMenu('ajuda')}>
+            <button
+              type="button"
+              className={`ide-menu-trigger ${openMenu === 'ajuda' ? 'open' : ''}`}
+              onClick={() => toggleMenu('ajuda')}
+            >
+              Ajuda
+            </button>
+            {openMenu === 'ajuda' && (
+              <div className="ide-menu-dropdown">
+                <button
+                  type="button"
+                  className="ide-menu-item"
+                  onClick={() => {
+                    openModal('about');
+                    closeMenu();
+                  }}
+                >
+                  <span>ℹ️ Sobre o DoblóHome Studio...</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Centro: Marca DoblóHome Studio + Nome do Projeto ── */}
         <div className="ide-menubar-center">
-          <span className="ide-brand-gradient">DoblóHome Studio</span>
+          <span
+            className="ide-brand-gradient"
+            style={{ cursor: 'pointer' }}
+            onClick={() => openModal('about')}
+            title="Sobre o DoblóHome Studio"
+          >
+            DoblóHome Studio
+          </span>
           <span className="ide-brand-separator">—</span>
           {currentProject ? (
             <>
@@ -631,6 +664,8 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </>
           )}
+
+          <SyncBadge />
 
           <div className="ide-toggle-group">
             <button

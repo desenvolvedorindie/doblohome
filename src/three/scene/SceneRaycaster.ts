@@ -55,18 +55,18 @@ export class SceneRaycaster {
         return;
       }
 
-      const foundWoodMesh = findIsolatedBoxWoodHoverTarget(sceneManager, activeContainer);
+      const foundTarget = findIsolatedBoxWoodHoverTarget(sceneManager, activeContainer);
 
-      if (foundWoodMesh) {
-        if (sceneManager.hoveredObject !== foundWoodMesh) {
+      if (foundTarget) {
+        if (sceneManager.hoveredObject !== foundTarget) {
           SceneRaycaster.clearBarHover(sceneManager);
-          SceneRaycaster.highlightObject(sceneManager, foundWoodMesh);
+          SceneRaycaster.highlightObject(sceneManager, foundTarget);
         }
         if (sceneManager.onBarHoverChange) {
-          const payload = buildWoodHoverPayload(
-            foundWoodMesh.userData || {},
-            activeContainer.userData?.boxName
-          );
+          const ud = foundTarget.userData || {};
+          const payload = ud.isWoodPart
+            ? buildWoodHoverPayload(ud, activeContainer.userData?.boxName)
+            : buildTargetHoverPayload(foundTarget);
           sceneManager.onBarHoverChange(payload, screenX, screenY);
         }
         if (sceneManager.renderer?.domElement && !sceneManager.internalBoxesRuler?.isActive) {

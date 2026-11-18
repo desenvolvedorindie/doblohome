@@ -7,6 +7,7 @@ import { SolarSystem } from './SolarSystem';
 import { SolarSimulation } from './SolarSimulation';
 import { BarMeasurementData, CameraPreset, ViewMode, PartsGroupFilter, InternalBoxItem, InternalGridConfig, InternalBoxesPreviewOptions, RulerLiveState } from '../types';
 import { CollisionChecker, CollisionSummary } from './CollisionChecker';
+import { ModuleCollisionChecker, ModuleCollisionSummary } from './boxes/ModuleCollisionChecker';
 import { FloatingChecker, FloatingSummary } from './FloatingChecker';
 import { InternalBoxesBuilder } from './InternalBoxesBuilder';
 import { InternalBoxesRuler } from './boxes/InternalBoxesRuler';
@@ -467,6 +468,26 @@ export class SceneManager {
     return CollisionChecker.checkAll(this.scene);
   }
 
+  checkModuleCollisions(boxes: InternalBoxItem[]): ModuleCollisionSummary {
+    return ModuleCollisionChecker.check(this.internalBoxesBuilder.boxesGroup, boxes);
+  }
+
+  hoverCollisionObjects(targets: THREE.Object3D[] | null): void {
+    if (!targets || targets.length === 0) {
+      ModuleCollisionChecker.clearHoverFocus();
+      return;
+    }
+    ModuleCollisionChecker.setHoverFocus(targets, this.scene);
+  }
+
+  setModuleWallsGhost(value: boolean): void {
+    this.internalBoxesBuilder.setGhostWalls(value);
+  }
+
+  clearModuleCollisions(): void {
+    ModuleCollisionChecker.clearHighlights();
+  }
+
   clearStructuralCollisions(): void {
     CollisionChecker.clearAll();
   }
@@ -542,4 +563,5 @@ export class SceneManager {
     }
   }
 }
+
 

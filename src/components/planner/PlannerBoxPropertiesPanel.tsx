@@ -95,8 +95,8 @@ export const PlannerBoxPropertiesPanel: React.FC = () => {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {internalBoxes.map((b) => {
-                  const boxWMm = Math.round(b.colSpan * (internalGrid.widthMm / cols));
-                  const boxLMm = Math.round(b.rowSpan * (internalGrid.lengthMm / rows));
+                  const boxWMm = Math.max(50, Math.round(b.colSpan * (internalGrid.widthMm / cols) + (b.extraWidthMm || 0)));
+                  const boxLMm = Math.max(50, Math.round(b.rowSpan * (internalGrid.lengthMm / rows) + (b.extraLengthMm || 0)));
                   const typeLabel =
                     b.type === 'chest' ? 'Baú c/ Tampa' :
                     b.type === 'drawer' ? (b.drawerMode === 'slide_tray' ? 'Bandeja Corrediça' : 'Gavetão') :

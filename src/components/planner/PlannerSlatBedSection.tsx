@@ -9,15 +9,16 @@ interface PlannerSlatBedProps {
 }
 
 export const PlannerSlatBedSection: React.FC<PlannerSlatBedProps> = ({ selectedBox, cols, rows }) => {
-  const { updateInternalBox, internalGrid, setIsOpenPreview } = useSolar();
+  const { updateInternalBox, internalGrid, isOpenPreview, setIsOpenPreview } = useSolar();
 
   if (selectedBox.type !== 'slat_bed') return null;
 
+  const isBedCurrentlyOpen = isOpenPreview || Boolean(selectedBox.isOpen);
   const isLateral = (selectedBox.slatBedDirection || 'left') === 'left' || selectedBox.slatBedDirection === 'right';
-  const baseDimMm = Math.round(isLateral
-    ? selectedBox.colSpan * (internalGrid.widthMm / cols)
-    : selectedBox.rowSpan * (internalGrid.lengthMm / rows));
-  const extPct = Math.min(100, Math.max(40, selectedBox.slatExtensionPercent ?? 85));
+  const baseDimMm = Math.max(50, Math.round(isLateral
+    ? selectedBox.colSpan * (internalGrid.widthMm / cols) + (selectedBox.extraWidthMm || 0)
+    : selectedBox.rowSpan * (internalGrid.lengthMm / rows) + (selectedBox.extraLengthMm || 0)));
+  const extPct = Math.min(100, Math.max(40, selectedBox.slatExtensionPercent ?? 100));
   const extDimMm = Math.round(baseDimMm * (1 + extPct / 100));
 
   return (
@@ -53,21 +54,22 @@ export const PlannerSlatBedSection: React.FC<PlannerSlatBedProps> = ({ selectedB
           </select>
         </div>
 
-        {/* Extensão e Botão de Abrir Toda a Cama */}
+        {/* Extensão e Botão de Abrir / Fechar a Cama */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '6px', padding: '8px 10px' }}>
           <div>
             <div style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8' }}>
-              🛏️ Extensão do Estrado Deslizante:
+              🛏️ Estrado Retrátil em L Invertido (Pente):
             </div>
             <div style={{ fontSize: '10px', color: '#94a3b8' }}>
-              Base fixa: {baseDimMm} mm ➔ Aberta: <strong>{extDimMm} mm</strong> (+{extPct}%)
+              Base fixa: {baseDimMm} mm ➔ Aberta (2×): <strong>{extDimMm} mm</strong>
             </div>
           </div>
           <button
+            type="button"
             onClick={() => {
-              const newExt = (selectedBox.slatExtensionPercent ?? 85) >= 95 ? 40 : 100;
-              updateInternalBox(selectedBox.id, { slatExtensionPercent: newExt });
-              setIsOpenPreview(true);
+              const nextOpen = !isBedCurrentlyOpen;
+              updateInternalBox(selectedBox.id, { isOpen: nextOpen, slatExtensionPercent: 100 });
+              setIsOpenPreview(nextOpen);
             }}
             style={{
               padding: '5px 10px',
@@ -76,11 +78,11 @@ export const PlannerSlatBedSection: React.FC<PlannerSlatBedProps> = ({ selectedB
               fontWeight: 800,
               cursor: 'pointer',
               border: 'none',
-              background: (selectedBox.slatExtensionPercent ?? 85) >= 95 ? '#38bdf8' : 'rgba(56, 189, 248, 0.25)',
-              color: (selectedBox.slatExtensionPercent ?? 85) >= 95 ? '#0f172a' : '#38bdf8'
+              background: isBedCurrentlyOpen ? '#10b981' : 'rgba(56, 189, 248, 0.25)',
+              color: isBedCurrentlyOpen ? '#0f172a' : '#38bdf8'
             }}
           >
-            {(selectedBox.slatExtensionPercent ?? 85) >= 95 ? '✓ 100% Cama Aberta' : '⚡ Abrir Toda Cama'}
+            {isBedCurrentlyOpen ? '🛋️ Fechar (Modo Sofá)' : '⚡ Abrir Toda Cama'}
           </button>
         </div>
 
@@ -118,13 +120,13 @@ export const PlannerSlatBedSection: React.FC<PlannerSlatBedProps> = ({ selectedB
               </select>
             </div>
 
-            {/* Divisão de Partes do Colchão */}
+            {/* Ocupação / Partes do Colchão na Doblò */}
             <div>
               <label style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginBottom: '3px' }}>
-                Divisão das Almofadas:
+                Ocupação do Colchão na Doblò:
               </label>
               <select
-                value={selectedBox.mattressParts ?? 2}
+                value={selectedBox.mattressParts === 4 ? 3 : (selectedBox.mattressParts ?? 2)}
                 onChange={(e) => updateInternalBox(selectedBox.id, { mattressParts: parseInt(e.target.value) as any })}
                 style={{
                   width: '100%',
@@ -137,11 +139,10 @@ export const PlannerSlatBedSection: React.FC<PlannerSlatBedProps> = ({ selectedB
                   fontWeight: 600
                 }}
               >
-                <option value={1}>1 Parte (Colchão Inteiro)</option>
-                <option value={2}>2 Partes (Bipartido)</option>
-                <option value={3}>3 Partes (Tripartido)</option>
-                <option value={4}>4 Partes (Quadripartido)</option>
-                <option value={5}>5 Partes (Completo c/ Caixas de Roda)</option>
+                <option value={1}>1 Parte (Apenas Base Fechada)</option>
+                <option value={2}>2 Partes (Base + Corredor)</option>
+                <option value={3}>3 Partes de Toda a Doblò (120 cm)</option>
+                <option value={5}>Ocupa Tudo + 2 Caixas de Roda (5 Partes)</option>
               </select>
             </div>
           </div>

@@ -465,4 +465,67 @@ describe('SlatBedMattressBuilder - Floating and Cutout Tests', () => {
     const cutLineupMeshes = lineupUpholsteryMeshes.filter(m => m.userData.hasCabinetCutout);
     expect(cutLineupMeshes.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('cuts wheel-well cushion when upper cabinet is in middle of Z or bed has extraLengthMm, and when cabinet passes mattress height', () => {
+    const builder = new SlatBedMattressBuilder();
+    const container = new THREE.Group();
+
+    const boxBed: InternalBoxItem = {
+      id: 'box_slat_bed_extra_len',
+      name: 'Sofá-Cama Ripas',
+      type: 'slat_bed',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 4,
+      heightMm: 400,
+      extraLengthMm: 160,
+      color: '#d97706',
+      material: 'plywood',
+      slatBedDirection: 'left',
+      slatExtensionPercent: 100,
+      mattressParts: 5,
+      mattressThicknessMm: 120,
+    };
+
+    const cabOverWheelWell: InternalBoxItem = {
+      id: 'box_cab_wheel_well',
+      name: 'Armário Aéreo Caixa de Roda',
+      type: 'chest',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 1,
+      rowSpan: 2,
+      heightMm: 400,
+      color: '#d97706',
+      material: 'plywood',
+      upperCabinet: true,
+      upperCabinetAlign: 'right',
+      upperCabinetDepthMm: 250,
+      upperCabinetBottomGapMm: 100, // 100mm < 120mm (passa da altura do colchão!)
+    };
+
+    builder.buildMattress({
+      container,
+      w: 0.4,
+      l: 1.86,
+      h: 0.4,
+      box: boxBed,
+      slatT,
+      direction: 'left',
+      isExtended: true,
+      extRatio: 1,
+      cellWM,
+      cellLM,
+      allBoxes: [boxBed, cabOverWheelWell],
+      grid,
+      isSelected: false
+    });
+
+    const baseArch = container.children.find(c =>
+      (c.userData as any).partLabel?.includes('Almofada Aba Caixa de Roda')
+    ) as THREE.Mesh;
+    expect(baseArch).toBeDefined();
+    expect((baseArch.userData as any).hasCabinetCutout).toBe(true);
+  });
 });

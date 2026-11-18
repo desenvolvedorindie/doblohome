@@ -17,45 +17,54 @@ export class FloorAndGridBuilder {
     const floorThicknessMm = grid.floorThicknessMm || 15;
     const floorThickness = floorThicknessMm / 1000;
 
-    // Chapa de compensado naval na base do assoalho (serve de fundo para todas as caixas)
-    const floorGeo = new THREE.BoxGeometry(widthM, floorThickness, lengthM);
-    const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x92613b, // Madeira compensado naval quente e sólida
-      roughness: 0.80,
-      metalness: 0.04
-    });
-    const floorMesh = new THREE.Mesh(floorGeo, floorMat);
-    floorMesh.position.set(0, floorY - floorThickness / 2, centerZ);
-    floorMesh.receiveShadow = true;
-    floorMesh.name = 'BaseNavalPlywoodFloor';
-    floorMesh.userData = {
-      isWoodPart: true,
-      dimW: widthM,
-      dimH: floorThickness,
-      dimL: lengthM,
-      thicknessMm: floorThicknessMm,
-      partLabel: `Chapa Base do Assoalho Doblò (Compensado Naval ${floorThicknessMm}mm)`,
-      isInternalFloorPlywood: true,
-      isBasePlywood: true,
-      name: `Chapa de Compensado Naval ${floorThicknessMm}mm`,
-      category: '🪵 Assoalho Base Campervan',
-      barProfile: `${Math.round(widthM * 1000)} × ${Math.round(lengthM * 1000)} × ${floorThicknessMm} mm`,
-      capacity: 'Fundo Comum dos Módulos',
-      material: `Compensado Naval ${floorThicknessMm}mm Impermeabilizado`,
-      woodMaterial: 'Compensado Naval',
-      moduleName: 'Assoalho Base',
-      partType: 'floor',
-      purpose: 'Base estrutural de nivelamento da Doblò que serve como fundo unificado para todos os baús e nichos'
-    };
-    this.floorMesh = floorMesh;
-    this.floorGroup.add(floorMesh);
+    const isFloorEnabled = grid.hasFloor !== false;
+    const isFloorVisible = grid.floorVisibleIn3D !== false;
 
-    // Borda perimetral de acabamento em alumínio
-    const edgeGeo = new THREE.EdgesGeometry(floorGeo);
-    const edgeMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2 });
-    const edgeLine = new THREE.LineSegments(edgeGeo, edgeMat);
-    edgeLine.position.copy(floorMesh.position);
-    this.floorGroup.add(edgeLine);
+    if (isFloorEnabled) {
+      // Chapa de compensado naval na base do assoalho (serve de fundo para todas as caixas)
+      const floorGeo = new THREE.BoxGeometry(widthM, floorThickness, lengthM);
+      const floorMat = new THREE.MeshStandardMaterial({
+        color: 0x92613b, // Madeira compensado naval quente e sólida
+        roughness: 0.80,
+        metalness: 0.04
+      });
+      const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+      floorMesh.position.set(0, floorY - floorThickness / 2, centerZ);
+      floorMesh.receiveShadow = true;
+      floorMesh.name = 'BaseNavalPlywoodFloor';
+      floorMesh.visible = isFloorVisible;
+      floorMesh.userData = {
+        isWoodPart: true,
+        dimW: widthM,
+        dimH: floorThickness,
+        dimL: lengthM,
+        thicknessMm: floorThicknessMm,
+        partLabel: `Chapa Base do Assoalho Doblò (Compensado Naval ${floorThicknessMm}mm)`,
+        isInternalFloorPlywood: true,
+        isBasePlywood: true,
+        name: `Chapa de Compensado Naval ${floorThicknessMm}mm`,
+        category: '🪵 Assoalho Base Campervan',
+        barProfile: `${Math.round(widthM * 1000)} × ${Math.round(lengthM * 1000)} × ${floorThicknessMm} mm`,
+        capacity: 'Fundo Comum dos Módulos',
+        material: `Compensado Naval ${floorThicknessMm}mm Impermeabilizado`,
+        woodMaterial: 'Compensado Naval',
+        moduleName: 'Assoalho Base',
+        partType: 'floor',
+        purpose: 'Base estrutural de nivelamento da Doblò que serve como fundo unificado para todos os baús e nichos'
+      };
+      this.floorMesh = floorMesh;
+      this.floorGroup.add(floorMesh);
+
+      // Borda perimetral de acabamento em alumínio
+      const edgeGeo = new THREE.EdgesGeometry(floorGeo);
+      const edgeMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2 });
+      const edgeLine = new THREE.LineSegments(edgeGeo, edgeMat);
+      edgeLine.position.copy(floorMesh.position);
+      edgeLine.visible = isFloorVisible;
+      this.floorGroup.add(edgeLine);
+    } else {
+      this.floorMesh = undefined;
+    }
 
     // Caixas de roda estilizadas (referência dimensional real da Doblò)
     const wheelArchGeo = new THREE.BoxGeometry(0.18, 0.32, 0.72);
@@ -75,10 +84,7 @@ export class FloorAndGridBuilder {
     archRight.position.set(-(widthM / 2 + 0.09), floorY + 0.16, -1.15);
     this.floorGroup.add(archRight);
 
-    // ─── MESA DINETTE CENTRAL (FIXADA NA CHAPA DE COMPENSADO NAVAL 15mm) ───
-    if (grid.centralTable?.enabled) {
-      this.buildFloorCentralTable(this.floorGroup, widthM, lengthM, floorY, grid.centralTable);
-    }
+    // ─── MESA DINETTE CENTRAL (DESATIVADA — SEM PEDESTAL/PISTÃO NO MEIO DOS BAÚS) ───
   }
 
   buildGrid(grid: InternalGridConfig, widthM: number, lengthM: number, floorY: number) {

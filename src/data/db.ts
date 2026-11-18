@@ -159,6 +159,7 @@ export async function dbGet<T>(key: string, defaultValue?: T): Promise<T | null>
  */
 export async function dbSet<T>(key: string, value: T): Promise<void> {
   memoryFallbackStore.set(key, value);
+  notifyDbChange(key, false);
 
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
@@ -192,6 +193,7 @@ export async function dbSet<T>(key: string, value: T): Promise<void> {
  */
 export async function dbDelete(key: string): Promise<void> {
   memoryFallbackStore.delete(key);
+  notifyDbChange(key, true);
 
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
@@ -270,3 +272,19 @@ export async function dbClear(): Promise<void> {
 }
 
 
+
+// ---- Gancho de mudanças (usado pela sincronização com o backend) ----
+type DbChangeListener = (key: string, deleted: boolean) => void;
+let dbChangeListener: DbChangeListener | null = null;
+
+export function setDbChangeListener(fn: DbChangeListener | null): void {
+  dbChangeListener = fn;
+}
+
+function notifyDbChange(key: string, deleted: boolean): void {
+  try {
+    dbChangeListener?.(key, deleted);
+  } catch {
+    // a sincronização nunca deve quebrar a gravação local
+  }
+}

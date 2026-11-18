@@ -70,7 +70,8 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     (updates: any) => cargoAndEquipMgr.setCargoBox(updates),
     cargoAndEquipMgr.cargoBox,
     appliancesMgr.updateCalculations,
-    cargoAndEquipMgr.setB2BCharger
+    cargoAndEquipMgr.setB2BCharger,
+    (overrides) => saveConfig(overrides)
   );
 
   // View, Camera & Inspection Actions
@@ -130,6 +131,12 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setB2BCharger: cargoAndEquipMgr.setB2BCharger,
     setActivePanelPresetIdState: presetsMgr.setActivePanelPresetIdState,
     setActiveCargoPresetIdState: presetsMgr.setActiveCargoPresetIdState,
+    setActiveFridgePresetIdState: presetsMgr.setActiveFridgePresetIdState,
+    setActivePortaPottiPresetIdState: presetsMgr.setActivePortaPottiPresetIdState,
+    setActiveStovePresetIdState: presetsMgr.setActiveStovePresetIdState,
+    setActiveBatteryPresetIdState: presetsMgr.setActiveBatteryPresetIdState,
+    setActiveMpptPresetIdState: presetsMgr.setActiveMpptPresetIdState,
+    setActiveB2bPresetIdState: presetsMgr.setActiveB2bPresetIdState,
     setOffsetZState: structureMgr.setOffsetZState,
     setOffsetYState: structureMgr.setOffsetYState,
     setExpansionProgressState: structureMgr.setExpansionProgressState,
@@ -322,6 +329,12 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     boxesMgr.isolatedBoxId
   ]);
 
+  // Sincroniza alterações de caixas internas e grid diretamente no projeto ativo
+  useEffect(() => {
+    if (!isDbLoadedRef.current || !currentProject?.id) return;
+    saveConfig();
+  }, [boxesMgr.internalBoxes, boxesMgr.internalGrid, viewMgr.partsFilter]);
+
   const saveConfig = (overrides?: Partial<SavedConfig>) => {
     if (!isDbLoadedRef.current) {
       console.warn('[SolarContext] Ignorando saveConfig antes da inicialização do banco de dados');
@@ -346,7 +359,13 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       expansionProgress: overrides?.expansionProgress ?? structureMgr.expansionProgress,
       b2bEngineHours: overrides?.b2bEngineHours ?? cargoAndEquipMgr.b2bCharger.engineHoursPerDay,
       panelPresetId: overrides?.panelPresetId ?? presetsMgr.activePanelPresetId,
-      cargoBoxPresetId: overrides?.cargoBoxPresetId ?? presetsMgr.activeCargoPresetId
+      cargoBoxPresetId: overrides?.cargoBoxPresetId ?? presetsMgr.activeCargoPresetId,
+      fridgePresetId: overrides?.fridgePresetId ?? presetsMgr.activeFridgePresetId,
+      portaPottiPresetId: overrides?.portaPottiPresetId ?? presetsMgr.activePortaPottiPresetId,
+      stovePresetId: overrides?.stovePresetId ?? presetsMgr.activeStovePresetId,
+      batteryPresetId: overrides?.batteryPresetId ?? presetsMgr.activeBatteryPresetId,
+      mpptPresetId: overrides?.mpptPresetId ?? presetsMgr.activeMpptPresetId,
+      b2bPresetId: overrides?.b2bPresetId ?? presetsMgr.activeB2bPresetId
     };
     SolarPersistence.saveConfig(configToSave, currentProject?.id, {
       internalBoxes: boxesMgr.internalBoxes,
@@ -465,6 +484,8 @@ export const SolarProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setInternalGrid: boxesMgr.setInternalGrid,
         setCeiling: boxesMgr.setCeiling,
         toggleCeiling3D: boxesMgr.toggleCeiling3D,
+        toggleFloor3D: boxesMgr.toggleFloor3D,
+        toggleFloorEnabled: boxesMgr.toggleFloorEnabled,
         internalBoxes: boxesMgr.internalBoxes,
         setInternalBoxes: boxesMgr.setInternalBoxes,
         selectedBoxId: boxesMgr.selectedBoxId,

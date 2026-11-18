@@ -203,20 +203,7 @@ export class CargoBoxSystem {
     this.tiltingPivotGroup.position.set(pivotX, pivotElevationY, 0);
     this.tiltingMountGroup.position.set(-pivotX, -pivotElevationY, 0);
 
-    // 4. Pistões a Gás
-    this.struts = CargoBoxHardware.buildGasStruts(
-      pivotElevationY,
-      pivotX,
-      boxCenterZ,
-      boxL,
-      this.baseY,
-      this.PROFILE_SIZE,
-      this.config.hingeSide,
-      this.subchassisGroup,
-      this.gasStrutsGroup
-    );
-
-    // 5. Aplica rotações
+    // 4. Aplica rotações (sem pistões a gás no baú)
     this.setTiltAngle(this.config.tiltAngle || 0);
     this.setLidAngle(this.config.lidAngle || 0);
   }

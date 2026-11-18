@@ -5,6 +5,7 @@ import { PlannerPresetConfirmModal } from './planner/PlannerPresetConfirmModal';
 import { PlannerActionBar } from './planner/PlannerActionBar';
 import { PlannerFloorGrid } from './planner/PlannerFloorGrid';
 import { PlannerGridConfig } from './planner/PlannerGridConfig';
+import { PlannerModuleCollisionSection } from './planner/PlannerModuleCollisionSection';
 import { PlannerCeilingSection } from './planner/PlannerCeilingSection';
 
 export type InternalBoxesLeftTab = 'all' | 'grid' | 'ceiling';
@@ -115,6 +116,8 @@ export const InternalBoxesPlanner: React.FC<InternalBoxesPlannerProps> = ({
             cellWidthCm={cellWidthCm}
             cellLengthCm={cellLengthCm}
           />
+
+          <PlannerModuleCollisionSection />
 
           <PlannerGridConfig />
         </>

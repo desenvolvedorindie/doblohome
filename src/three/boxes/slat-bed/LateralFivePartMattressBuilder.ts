@@ -6,6 +6,34 @@ import {
   CushionRect
 } from './MattressCushionGeometry';
 
+function getUncutSeamIntervalsZ(
+  seamX: number,
+  minZ: number,
+  maxZ: number,
+  cutoutZones: CushionRect[]
+): Array<{ minZ: number; maxZ: number }> {
+  let intervals: Array<{ minZ: number; maxZ: number }> = [{ minZ, maxZ }];
+  for (const z of cutoutZones) {
+    if (seamX >= z.minX - 0.006 && seamX <= z.maxX + 0.006) {
+      const next: Array<{ minZ: number; maxZ: number }> = [];
+      for (const seg of intervals) {
+        if (z.maxZ <= seg.minZ || z.minZ >= seg.maxZ) {
+          next.push(seg);
+        } else {
+          if (z.minZ > seg.minZ + 0.015) {
+            next.push({ minZ: seg.minZ, maxZ: z.minZ });
+          }
+          if (z.maxZ < seg.maxZ - 0.015) {
+            next.push({ minZ: z.maxZ, maxZ: seg.maxZ });
+          }
+        }
+      }
+      intervals = next;
+    }
+  }
+  return intervals.filter((s) => s.maxZ - s.minZ > 0.015);
+}
+
 export function buildLateralFivePartMattress(params: {
   container: THREE.Group;
   w: number;
@@ -124,11 +152,11 @@ export function buildLateralFivePartMattress(params: {
       const baseSeamX = direction === 'left' ? -w / 2 : w / 2;
       const seamMinZ = Math.max(baseArchRes.actualMinZ, centralResults[0].actualMinZ);
       const seamMaxZ = Math.min(baseArchRes.actualMaxZ, centralResults[0].actualMaxZ);
-      if (seamMaxZ > seamMinZ + 0.01) {
-        const seamL = seamMaxZ - seamMinZ;
+      for (const seg of getUncutSeamIntervalsZ(baseSeamX, seamMinZ, seamMaxZ, cutoutZones)) {
+        const seamL = seg.maxZ - seg.minZ;
         const baseSeamGeo = new THREE.BoxGeometry(0.004, mattressThickness + 0.002, seamL);
         const baseSeamMesh = new THREE.Mesh(baseSeamGeo, seamMat);
-        baseSeamMesh.position.set(baseSeamX, mattressY, (seamMinZ + seamMaxZ) / 2);
+        baseSeamMesh.position.set(baseSeamX, mattressY, (seg.minZ + seg.maxZ) / 2);
         container.add(baseSeamMesh);
       }
     }
@@ -143,11 +171,11 @@ export function buildLateralFivePartMattress(params: {
           : (w / 2 - (i + 1) * cellW);
         const seamMinZ = Math.max(cA.actualMinZ, cB.actualMinZ);
         const seamMaxZ = Math.min(cA.actualMaxZ, cB.actualMaxZ);
-        if (seamMaxZ > seamMinZ + 0.01) {
-          const seamL = seamMaxZ - seamMinZ;
+        for (const seg of getUncutSeamIntervalsZ(seamX, seamMinZ, seamMaxZ, cutoutZones)) {
+          const seamL = seg.maxZ - seg.minZ;
           const seamGeo = new THREE.BoxGeometry(0.004, mattressThickness + 0.002, seamL);
           const seamMesh = new THREE.Mesh(seamGeo, seamMat);
-          seamMesh.position.set(seamX, mattressY, (seamMinZ + seamMaxZ) / 2);
+          seamMesh.position.set(seamX, mattressY, (seg.minZ + seg.maxZ) / 2);
           container.add(seamMesh);
         }
       }
@@ -188,11 +216,11 @@ export function buildLateralFivePartMattress(params: {
         const farSeamX = direction === 'left' ? (-w / 2 + 3 * cellW) : (w / 2 - 3 * cellW);
         const seamMinZ = Math.max(centralResults[2].actualMinZ, farArchRes.actualMinZ);
         const seamMaxZ = Math.min(centralResults[2].actualMaxZ, farArchRes.actualMaxZ);
-        if (seamMaxZ > seamMinZ + 0.01) {
-          const seamL = seamMaxZ - seamMinZ;
+        for (const seg of getUncutSeamIntervalsZ(farSeamX, seamMinZ, seamMaxZ, cutoutZones)) {
+          const seamL = seg.maxZ - seg.minZ;
           const farSeamGeo = new THREE.BoxGeometry(0.004, mattressThickness + 0.002, seamL);
           const farSeamMesh = new THREE.Mesh(farSeamGeo, seamMat);
-          farSeamMesh.position.set(farSeamX, mattressY, (seamMinZ + seamMaxZ) / 2);
+          farSeamMesh.position.set(farSeamX, mattressY, (seg.minZ + seg.maxZ) / 2);
           container.add(farSeamMesh);
         }
       }

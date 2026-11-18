@@ -74,8 +74,45 @@ export const PlannerGridConfig: React.FC = () => {
             />
           </div>
         </div>
-      </div>
 
+        {/* Chapa Base do Assoalho (Tampo de Baixo da Van) */}
+        <div
+          style={{
+            marginTop: '12px',
+            paddingTop: '10px',
+            borderTop: '1px solid rgba(148, 163, 184, 0.2)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '12px',
+            flexWrap: 'wrap'
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#e2e8f0' }}>
+              🪵 Chapa do Assoalho Base (Tampo de Baixo da Van)
+            </div>
+            <div style={{ fontSize: '9.5px', color: '#94a3b8' }}>
+              Compensado naval ({internalGrid.floorThicknessMm || 15}mm) que serve de nivelamento e fundo unificado para as caixas.
+            </div>
+          </div>
+          <button
+            type="button"
+            className={`btn-compact ${internalGrid.hasFloor !== false ? 'active' : ''}`}
+            onClick={() => setInternalGrid(prev => ({ ...prev, hasFloor: !(prev.hasFloor !== false) }))}
+            style={{
+              fontSize: '10.5px',
+              padding: '6px 12px',
+              fontWeight: 700,
+              background: internalGrid.hasFloor !== false ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+              borderColor: internalGrid.hasFloor !== false ? '#10b981' : '#ef4444',
+              color: internalGrid.hasFloor !== false ? '#34d399' : '#f87171'
+            }}
+          >
+            {internalGrid.hasFloor !== false ? '✓ Assoalho Ativo no Projeto' : '✗ Sem Assoalho (Tirar Tampo de Baixo)'}
+          </button>
+        </div>
+      </div>
     </>
   );
 };

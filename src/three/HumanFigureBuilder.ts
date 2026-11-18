@@ -54,7 +54,7 @@ export class HumanFigureBuilder {
     // ─────────────────────────────────────────────────────────────
     // 1. CABEÇA & PESCOÇO
     // ─────────────────────────────────────────────────────────────
-    const headR = 0.098 * sc;
+    const headR = 0.115 * sc;
     const headCenterY = H - headR; // Topo exato em Y = H
     const headGeo = new THREE.SphereGeometry(headR, 24, 20);
     const headMesh = new THREE.Mesh(headGeo, mat);
@@ -66,11 +66,11 @@ export class HumanFigureBuilder {
     // 2. TORSO (Cápsula Arredondada Única)
     // ─────────────────────────────────────────────────────────────
     // Topo do torso fica logo abaixo da cabeça
-    const torsoTopY = headCenterY - headR - 0.025 * sc;
+    const torsoTopY = headCenterY - headR - 0.02 * sc;
     // Base do torso fica na virilha
-    const torsoBottomY = 0.48 * H;
+    const torsoBottomY = 0.47 * H;
     const torsoHeightTotal = torsoTopY - torsoBottomY;
-    const torsoR = 0.132 * sc;
+    const torsoR = 0.15 * sc;
     const torsoCylinderLen = Math.max(0.04, torsoHeightTotal - 2 * torsoR);
     const torsoCenterY = (torsoTopY + torsoBottomY) / 2;
 
@@ -84,7 +84,7 @@ export class HumanFigureBuilder {
     const neckBottomY = torsoTopY - 0.02 * sc;
     const neckTopY = headCenterY - headR * 0.75;
     const neckHeight = Math.max(0.02, neckTopY - neckBottomY);
-    const neckR = 0.045 * sc;
+    const neckR = 0.05 * sc;
     const neckGeo = new THREE.CylinderGeometry(neckR, neckR * 1.15, neckHeight, 16);
     const neckMesh = new THREE.Mesh(neckGeo, mat);
     neckMesh.position.set(0, (neckTopY + neckBottomY) / 2, 0);
@@ -95,12 +95,12 @@ export class HumanFigureBuilder {
     // 3. BRAÇOS (Duas cápsulas verticais longas)
     // ─────────────────────────────────────────────────────────────
     const armTopY = torsoTopY - 0.035 * sc;
-    const armBottomY = 0.45 * H;
+    const armBottomY = 0.40 * H;
     const armHeightTotal = armTopY - armBottomY;
-    const armR = 0.042 * sc;
+    const armR = 0.045 * sc;
     const armCylinderLen = Math.max(0.04, armHeightTotal - 2 * armR);
     const armCenterY = (armTopY + armBottomY) / 2;
-    const armSpacingX = torsoR + armR + 0.028 * sc;
+    const armSpacingX = torsoR + armR + 0.02 * sc;
 
     const armGeo = new THREE.CapsuleGeometry(armR, armCylinderLen, 10, 20);
 
@@ -122,10 +122,10 @@ export class HumanFigureBuilder {
     const legTopY = torsoBottomY + torsoR * 0.65; // Penetram suavemente no torso
     const legBottomY = 0; // Pés no chão
     const legHeightTotal = legTopY - legBottomY;
-    const legR = 0.055 * sc;
+    const legR = 0.07 * sc;
     const legCylinderLen = Math.max(0.04, legHeightTotal - 2 * legR);
     const legCenterY = legHeightTotal / 2; // Centro da cápsula
-    const legSpacingX = 0.082 * sc;
+    const legSpacingX = 0.09 * sc;
 
     const legGeo = new THREE.CapsuleGeometry(legR, legCylinderLen, 10, 20);
 

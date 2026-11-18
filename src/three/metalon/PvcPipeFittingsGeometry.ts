@@ -80,49 +80,47 @@ export function buildPvcElbowMesh(
   const bendUvs: number[] = [];
   const bendIndices: number[] = [];
 
-  for (let i = 0; i <= tubularSegments; i++) {
-    const frac = i / tubularSegments;
-    const theta = frac * (Math.PI / 2);
-    const cosT = Math.cos(theta);
-    const sinT = Math.sin(theta);
-
-    const cx = bendR * cosT;
-    const cz = bendR * sinT;
-
-    const normal = new THREE.Vector3(cosT, 0, sinT);
-    const binormal = new THREE.Vector3(0, 1, 0);
-
-    for (let j = 0; j <= radialSegments; j++) {
-      const phi = (j / radialSegments) * Math.PI * 2;
-      const cosPhi = Math.cos(phi);
-      const sinPhi = Math.sin(phi);
-
-      const nx = normal.x * cosPhi + binormal.x * sinPhi;
-      const ny = normal.y * cosPhi + binormal.y * sinPhi;
-      const nz = normal.z * cosPhi + binormal.z * sinPhi;
-
-      const px = cx + rOuter * nx;
-      const py = rOuter * ny;
-      const pz = cz + rOuter * nz;
-
-      bendPositions.push(px, py, pz);
-      bendNormals.push(nx, ny, nz);
-      bendUvs.push(frac, j / radialSegments);
-    }
-  }
-
+  // Duas paredes: externa (rOuter) e interna/furo (r, normais invertidas e faces viradas)
   const ringStride = radialSegments + 1;
-  for (let i = 0; i < tubularSegments; i++) {
-    for (let j = 0; j < radialSegments; j++) {
-      const a = i * ringStride + j;
-      const b = (i + 1) * ringStride + j;
-      const c = (i + 1) * ringStride + (j + 1);
-      const d = i * ringStride + (j + 1);
-      bendIndices.push(a, b, d);
-      bendIndices.push(b, c, d);
-    }
-  }
+  [{ rad: rOuter, sign: 1 }, { rad: r, sign: -1 }].forEach(({ rad, sign }) => {
+    const base = bendPositions.length / 3;
+    for (let i = 0; i <= tubularSegments; i++) {
+      const frac = i / tubularSegments;
+      const theta = frac * (Math.PI / 2);
+      const cosT = Math.cos(theta);
+      const sinT = Math.sin(theta);
 
+      const cx = bendR * cosT;
+      const cz = bendR * sinT;
+
+      for (let j = 0; j <= radialSegments; j++) {
+        const phi = (j / radialSegments) * Math.PI * 2;
+        const cosPhi = Math.cos(phi);
+        const sinPhi = Math.sin(phi);
+
+        const nx = cosT * cosPhi;
+        const ny = sinPhi;
+        const nz = sinT * cosPhi;
+
+        bendPositions.push(cx + rad * nx, rad * ny, cz + rad * nz);
+        bendNormals.push(sign * nx, sign * ny, sign * nz);
+        bendUvs.push(frac, j / radialSegments);
+      }
+    }
+    for (let i = 0; i < tubularSegments; i++) {
+      for (let j = 0; j < radialSegments; j++) {
+        const a = base + i * ringStride + j;
+        const b = base + (i + 1) * ringStride + j;
+        const c2 = base + (i + 1) * ringStride + (j + 1);
+        const d = base + i * ringStride + (j + 1);
+        if (sign > 0) {
+          bendIndices.push(a, d, b, b, d, c2);
+        } else {
+          bendIndices.push(a, b, d, b, c2, d);
+        }
+      }
+    }
+  });
   const bendGeo = new THREE.BufferGeometry();
   bendGeo.setAttribute('position', new THREE.Float32BufferAttribute(bendPositions, 3));
   bendGeo.setAttribute('normal', new THREE.Float32BufferAttribute(bendNormals, 3));
@@ -360,37 +358,93 @@ export function buildPvcTeeMesh(
   const runLength = Math.max(0.18, r * 2.4 + socketDepth);
   const branchLength = rOuter + socketDepth * 0.85;
 
-  // 1. Tubo principal reto (Run ao longo de Z)
-  const runShape = new THREE.Shape();
-  runShape.absarc(0, 0, rOuter, 0, Math.PI * 2, false);
-  const runHole = new THREE.Path();
-  runHole.absarc(0, 0, r, 0, Math.PI * 2, true);
-  runShape.holes.push(runHole);
+  // 1/2. Corpo do Tê como união real de dois tubos de mesmo diâmetro (run em Z + ramal em +X).
+  // Com raios iguais as curvas de interseção são planos x = ±z, então a superfície é exata:
+  //  - run: removido onde x>0 e |z|<x (abre a passagem para o ramal)
+  //  - ramal: começa na curva de interseção (x = R|sin?|), sem cano atravessando o interior
+  // Feito para as superfícies externa (rOuter) e interna (r), logo a junção fica vazada.
+  const NU = 48;
+  const NV = 16;
+  type SurfFn = (u: number, v: number) => { p: [number, number, number]; n: [number, number, number] };
+  function buildSurfaceGeo(parts: SurfFn[]): THREE.BufferGeometry {
+    const pos: number[] = [];
+    const nor: number[] = [];
+    const idx: number[] = [];
+    parts.forEach((fn) => {
+      const base = pos.length / 3;
+      for (let i = 0; i <= NU; i++) {
+        for (let j = 0; j <= NV; j++) {
+          const { p, n } = fn(i / NU, j / NV);
+          pos.push(p[0], p[1], p[2]);
+          nor.push(n[0], n[1], n[2]);
+        }
+      }
+      const stride = NV + 1;
+      const tri = (a: number, b: number, c: number) => {
+        const A = new THREE.Vector3(pos[a * 3], pos[a * 3 + 1], pos[a * 3 + 2]);
+        const B = new THREE.Vector3(pos[b * 3], pos[b * 3 + 1], pos[b * 3 + 2]);
+        const C = new THREE.Vector3(pos[c * 3], pos[c * 3 + 1], pos[c * 3 + 2]);
+        const fn2 = new THREE.Vector3().subVectors(B, A).cross(new THREE.Vector3().subVectors(C, A));
+        const nn = new THREE.Vector3(nor[a * 3], nor[a * 3 + 1], nor[a * 3 + 2]);
+        if (fn2.lengthSq() < 1e-14) return; // triângulo degenerado
+        if (fn2.dot(nn) >= 0) idx.push(a, b, c);
+        else idx.push(a, c, b);
+      };
+      for (let i = 0; i < NU; i++) {
+        for (let j = 0; j < NV; j++) {
+          const a = base + i * stride + j;
+          const b = base + (i + 1) * stride + j;
+          const c = base + (i + 1) * stride + j + 1;
+          const d = base + i * stride + j + 1;
+          tri(a, b, d);
+          tri(b, c, d);
+        }
+      }
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    g.setIndex(idx);
+    return g;
+  }
 
-  const runGeo = new THREE.ExtrudeGeometry(runShape, {
-    steps: 1,
-    depth: runLength,
-    bevelEnabled: false,
-    curveSegments: radialSegments
-  });
-  runGeo.center();
-  runGeo.computeVertexNormals();
+  // Superfície do run (eixo Z) com abertura para o ramal. sign=+1 externo, -1 interno
+  const runSurf = (rad: number, sign: number): SurfFn[] =>
+    [-1, 1].map((s) => (u: number, v: number) => {
+      const phi = u * Math.PI * 2;
+      const cx = Math.cos(phi);
+      const sy = Math.sin(phi);
+      const g = Math.max(0, rad * cx);
+      const z0 = s < 0 ? -runLength / 2 : g;
+      const z1 = s < 0 ? -g : runLength / 2;
+      return {
+        p: [rad * cx, rad * sy, z0 + (z1 - z0) * v],
+        n: [sign * cx, sign * sy, 0],
+      };
+    });
+
+  // Superfície do ramal (eixo X) começando na curva de interseção com o run
+  const branchSurf = (rad: number, sign: number): SurfFn[] => [
+    (u: number, v: number) => {
+      const psi = u * Math.PI * 2;
+      const cy = Math.cos(psi);
+      const sz = Math.sin(psi);
+      const x0 = rad * Math.abs(sz);
+      return {
+        p: [x0 + (branchLength - x0) * v, rad * cy, rad * sz],
+        n: [0, sign * cy, sign * sz],
+      };
+    },
+  ];
+
+  const runGeo = buildSurfaceGeo([...runSurf(rOuter, 1), ...runSurf(r, -1)]);
   const runMesh = new THREE.Mesh(runGeo, material);
   runMesh.castShadow = true;
   runMesh.receiveShadow = true;
   runMesh.name = 'PvcTee_Run';
 
-  // 2. Ramal perpendicular de 90Â° (Branch ao longo de +X)
-  const branchGeo = new THREE.ExtrudeGeometry(runShape, {
-    steps: 1,
-    depth: branchLength,
-    bevelEnabled: false,
-    curveSegments: radialSegments
-  });
-  branchGeo.rotateY(Math.PI / 2);
-  branchGeo.computeVertexNormals();
+  const branchGeo = buildSurfaceGeo([...branchSurf(rOuter, 1), ...branchSurf(r, -1)]);
   const branchMesh = new THREE.Mesh(branchGeo, material);
-  branchMesh.position.set(0, 0, 0);
   branchMesh.castShadow = true;
   branchMesh.receiveShadow = true;
   branchMesh.name = 'PvcTee_Branch';
@@ -405,9 +459,9 @@ export function buildPvcTeeMesh(
     pts.push(new THREE.Vector2(r, collarBand + 0.003));
     const lGeo = new THREE.LatheGeometry(pts, radialSegments);
     if (axis === 'z_pos') {
-      lGeo.rotateX(Math.PI / 2);
-    } else if (axis === 'z_neg') {
       lGeo.rotateX(-Math.PI / 2);
+    } else if (axis === 'z_neg') {
+      lGeo.rotateX(Math.PI / 2);
     } else {
       lGeo.rotateZ(Math.PI / 2);
     }

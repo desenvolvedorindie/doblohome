@@ -15,6 +15,8 @@ export class UpperCabinetTransverseBuilder {
       cabinetCenterY,
       t,
       tMm,
+      doorT,
+      doorTMm,
       woodMat,
       cabinetUserData,
       cabinetMat,
@@ -231,14 +233,14 @@ export class UpperCabinetTransverseBuilder {
           const overlap = 0.030;
           const leafW = (innerW + overlap) / 2;
           const leafH = Math.max(0.08, innerH - 0.008);
-          const doorT = 0.006; // 6mm compensado/acrílico/MDF leve para porta de correr
           const corridorDir = side === 'rear' ? 1 : -1;
           const centerY = interiorBottomY + innerH / 2;
 
           const doorUserData = {
             ...cabinetUserData,
-            thicknessMm: 6,
-            material: `${woodMat} 6mm Impermeabilizado`
+            partType: 'door',
+            thicknessMm: doorTMm,
+            material: `${woodMat} ${doorTMm}mm Impermeabilizado`
           };
 
           // Posições no eixo transversal X quando fechado:
@@ -366,7 +368,7 @@ export class UpperCabinetTransverseBuilder {
         } else if (hasDoors) {
           const doorW = cabinetWidthM - 0.006;
           const doorH = cabinetH - 0.006;
-          const doorZ = frontZ + (side === 'rear' ? t / 2 : -t / 2);
+          const doorZ = frontZ + (side === 'rear' ? doorT / 2 : -doorT / 2);
 
           // Eixo pivotante superior para porta basculante (abertura típica de motorhome/campervan para cima)
           const doorPivot = new THREE.Group();
@@ -384,7 +386,7 @@ export class UpperCabinetTransverseBuilder {
             doorPivot,
             doorW,
             doorH,
-            t,
+            doorT,
             0,
             -doorH / 2,
             0,
@@ -392,8 +394,13 @@ export class UpperCabinetTransverseBuilder {
             edgeMat,
             box.id,
             container,
-            `${box.name} • Armário Aéreo (${side}) Porta c/ Trava (${Math.round(doorW * 1000)}×${Math.round(doorH * 1000)}mm)`,
-            cabinetUserData
+            `${box.name} • Armário Aéreo (${side}) Porta c/ Trava (${Math.round(doorW * 1000)}×${Math.round(doorH * 1000)}×${doorTMm}mm)`,
+            {
+              ...cabinetUserData,
+              partType: 'door',
+              thicknessMm: doorTMm,
+              material: `${woodMat} ${doorTMm}mm Impermeabilizado`
+            }
           );
 
           // Dobradiça superior contínua / articulador
@@ -421,7 +428,7 @@ export class UpperCabinetTransverseBuilder {
           knobMesh.position.set(
             cabinetWidthM / 2 - 0.05,
             -doorH + 0.04,
-            side === 'rear' ? (t / 2 + 0.009) : (-t / 2 - 0.009)
+            side === 'rear' ? (doorT / 2 + 0.009) : (-doorT / 2 - 0.009)
           );
           knobMesh.userData = {
             isHardware: true,

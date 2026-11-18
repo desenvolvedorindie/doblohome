@@ -46,7 +46,13 @@ export const StatusBar: React.FC = () => {
     <footer className="ide-statusbar">
       {/* Esquerda: Sistema, Workspace e Contexto */}
       <div className="ide-statusbar-section">
-        <div className="ide-statusbar-item" style={{ color: '#e5e5e5', fontWeight: 600 }}>
+        <button
+          type="button"
+          className="ide-statusbar-btn"
+          style={{ color: '#e5e5e5', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          onClick={() => openModal('about')}
+          title="Sobre o DoblóHome Studio (v1.0.0)"
+        >
           <span
             style={{
               width: '7px',
@@ -58,7 +64,7 @@ export const StatusBar: React.FC = () => {
             }}
           />
           <span>DoblóHome Studio</span>
-        </div>
+        </button>
 
         <div className="ide-statusbar-divider" />
 

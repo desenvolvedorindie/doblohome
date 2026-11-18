@@ -48,14 +48,22 @@ export class SlatBedBuilder {
     });
 
     const direction: SlatBedDirection = box.slatBedDirection || 'left';
-    const extPercent = Math.min(100, Math.max(40, box.slatExtensionPercent ?? 85));
+    const extPercent = Math.min(100, Math.max(40, box.slatExtensionPercent ?? 100));
     const extRatio = extPercent / 100;
     const isExtended = isOpen;
 
-    // 1. Caixa base inferior de apoio / baú de arrumação sob a cama (sem o tampo superior)
+    // 1. Caixa base inferior de apoio / baú de arrumação sob a cama (sem o tampo superior
+    // e SEM a parede do lado para o qual o quadro em L invertido desliza!)
     const baseH = Math.max(0.05, h - slatT);
     const baseGroup = new THREE.Group();
     baseGroup.position.set(0, -slatT / 2, 0);
+    const bedPanels = {
+      ...box.panels,
+      left: direction === 'left' ? false : (box.panels?.left ?? true),
+      right: direction === 'right' ? false : (box.panels?.right ?? true),
+      front: direction === 'front' ? false : (box.panels?.front ?? true),
+      rear: direction === 'rear' ? false : (box.panels?.rear ?? true)
+    };
     buildHollowBox(
       baseGroup,
       w,
@@ -67,28 +75,28 @@ export class SlatBedBuilder {
       box.panels?.bottom ?? false,
       box.id,
       container,
-      box.panels,
+      bedPanels,
       box.name,
       box
     );
     container.add(baseGroup);
 
-    // 2. Sistema de Ripas Retráteis Intercaladas (Pente de Madeira)
+    // 2. Sistema de Ripas Retráteis Intercaladas em L Invertido (Pente de Madeira)
     const ySlat = h / 2 - slatT / 2;
-    // parts define a quantidade de colunas/subdivisões que a cama ocupa ao estender (2 colunas = padrão Doblò c/ armário alto lateral, 3 colunas = ocupar tudo, 5 = com abas das caixas de roda esq/dir)
     const parts = (box.mattressParts ?? (box.colSpan === 1 ? 2 : 3)) as 1 | 2 | 3 | 4 | 5;
 
     if (direction === 'left' || direction === 'right') {
       // --- ABERTURA LATERAL (Eixo X) ---
-      // parts define quantas subdivisões do grid a cama aberta ocupa (5 partes cobre as 3 colunas + abas das caixas de roda)
-      const cellW = cellWM || w;
-      const targetSubdivisions = parts === 5 ? 3 : Math.max(1, parts);
-      const totalOpenSpanX = targetSubdivisions * cellW;
-      const strokeMax = Math.max(0, totalOpenSpanX - w);
+      // O quadro móvel forma um "L de cabeça para baixo" (Г):
+      // - Parte horizontal superior: ripas móveis de largura w intercaladas com as ripas fixas.
+      // - Parte vertical (perna do L): painel frontal/lateral na extremidade que desce até o assoalho.
+      // Ao puxar a cama (100%), o quadro móvel SEMPRE desliza por (w - t), dobrando a área da cama (2 * w)
+      // e mantendo a extremidade interna das ripas móveis apoiada sobre o sarrafo da caixa base!
+      const strokeMax = Math.max(0, w - t);
       const slideStroke = isExtended ? strokeMax * extRatio : 0;
       const slideOffsetX = direction === 'left' ? slideStroke : -slideStroke;
 
-      // As ripas correm na largura (X, comprimento = w) e intercalam-se ao longo do comprimento (Z, de -l/2 a +l/2).
+      // As ripas correm na largura (X, comprimento fixo = w) e intercalam-se ao longo do comprimento (Z, de -l/2 a +l/2).
       const targetSlatW = 0.07; // ~70mm de largura nominal por ripa
       let numSlats = Math.max(6, Math.floor(l / targetSlatW));
       if (numSlats % 2 !== 0) numSlats += 1; // número par para alternância perfeita
@@ -96,10 +104,9 @@ export class SlatBedBuilder {
       const gap = 0.006; // folga funcional de 6mm entre ripas
       const slatDimZ = Math.max(0.025, pitch - gap);
 
-      // Comprimento das ripas adaptado para o vão aberto quando estendido
-      const fixedSlatW = isExtended ? Math.min(totalOpenSpanX, w + strokeMax * 0.55) : w;
-      const mobileSlatW = isExtended ? Math.min(totalOpenSpanX, w + strokeMax * 0.55) : w;
-      const fixedSlatX = direction === 'left' ? (fixedSlatW - w) / 2 : -(fixedSlatW - w) / 2;
+      const fixedSlatW = w;
+      const mobileSlatW = w;
+      const fixedSlatX = 0;
 
       // (A) Estrado Fixo (Ripas nos índices pares: 0, 2, 4...)
       for (let i = 0; i < numSlats; i += 2) {
@@ -121,14 +128,32 @@ export class SlatBedBuilder {
         );
       }
 
-      // (B) Estrado Móvel Retrátil (Ripas nos índices ímpares: 1, 3, 5... + Longarina Externa de Puxar + Pés)
+      // Sarrafo interno de apoio na borda da caixa base onde as pontas das ripas móveis apoiam quando abertas
+      const cleatX = direction === 'left' ? (w / 2 - t / 2) : (-w / 2 + t / 2);
+      addPanel(
+        container,
+        t,
+        0.035,
+        l - 2 * t,
+        cleatX,
+        h / 2 - slatT - 0.035 / 2,
+        0,
+        mat,
+        edgeMat,
+        box.id,
+        container,
+        `${box.name} • Sarrafo Guia de Apoio do Pente (${Math.round((l - 2 * t) * 1000)}×35×${Math.round(t * 1000)}mm)`,
+        { thicknessMm: Math.round(t * 1000), woodMaterial: woodMat, moduleName: box.name, partType: 'slat', material: `${woodMat} ${Math.round(t * 1000)}mm` }
+      );
+
+      // (B) Estrado Móvel Retrátil em L Invertido (Ripas nos índices ímpares: 1, 3, 5... + Painel Vertical Frontal)
       const mobileGroup = new THREE.Group();
       mobileGroup.name = 'SlatBedSlidingFrame';
       mobileGroup.position.set(slideOffsetX, 0, 0);
 
-      const mobileSlatX = direction === 'left' ? -(mobileSlatW - w) / 2 : (mobileSlatW - w) / 2;
+      const mobileSlatX = 0;
 
-      // Ripas móveis deslizantes
+      // Ripas móveis deslizantes (braço horizontal superior do L invertido)
       for (let i = 1; i < numSlats; i += 2) {
         const zPos = -l / 2 + (i + 0.5) * pitch;
         addPanel(
@@ -148,27 +173,28 @@ export class SlatBedBuilder {
         );
       }
 
-      // Longarina lateral externa que une as ripas móveis e serve de fachada
+      // Perna vertical do L de cabeça para baixo: fecha toda a frente do módulo quando recolhido
+      // e sustenta a extremidade externa das ripas móveis no chão quando estendido
       const outerX = direction === 'left' ? (w / 2 - t / 2) : (-w / 2 + t / 2);
+      const legH = Math.max(0.05, h - slatT);
+      const legY = -slatT / 2;
       addPanel(
         mobileGroup,
         t,
-        h,
+        legH,
         l,
         outerX,
-        0,
+        legY,
         0,
         mat,
-        edgeMat,
+        mobileEdgeMat,
         box.id,
         container,
-        `${box.name} • Longarina Lateral Móvel (${Math.round(l * 1000)}×${Math.round(h * 1000)}×${Math.round(t * 1000)}mm)`,
-        { thicknessMm: Math.round(t * 1000), woodMaterial: woodMat, moduleName: box.name, partType: 'left', material: `${woodMat} ${Math.round(t * 1000)}mm` }
+        `${box.name} • Painel Frontal Móvel (L Invertido) (${Math.round(l * 1000)}×${Math.round(legH * 1000)}×${Math.round(t * 1000)}mm)`,
+        { thicknessMm: Math.round(t * 1000), woodMaterial: woodMat, moduleName: box.name, partType: direction === 'left' ? 'left' : 'right', material: `${woodMat} ${Math.round(t * 1000)}mm` }
       );
 
       // Pés de apoio articulados que alcançam o assoalho da van
-      const legH = h - slatT;
-      const legY = -slatT / 2;
       const legZ1 = -l / 2 + Math.min(0.08, l * 0.15);
       const legZ2 = l / 2 - Math.min(0.08, l * 0.15);
       addPanel(
@@ -253,7 +279,9 @@ export class SlatBedBuilder {
         );
 
         if (isExtended) {
-          const farArchX = direction === 'left' ? (-w / 2 + 3 * cellW + archW / 2) : (w / 2 - 3 * cellW - archW / 2);
+          const gridWidthM = grid ? grid.widthMm / 1000 : (cellWM ? cellWM * 3 : w + slideStroke);
+          const openSpanX = Math.max(w + slideStroke, gridWidthM);
+          const farArchX = direction === 'left' ? (-w / 2 + openSpanX + archW / 2) : (w / 2 - openSpanX - archW / 2);
           addPanel(
             container,
             archW,
@@ -273,14 +301,12 @@ export class SlatBedBuilder {
       }
     } else {
       // --- ABERTURA LONGITUDINAL (Eixo Z: Frente ou Trás) ---
-      const cellL = cellLM || l;
-      const targetSubdivisions = Math.max(1, parts);
-      const totalOpenSpanZ = targetSubdivisions * cellL;
-      const strokeMaxZ = Math.max(0, totalOpenSpanZ - l);
+      // Curso máximo limitado ao dobro do próprio módulo (strokeMaxZ = l - t) formando um L invertido
+      const strokeMaxZ = Math.max(0, l - t);
       const slideStrokeZ = isExtended ? strokeMaxZ * extRatio : 0;
       const slideOffsetZ = direction === 'front' ? slideStrokeZ : -slideStrokeZ;
 
-      // As ripas correm no comprimento (Z, comprimento = l) e intercalam-se na largura (X, de -w/2 a +w/2).
+      // As ripas correm no comprimento (Z, comprimento fixo = l) e intercalam-se na largura (X, de -w/2 a +w/2).
       const targetSlatW = 0.07;
       let numSlats = Math.max(6, Math.floor(w / targetSlatW));
       if (numSlats % 2 !== 0) numSlats += 1;
@@ -288,9 +314,9 @@ export class SlatBedBuilder {
       const gap = 0.006;
       const slatDimX = Math.max(0.025, pitch - gap);
 
-      const fixedSlatL = isExtended ? Math.min(totalOpenSpanZ, l + strokeMaxZ * 0.55) : l;
-      const mobileSlatL = isExtended ? Math.min(totalOpenSpanZ, l + strokeMaxZ * 0.55) : l;
-      const fixedSlatZ = direction === 'front' ? (fixedSlatL - l) / 2 : -(fixedSlatL - l) / 2;
+      const fixedSlatL = l;
+      const mobileSlatL = l;
+      const fixedSlatZ = 0;
 
       // (A) Estrado Fixo (Ripas nos índices pares: 0, 2, 4...)
       for (let i = 0; i < numSlats; i += 2) {
@@ -312,12 +338,12 @@ export class SlatBedBuilder {
         );
       }
 
-      // (B) Estrado Móvel Retrátil (Ripas nos índices ímpares: 1, 3, 5... + Longarina Externa + Pés)
+      // (B) Estrado Móvel Retrátil em L Invertido (Ripas nos índices ímpares: 1, 3, 5... + Painel Vertical)
       const mobileGroup = new THREE.Group();
       mobileGroup.name = 'SlatBedSlidingFrame';
       mobileGroup.position.set(0, 0, slideOffsetZ);
 
-      const mobileSlatZ = direction === 'front' ? -(mobileSlatL - l) / 2 : (mobileSlatL - l) / 2;
+      const mobileSlatZ = 0;
 
       // Ripas móveis deslizantes
       for (let i = 1; i < numSlats; i += 2) {
@@ -339,27 +365,27 @@ export class SlatBedBuilder {
         );
       }
 
-      // Longarina frontal/traseira externa
+      // Perna vertical frontal/traseira do L invertido
       const outerZ = direction === 'front' ? (l / 2 - t / 2) : (-l / 2 + t / 2);
+      const legH = Math.max(0.05, h - slatT);
+      const legY = -slatT / 2;
       addPanel(
         mobileGroup,
         w,
-        h,
+        legH,
         t,
         0,
-        0,
+        legY,
         outerZ,
         mat,
-        edgeMat,
+        mobileEdgeMat,
         box.id,
         container,
-        `${box.name} • Longarina Frontal Móvel (${Math.round(w * 1000)}×${Math.round(h * 1000)}mm)`,
-        { thicknessMm: Math.round(t * 1000), woodMaterial: woodMat, moduleName: box.name, partType: 'front', material: `${woodMat} ${Math.round(t * 1000)}mm` }
+        `${box.name} • Painel Frontal Móvel (L Invertido) (${Math.round(w * 1000)}×${Math.round(legH * 1000)}mm)`,
+        { thicknessMm: Math.round(t * 1000), woodMaterial: woodMat, moduleName: box.name, partType: direction === 'front' ? 'front' : 'rear', material: `${woodMat} ${Math.round(t * 1000)}mm` }
       );
 
       // Pés de apoio articulados
-      const legH = h - slatT;
-      const legY = -slatT / 2;
       const legX1 = -w / 2 + Math.min(0.08, w * 0.15);
       const legX2 = w / 2 - Math.min(0.08, w * 0.15);
       addPanel(

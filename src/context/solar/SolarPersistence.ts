@@ -11,6 +11,41 @@ import {
 import { DEFAULT_CEILING_CONFIG, DEFAULT_INTERNAL_GRID } from '../../data/internalBoxesPresets';
 import { ProjectManager } from '../../data/projectManager';
 
+import {
+  loadActivePresetId,
+  saveActivePresetId
+} from '../../data/solarPanelPresets';
+import {
+  loadActiveCargoPresetId,
+  saveActiveCargoPresetId
+} from '../../data/cargoBoxPresets';
+import {
+  loadActiveFridgePresetId,
+  saveActiveFridgePresetId
+} from '../../data/fridgePresets';
+import {
+  loadActivePortaPottiPresetId,
+  saveActivePortaPottiPresetId
+} from '../../data/portaPottiPresets';
+import {
+  loadActiveStovePresetId,
+  saveActiveStovePresetId
+} from '../../data/stovePresets';
+import {
+  loadBatteryPresets,
+  loadActiveBatteryPresetId,
+  saveActiveBatteryPresetId
+} from '../../data/batteryPresets';
+import {
+  loadActiveMpptPresetId,
+  saveActiveMpptPresetId
+} from '../../data/mpptPresets';
+import {
+  loadB2bPresets,
+  loadActiveB2bPresetId,
+  saveActiveB2bPresetId
+} from '../../data/b2bPresets';
+
 export interface RestoreHandlers {
   setStackLevelsState: (val: any) => void;
   setLevel1State: (val: any) => void;
@@ -28,6 +63,12 @@ export interface RestoreHandlers {
   setB2BCharger: (updater: (prev: any) => any) => void;
   setActivePanelPresetIdState: (val: string) => void;
   setActiveCargoPresetIdState: (val: string) => void;
+  setActiveFridgePresetIdState?: (val: string) => void;
+  setActivePortaPottiPresetIdState?: (val: string) => void;
+  setActiveStovePresetIdState?: (val: string) => void;
+  setActiveBatteryPresetIdState?: (val: string) => void;
+  setActiveMpptPresetIdState?: (val: string) => void;
+  setActiveB2bPresetIdState?: (val: string) => void;
   setOffsetZState: (val: number) => void;
   setOffsetYState: (val: number) => void;
   setExpansionProgressState: (val: number) => void;
@@ -145,9 +186,71 @@ export class SolarPersistence {
       }
       if (cfg.panelPresetId) {
         handlers.setActivePanelPresetIdState(cfg.panelPresetId);
+        saveActivePresetId(cfg.panelPresetId);
+        if (handlers.loadPanelPresets && handlers.sceneManager) {
+          const found = handlers.loadPanelPresets().find((p) => p.id === cfg.panelPresetId);
+          if (found) {
+            handlers.sceneManager.solarSystem.setPanelSpecs({
+              width: found.width,
+              length: found.length,
+              thickness: found.thickness,
+              weightKg: found.weightKg,
+              powerWatts: found.powerWatts,
+              voc: found.voc,
+              vmp: found.vmp,
+              isc: found.isc,
+              imp: found.imp,
+              name: found.name,
+              cellCount: found.cellCount,
+              cols: found.cols,
+              rows: found.rows
+            });
+          }
+        }
       }
       if (cfg.cargoBoxPresetId) {
         handlers.setActiveCargoPresetIdState(cfg.cargoBoxPresetId);
+        saveActiveCargoPresetId(cfg.cargoBoxPresetId);
+      }
+      if (cfg.fridgePresetId) {
+        handlers.setActiveFridgePresetIdState?.(cfg.fridgePresetId);
+        saveActiveFridgePresetId(cfg.fridgePresetId);
+      }
+      if (cfg.portaPottiPresetId) {
+        handlers.setActivePortaPottiPresetIdState?.(cfg.portaPottiPresetId);
+        saveActivePortaPottiPresetId(cfg.portaPottiPresetId);
+      }
+      if (cfg.stovePresetId) {
+        handlers.setActiveStovePresetIdState?.(cfg.stovePresetId);
+        saveActiveStovePresetId(cfg.stovePresetId);
+      }
+      if (cfg.batteryPresetId) {
+        handlers.setActiveBatteryPresetIdState?.(cfg.batteryPresetId);
+        saveActiveBatteryPresetId(cfg.batteryPresetId);
+        if (handlers.sceneManager?.solarSim) {
+          const found = loadBatteryPresets().find((p) => p.id === cfg.batteryPresetId);
+          if (found) {
+            handlers.sceneManager.solarSim.setBatterySpecs(found.capacityAh, found.voltageNominal);
+          }
+        }
+      }
+      if (cfg.mpptPresetId) {
+        handlers.setActiveMpptPresetIdState?.(cfg.mpptPresetId);
+        saveActiveMpptPresetId(cfg.mpptPresetId);
+      }
+      if (cfg.b2bPresetId) {
+        handlers.setActiveB2bPresetIdState?.(cfg.b2bPresetId);
+        saveActiveB2bPresetId(cfg.b2bPresetId);
+        const found = loadB2bPresets().find((p) => p.id === cfg.b2bPresetId);
+        if (found) {
+          handlers.setB2BCharger((prev: any) => ({
+            ...prev,
+            chargingAmps: found.chargingAmps,
+            voltageIn: found.voltageIn,
+            voltageOut: found.voltageOut,
+            watts: Math.round(found.chargingAmps * found.voltageOut)
+          }));
+        }
       }
       if (cfg.offsetZ !== undefined) {
         let zVal = cfg.offsetZ > 0.1 ? -cfg.offsetZ : cfg.offsetZ;
@@ -207,7 +310,17 @@ export class SolarPersistence {
 
   static async restoreConfig(handlers: RestoreHandlers, activeProjectId?: string | null) {
     try {
-      // 1. Tenta carregar pelo projeto ativo se houver
+      // 1. Carrega sempre as listas globais de presets (cadastráveis pertencem à conta)
+      const savedPanelPresets = await dbGet<SolarPanelPreset[]>('doblo_solar_panel_presets');
+      if (savedPanelPresets && Array.isArray(savedPanelPresets) && savedPanelPresets.length > 0) {
+        handlers.setPanelPresetsState(savedPanelPresets);
+      }
+      const savedCargoPresets = await dbGet<CargoBoxPreset[]>('doblo_cargo_box_presets');
+      if (savedCargoPresets && Array.isArray(savedCargoPresets) && savedCargoPresets.length > 0) {
+        handlers.setCargoBoxPresetsState(savedCargoPresets);
+      }
+
+      // 2. Tenta carregar pelo projeto ativo se houver (presets ativos vêm do projeto)
       const targetProjId = activeProjectId || (await ProjectManager.getActiveProjectId());
       if (targetProjId) {
         const projData = await ProjectManager.getProjectData(targetProjId);
@@ -217,7 +330,7 @@ export class SolarPersistence {
         }
       }
 
-      // 2. Fallback para configuração global legada
+      // 3. Fallback para configuração global legada
       let cfg = await dbGet<SavedConfig>('doblo_solar_config');
       if (!cfg) {
         const legacyFullCfg = await dbGet<any>('doblo_solar_full_config');
@@ -367,19 +480,11 @@ export class SolarPersistence {
         }
       }
 
-      const savedPanelPresets = await dbGet<SolarPanelPreset[]>('doblo_solar_panel_presets');
-      if (savedPanelPresets && Array.isArray(savedPanelPresets) && savedPanelPresets.length > 0) {
-        handlers.setPanelPresetsState(savedPanelPresets);
-      }
       const savedActivePanelId = await dbGet<string>('doblo_solar_active_preset_id');
       if (savedActivePanelId) {
         handlers.setActivePanelPresetIdState(savedActivePanelId);
       }
 
-      const savedCargoPresets = await dbGet<CargoBoxPreset[]>('doblo_cargo_box_presets');
-      if (savedCargoPresets && Array.isArray(savedCargoPresets) && savedCargoPresets.length > 0) {
-        handlers.setCargoBoxPresetsState(savedCargoPresets);
-      }
       const savedActiveCargoId = await dbGet<string>('doblo_active_cargo_preset_id');
       if (savedActiveCargoId) {
         handlers.setActiveCargoPresetIdState(savedActiveCargoId);

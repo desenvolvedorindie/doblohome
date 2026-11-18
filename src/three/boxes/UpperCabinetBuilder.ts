@@ -22,6 +22,8 @@ export class UpperCabinetBuilder {
     const tConfig = getBoxThickness(box);
     const t = tConfig.cabinet; // Espessura das chapas do armário aéreo
     const tMm = Math.round(t * 1000);
+    const doorT = tConfig.door; // Espessura das portas do armário aéreo
+    const doorTMm = Math.round(doorT * 1000);
     const woodMat = getWoodMaterialName(box.material);
     const cabinetUserData = {
       thicknessMm: tMm,
@@ -124,6 +126,8 @@ export class UpperCabinetBuilder {
         cabinetCenterY,
         t,
         tMm,
+        doorT,
+        doorTMm,
         woodMat,
         cabinetUserData,
         cabinetMat,

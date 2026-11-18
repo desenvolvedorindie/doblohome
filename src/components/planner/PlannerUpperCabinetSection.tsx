@@ -99,13 +99,13 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8', marginBottom: '3px' }}>
                 <span style={{ fontWeight: 700 }}>Profundidade do Armário Aéreo:</span>
                 <span style={{ fontWeight: 800, color: '#38bdf8' }}>
-                  {selectedBox.upperCabinetDepthMm || 250} mm (Bancada livre à frente: {Math.max(0, Math.round(selectedBox.rowSpan * (internalGrid.lengthMm / rows) - (selectedBox.upperCabinetDepthMm || 250)))} mm)
+                  {selectedBox.upperCabinetDepthMm || 250} mm (Bancada livre à frente: {Math.max(0, Math.round(selectedBox.rowSpan * (internalGrid.lengthMm / rows) + (selectedBox.extraLengthMm || 0) - (selectedBox.upperCabinetDepthMm || 250)))} mm)
                 </span>
               </div>
               <input
                 type="range"
                 min="150"
-                max={Math.max(200, Math.round(selectedBox.rowSpan * (internalGrid.lengthMm / rows) - 50))}
+                max={Math.max(200, Math.round(selectedBox.rowSpan * (internalGrid.lengthMm / rows) + (selectedBox.extraLengthMm || 0) - 50))}
                 step="10"
                 value={selectedBox.upperCabinetDepthMm || 250}
                 onChange={(e) => updateInternalBox(selectedBox.id, { upperCabinetDepthMm: parseInt(e.target.value) })}
@@ -114,32 +114,42 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
             </div>
 
             {/* Vão Livre Inferior até a Bancada/Cama (Espaçamento) */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8', marginBottom: '3px' }}>
-                <span style={{ fontWeight: 700 }}>Vão Livre Inferior (Espaçamento da Base/Cama):</span>
-                <span style={{ fontWeight: 800, color: (selectedBox.upperCabinetBottomGapMm ?? 0) <= 80 ? '#38bdf8' : '#10b981' }}>
-                  {(selectedBox.upperCabinetBottomGapMm ?? 0) === 0
-                    ? '0 mm (Encostado na Base • Recorte Ativo do Colchão)'
-                    : (selectedBox.upperCabinetBottomGapMm ?? 0) <= 80
-                      ? `${selectedBox.upperCabinetBottomGapMm} mm (Baixo • Recorte Ativo do Colchão)`
-                      : `${selectedBox.upperCabinetBottomGapMm} mm (Suspenso Alto • Colchão Livre por Baixo)`}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="350"
-                step="10"
-                value={selectedBox.upperCabinetBottomGapMm ?? 0}
-                onChange={(e) => updateInternalBox(selectedBox.id, { upperCabinetBottomGapMm: parseInt(e.target.value) })}
-                style={{ width: '100%' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.5px', color: '#64748b', marginTop: '2px' }}>
-                <span>0mm (Encostado na Base)</span>
-                <span>80mm (Altura Colchão D33)</span>
-                <span>350mm (Suspenso)</span>
-              </div>
-            </div>
+            {(() => {
+              const bedBox = internalBoxes.find((b) => b.type === 'slat_bed') || selectedBox;
+              const mattressThickMm = bedBox.mattressThicknessMm ?? 80;
+              const mattressTopMm = (bedBox.heightMm ?? internalGrid.heightMm ?? 400) + mattressThickMm;
+              const gapMm = selectedBox.upperCabinetBottomGapMm ?? 0;
+              const cabBottomMm = (selectedBox.heightMm ?? internalGrid.heightMm ?? 400) + gapMm;
+              const cutsMattress = cabBottomMm < mattressTopMm || gapMm <= mattressThickMm;
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8', marginBottom: '3px' }}>
+                    <span style={{ fontWeight: 700 }}>Vão Livre Inferior (Espaçamento da Base/Cama):</span>
+                    <span style={{ fontWeight: 800, color: cutsMattress ? '#38bdf8' : '#10b981' }}>
+                      {gapMm === 0
+                        ? '0 mm (Encostado na Base • Recorte Ativo do Colchão)'
+                        : cutsMattress
+                          ? `${gapMm} mm (Passa da Altura do Colchão • Recorte Ativo)`
+                          : `${gapMm} mm (Suspenso Alto • Colchão Livre por Baixo)`}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="350"
+                    step="10"
+                    value={gapMm}
+                    onChange={(e) => updateInternalBox(selectedBox.id, { upperCabinetBottomGapMm: parseInt(e.target.value) })}
+                    style={{ width: '100%' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.5px', color: '#64748b', marginTop: '2px' }}>
+                    <span>0mm (Encostado na Base)</span>
+                    <span>{mattressThickMm}mm (Altura Colchão)</span>
+                    <span>350mm (Suspenso)</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               {/* Alinhamento no eixo longitudinal */}

@@ -126,6 +126,9 @@ export interface SavedConfig {
   b2bEngineHours?: number;
   panelPresetId?: string;
   cargoBoxPresetId?: string;
+  fridgePresetId?: string;
+  portaPottiPresetId?: string;
+  stovePresetId?: string;
   batteryPresetId?: string;
   mpptPresetId?: string;
   b2bPresetId?: string;

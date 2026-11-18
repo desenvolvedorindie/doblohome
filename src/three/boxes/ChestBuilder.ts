@@ -96,21 +96,6 @@ export class ChestBuilder {
             thicknessMm: tTopMm, woodMaterial: woodMat, moduleName: box.name, partType: 'top', material: `${woodMat} ${tTopMm}mm Impermeabilizado`
           });
         }
-
-        const hingeGeo = new THREE.CylinderGeometry(0.007, 0.007, w * 0.94, 12);
-        hingeGeo.rotateZ(Math.PI / 2);
-        const hingeMesh = new THREE.Mesh(hingeGeo, hingeMat);
-        hingeMesh.position.set(0, tTop, 0);
-        hingeMesh.userData = {
-          isInternalBox: true,
-          isHardware: true,
-          boxId: box.id,
-          boxRoot: container,
-          moduleName: box.name,
-          partLabel: `${box.name} • Dobradiça Contínua (Piano) Inox`,
-          category: '🔩 Ferragens de Sustentação & Articulação'
-        };
-        lidPivot.add(hingeMesh);
       } else if (hingeDirection === 'left') {
         // 2. Dobradiça no Lado Esquerdo / Motorista (+X olhando da traseira): levanta o lado direito
         lidPivot.position.set(w / 2, h / 2 - tTop, 0);
@@ -126,22 +111,6 @@ export class ChestBuilder {
             thicknessMm: tTopMm, woodMaterial: woodMat, moduleName: box.name, partType: 'top', material: `${woodMat} ${tTopMm}mm Impermeabilizado`
           });
         }
-
-        // Deita o cilindro ao longo do eixo Z (comprimento do baú)
-        const hingeGeo = new THREE.CylinderGeometry(0.007, 0.007, l * 0.94, 12);
-        hingeGeo.rotateX(Math.PI / 2);
-        const hingeMesh = new THREE.Mesh(hingeGeo, hingeMat);
-        hingeMesh.position.set(0, tTop, 0);
-        hingeMesh.userData = {
-          isInternalBox: true,
-          isHardware: true,
-          boxId: box.id,
-          boxRoot: container,
-          moduleName: box.name,
-          partLabel: `${box.name} • Dobradiça Contínua (Piano) Inox`,
-          category: '🔩 Ferragens de Sustentação & Articulação'
-        };
-        lidPivot.add(hingeMesh);
       } else if (hingeDirection === 'right') {
         // 3. Dobradiça no Lado Direito / Passageiro (-X olhando da traseira): levanta o lado esquerdo
         lidPivot.position.set(-w / 2, h / 2 - tTop, 0);
@@ -157,22 +126,6 @@ export class ChestBuilder {
             thicknessMm: tTopMm, woodMaterial: woodMat, moduleName: box.name, partType: 'top', material: `${woodMat} ${tTopMm}mm Impermeabilizado`
           });
         }
-
-        // Deita o cilindro ao longo do eixo Z (comprimento do baú)
-        const hingeGeo = new THREE.CylinderGeometry(0.007, 0.007, l * 0.94, 12);
-        hingeGeo.rotateX(Math.PI / 2);
-        const hingeMesh = new THREE.Mesh(hingeGeo, hingeMat);
-        hingeMesh.position.set(0, tTop, 0);
-        hingeMesh.userData = {
-          isInternalBox: true,
-          isHardware: true,
-          boxId: box.id,
-          boxRoot: container,
-          moduleName: box.name,
-          partLabel: `${box.name} • Dobradiça Contínua (Piano) Inox`,
-          category: '🔩 Ferragens de Sustentação & Articulação'
-        };
-        lidPivot.add(hingeMesh);
       } else {
         // 4. Padrão: Dobradiça na Frente (+Z / bancos): levanta a ponta traseira
         lidPivot.position.set(0, h / 2 - tTop, l / 2);
@@ -188,21 +141,6 @@ export class ChestBuilder {
             thicknessMm: tTopMm, woodMaterial: woodMat, moduleName: box.name, partType: 'top', material: `${woodMat} ${tTopMm}mm Impermeabilizado`
           });
         }
-
-        const hingeGeo = new THREE.CylinderGeometry(0.007, 0.007, w * 0.94, 12);
-        hingeGeo.rotateZ(Math.PI / 2);
-        const hingeMesh = new THREE.Mesh(hingeGeo, hingeMat);
-        hingeMesh.position.set(0, tTop, 0);
-        hingeMesh.userData = {
-          isInternalBox: true,
-          isHardware: true,
-          boxId: box.id,
-          boxRoot: container,
-          moduleName: box.name,
-          partLabel: `${box.name} • Dobradiça Contínua (Piano) Inox`,
-          category: '🔩 Ferragens de Sustentação & Articulação'
-        };
-        lidPivot.add(hingeMesh);
       }
 
       container.add(lidPivot);

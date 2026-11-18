@@ -61,7 +61,8 @@ export function usePresetsManager(
   setCargoBox: (updates: any) => void,
   cargoBox: any,
   updateCalculations: () => void,
-  setB2BCharger?: (updater: (prev: any) => any) => void
+  setB2BCharger?: (updater: (prev: any) => any) => void,
+  saveConfig?: (overrides?: Partial<import('../../types').SavedConfig>) => void
 ) {
   // Presets de Placas Solares
   const [panelPresets, setPanelPresetsState] = useState<SolarPanelPreset[]>(() => loadPanelPresets());
@@ -108,6 +109,7 @@ export function usePresetsManager(
     if (!found) return;
     setActivePanelPresetIdState(id);
     saveActivePresetId(id);
+    saveConfig?.({ panelPresetId: id });
     if (sceneManager) {
       sceneManager.cancelCurrentAnimation();
       sceneManager.solarSystem.setPanelSpecs({
@@ -189,6 +191,7 @@ export function usePresetsManager(
     if (!found) return;
     setActiveCargoPresetIdState(id);
     saveActiveCargoPresetId(id);
+    saveConfig?.({ cargoBoxPresetId: id });
     setCargoBox({
       enabled: true,
       length: found.length,
@@ -247,6 +250,7 @@ export function usePresetsManager(
     if (!found) return;
     setActiveFridgePresetIdState(id);
     saveActiveFridgePresetId(id);
+    saveConfig?.({ fridgePresetId: id });
 
     // Sincroniza automaticamente com a carga de geladeira no simulador de energia
     if (sceneManager && sceneManager.solarSim) {
@@ -344,6 +348,7 @@ export function usePresetsManager(
     if (!found) return;
     setActivePortaPottiPresetIdState(id);
     saveActivePortaPottiPresetId(id);
+    saveConfig?.({ portaPottiPresetId: id });
     flashToast(`🚽 Porta Potti selecionado: ${found.name}`);
   };
 
@@ -400,6 +405,7 @@ export function usePresetsManager(
     if (!found) return;
     setActiveStovePresetIdState(id);
     saveActiveStovePresetId(id);
+    saveConfig?.({ stovePresetId: id });
     flashToast(`🔥 Fogareiro selecionado: ${found.name}`);
   };
 
@@ -453,6 +459,7 @@ export function usePresetsManager(
     if (!found) return;
     setActiveBatteryPresetIdState(id);
     saveActiveBatteryPresetId(id);
+    saveConfig?.({ batteryPresetId: id });
     if (sceneManager?.solarSim) {
       sceneManager.solarSim.setBatterySpecs(found.capacityAh, found.voltageNominal);
       updateCalculations();
@@ -516,6 +523,7 @@ export function usePresetsManager(
     if (!found) return;
     setActiveMpptPresetIdState(id);
     saveActiveMpptPresetId(id);
+    saveConfig?.({ mpptPresetId: id });
     updateCalculations();
     flashToast(`⚡ MPPT selecionado: ${found.name} (${found.maxAmps}A · ${found.maxPvVoltage}Vdc FV)`);
   };
@@ -572,6 +580,7 @@ export function usePresetsManager(
     if (!found) return;
     setActiveB2bPresetIdState(id);
     saveActiveB2bPresetId(id);
+    saveConfig?.({ b2bPresetId: id });
     if (setB2BCharger) {
       setB2BCharger((prev: any) => ({
         ...prev,
@@ -690,7 +699,9 @@ export function usePresetsManager(
     removeStovePreset,
     resetStovePresetsToDefault,
     batteryPresets,
+    setBatteryPresetsState,
     activeBatteryPresetId,
+    setActiveBatteryPresetIdState,
     activeBatteryPreset,
     selectBatteryPreset,
     addBatteryPreset,
@@ -698,7 +709,9 @@ export function usePresetsManager(
     removeBatteryPreset,
     resetBatteryPresetsToDefault,
     mpptPresets,
+    setMpptPresetsState,
     activeMpptPresetId,
+    setActiveMpptPresetIdState,
     activeMpptPreset,
     selectMpptPreset,
     addMpptPreset,
@@ -706,7 +719,9 @@ export function usePresetsManager(
     removeMpptPreset,
     resetMpptPresetsToDefault,
     b2bPresets,
+    setB2bPresetsState,
     activeB2bPresetId,
+    setActiveB2bPresetIdState,
     activeB2bPreset,
     selectB2bPreset,
     addB2bPreset,

@@ -1,6 +1,14 @@
 import { ProjectData, ProjectTemplate } from '../types/project';
 import { SavedConfig } from '../types/solar';
 import { DEFAULT_INTERNAL_GRID, INTERNAL_BOXES_PRESETS } from './internalBoxesPresets';
+import { loadActivePresetId } from './solarPanelPresets';
+import { loadActiveCargoPresetId } from './cargoBoxPresets';
+import { loadActiveFridgePresetId } from './fridgePresets';
+import { loadActivePortaPottiPresetId } from './portaPottiPresets';
+import { loadActiveStovePresetId } from './stovePresets';
+import { loadActiveBatteryPresetId } from './batteryPresets';
+import { loadActiveMpptPresetId } from './mpptPresets';
+import { loadActiveB2bPresetId } from './b2bPresets';
 
 export function getDefaultProjectConfig(): SavedConfig {
   return {
@@ -52,6 +60,14 @@ export function getDefaultProjectConfig(): SavedConfig {
     offsetY: -0.14,
     expansionProgress: 0,
     b2bEngineHours: 2.5,
+    panelPresetId: loadActivePresetId(),
+    cargoBoxPresetId: loadActiveCargoPresetId(),
+    fridgePresetId: loadActiveFridgePresetId(),
+    portaPottiPresetId: loadActivePortaPottiPresetId(),
+    stovePresetId: loadActiveStovePresetId(),
+    batteryPresetId: loadActiveBatteryPresetId(),
+    mpptPresetId: loadActiveMpptPresetId(),
+    b2bPresetId: loadActiveB2bPresetId(),
   };
 }
 

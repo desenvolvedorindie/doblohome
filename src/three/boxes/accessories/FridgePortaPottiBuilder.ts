@@ -65,20 +65,7 @@ export function buildFridgeApplianceAccessory(
   latchMesh.position.set(0, fh / 2 - 0.015, -fd / 2 - 0.004);
   fridgeGroup.add(latchMesh);
 
-  // 4. Painel de Controle Digital Frontal / Superior com display ciano
-  const displayMat = new THREE.MeshStandardMaterial({
-    color: 0x0284c7,
-    emissive: 0x0369a1,
-    emissiveIntensity: 0.75,
-    roughness: 0.2,
-    metalness: 0.5
-  });
-  const displayGeo = new THREE.BoxGeometry(fw * 0.26, 0.024, 0.045);
-  const displayMesh = new THREE.Mesh(displayGeo, displayMat);
-  displayMesh.position.set(fw * 0.25, fh / 2 + 0.001, -fd / 2 + 0.04);
-  fridgeGroup.add(displayMesh);
-
-  // 5. Grelhas de ventilação lateral para o compressor
+  // 4. Grelhas de ventilação lateral para o compressor
   const grilleMat = new THREE.MeshStandardMaterial({
     color: 0x0f172a,
     roughness: 0.8,
@@ -108,21 +95,45 @@ export function buildFridgeApplianceAccessory(
   handleR.position.set(-fw / 2 - 0.004, fh * 0.15, 0);
   fridgeGroup.add(handleR);
 
-  // Posição no interior do módulo (assentada no fundo ou na bandeja corrediça deslizante)
-  if (drawerSlide && drawerSlide.userData?.trayTopY !== undefined) {
-    const posX = drawerSlide.userData.cabCenterX || 0;
-    const posZ = drawerSlide.userData.cabCenterZ || 0;
-    const posY = drawerSlide.userData.trayTopY + fh / 2;
-    fridgeGroup.position.set(posX, posY, posZ);
-
+  // ── ROTAÇÃO & POSICIONAMENTO DA GELADEIRA NO MÓDULO ──
+  const isRotated90 = (box.fridgeRotation === 90 || box.fridgeRotation === 270);
+  if (box.fridgeRotation !== undefined) {
+    fridgeGroup.rotation.y = (box.fridgeRotation * Math.PI) / 180;
+  } else if (drawerSlide) {
     // Se a bandeja desliza para a esquerda ou direita e a profundidade da geladeira for maior que a largura do módulo, rotaciona 90°
     const slideDir = drawerSlide.userData.slideDirection;
     if ((slideDir === 'left' || slideDir === 'right') && preset.depth > preset.width && w > l) {
       fridgeGroup.rotation.y = Math.PI / 2;
     }
+  }
+
+  const effectiveW = isRotated90 ? fd : fw;
+  const effectiveD = isRotated90 ? fw : fd;
+  const slackX = Math.max(0, (w - 0.04 - effectiveW) / 2);
+  const slackZ = Math.max(0, (l - 0.04 - effectiveD) / 2);
+
+  let alignXOffset = 0;
+  if (box.fridgeAlignX === 'left') alignXOffset = -slackX;
+  else if (box.fridgeAlignX === 'right') alignXOffset = slackX;
+
+  let alignZOffset = 0;
+  if (box.fridgeAlignZ === 'front') alignZOffset = -slackZ;
+  else if (box.fridgeAlignZ === 'back') alignZOffset = slackZ;
+
+  const fineOffsetX = (box.fridgeOffsetX || 0) / 1000;
+  const fineOffsetZ = (box.fridgeOffsetZ || 0) / 1000;
+
+  // Posição no interior do módulo (assentada no fundo ou na bandeja corrediça deslizante)
+  if (drawerSlide && drawerSlide.userData?.trayTopY !== undefined) {
+    const posX = (drawerSlide.userData.cabCenterX || 0) + alignXOffset + fineOffsetX;
+    const posZ = (drawerSlide.userData.cabCenterZ || 0) + alignZOffset + fineOffsetZ;
+    const posY = drawerSlide.userData.trayTopY + fh / 2;
+    fridgeGroup.position.set(posX, posY, posZ);
   } else {
+    const posX = alignXOffset + fineOffsetX;
+    const posZ = alignZOffset + fineOffsetZ;
     const bottomY = -h / 2 + fh / 2 + 0.018;
-    fridgeGroup.position.set(0, bottomY, 0);
+    fridgeGroup.position.set(posX, bottomY, posZ);
   }
 
   const partData = {
@@ -149,9 +160,11 @@ export function buildFridgeApplianceAccessory(
   };
 
   fridgeGroup.userData = partData;
-  bodyMesh.userData = partData;
-  lidMesh.userData = partData;
-  displayMesh.userData = partData;
+  fridgeGroup.traverse((c: any) => {
+    if (c.isMesh) {
+      c.userData = partData;
+    }
+  });
 
   targetParent.add(fridgeGroup);
 }
@@ -331,9 +344,11 @@ export function buildPortaPottiApplianceAccessory(
   };
 
   portaPottiGroup.userData = partData;
-  lowerMesh.userData = partData;
-  upperMesh.userData = partData;
-  lidMesh.userData = partData;
+  portaPottiGroup.traverse((c: any) => {
+    if (c.isMesh) {
+      c.userData = partData;
+    }
+  });
 
   targetParent.add(portaPottiGroup);
 }

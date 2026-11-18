@@ -12,6 +12,8 @@ export interface UpperCabinetContext {
   cabinetCenterY: number;
   t: number;
   tMm: number;
+  doorT: number;
+  doorTMm: number;
   woodMat: string;
   cabinetUserData: any;
   cabinetMat: THREE.Material;

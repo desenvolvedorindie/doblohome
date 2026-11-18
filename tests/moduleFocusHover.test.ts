@@ -176,7 +176,7 @@ describe('Module Focus & Wood-Part Exclusive Hover', () => {
     expect(sm.hoveredObject).toBeNull();
     expect(sm.onBarHoverChange.mock.calls.at(-1)?.[0]).toBeNull();
 
-    // 3. Mesmo olhando por dentro com bateria exposta sem tampa, NÃO faz hover na bateria se nenhuma madeira estiver sob o raio
+    // 3. Quando a bateria está exposta (sem chapas de madeira na frente), permite fazer hover no componente instalado
     builder.update(
       grid,
       [{ ...boxes[0], panels: { top: false, left: false, right: false, front: false, rear: false, bottom: false } }],
@@ -199,8 +199,8 @@ describe('Module Focus & Wood-Part Exclusive Hover', () => {
 
     sm.onBarHoverChange.mockClear();
     SceneRaycaster.updateBarHover(sm, batX, batY);
-    expect(sm.hoveredObject).toBeNull();
-    expect(sm.onBarHoverChange.mock.calls.at(-1)?.[0]).toBeNull();
+    expect(sm.hoveredObject).toBeTruthy();
+    expect(sm.onBarHoverChange.mock.calls.at(-1)?.[0]?.isElectrical).toBe(true);
   });
 
   it('names inner drawer wood parts distinctly while preserving clean module name', () => {
@@ -334,5 +334,86 @@ describe('Module Focus & Wood-Part Exclusive Hover', () => {
     const ceilingPayload = sm.onBarHoverChange.mock.calls.at(-1)![0];
     expect(ceilingPayload.category).toContain('🪵 Teto & Forro Campervan');
     expect(ceilingPayload.name).toContain('Ripa de Teto');
+  });
+
+  it('when ghostWalls is enabled, stops hovering walls/floor/ceiling and only hovers installed components', () => {
+    const builder = new InternalBoxesBuilder();
+    const grid = { ...DEFAULT_INTERNAL_GRID };
+    const boxes = INTERNAL_BOXES_PRESETS[0].boxes;
+    builder.update(grid, boxes, null, false, null);
+    builder.setGhostWalls(true);
+
+    const activeBox = builder.boxesGroup.getObjectByName('BoxContainer_box_power_1')!;
+    const camera = new THREE.PerspectiveCamera(42, 800 / 600, 0.1, 100);
+    camera.position.set(1.2, 1.5, 0.6);
+    camera.lookAt(activeBox.position.x, activeBox.position.y, activeBox.position.z);
+    camera.updateMatrixWorld(true);
+
+    const sm = createMockSceneManager(builder, camera);
+
+    // 1. Aponta para uma parede sem componente atrás (ex: caixa de roupas sem componentes): NÃO faz hover na parede!
+    const clothesBox = builder.boxesGroup.getObjectByName('BoxContainer_box_clothes_2')!;
+    const { screenX: wallX, screenY: wallY } = projectWorldToScreen(clothesBox.position.clone(), camera);
+    SceneRaycaster.updateBarHover(sm, wallX, wallY);
+    expect(sm.hoveredObject).toBeNull();
+
+    // 2. Aponta para a bateria dentro de box_power_1 através das paredes translúcidas: faz hover direto na bateria!
+    let batteryMesh: THREE.Object3D | null = null;
+    activeBox.traverse((o: any) => {
+      if (!batteryMesh && o.userData?.isElectrical && o.isMesh) {
+        batteryMesh = o;
+      }
+    });
+    const batPos = new THREE.Vector3();
+    batteryMesh!.getWorldPosition(batPos);
+    const { screenX: batX, screenY: batY } = projectWorldToScreen(batPos, camera);
+
+    SceneRaycaster.updateBarHover(sm, batX, batY);
+    expect(sm.hoveredObject).toBeTruthy();
+    expect(sm.onBarHoverChange.mock.calls.at(-1)?.[0]?.isElectrical).toBe(true);
+  });
+
+  it('ignores invisible nominal mattress meshes so clicking a module next to slat_bed selects the clicked module', () => {
+    const builder = new InternalBoxesBuilder();
+    const grid = {
+      ...DEFAULT_INTERNAL_GRID,
+      ceiling: { ...DEFAULT_INTERNAL_GRID.ceiling!, visibleIn3D: false, enabled: false }
+    };
+    const slatBed = {
+      ...INTERNAL_BOXES_PRESETS[0].boxes[0],
+      id: 'box_slat_bed',
+      name: 'Sofá-Cama',
+      type: 'slat_bed' as const,
+      colStart: 1,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 2,
+      slatBedDirection: 'left' as const,
+      mattressParts: 3 as const
+    };
+    const neighborBox = {
+      ...INTERNAL_BOXES_PRESETS[0].boxes[1],
+      id: 'box_neighbor',
+      name: 'Baú Vizinho',
+      type: 'chest' as const,
+      colStart: 0,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 2
+    };
+    // Cama fechada: o grupo invisível mattress_nominal_parts se estende sobre a coluna de box_neighbor!
+    builder.update(grid, [slatBed, neighborBox], null, false, null);
+
+    const neighborContainer = builder.boxesGroup.getObjectByName('BoxContainer_box_neighbor')!;
+    const camera = new THREE.PerspectiveCamera(42, 800 / 600, 0.1, 100);
+    camera.position.set(neighborContainer.position.x, 2.2, neighborContainer.position.z);
+    camera.lookAt(neighborContainer.position.x, neighborContainer.position.y, neighborContainer.position.z);
+    camera.updateMatrixWorld(true);
+
+    const sm = createMockSceneManager(builder, camera);
+    const { screenX, screenY } = projectWorldToScreen(neighborContainer.position.clone(), camera);
+
+    SceneRaycaster.handleCanvasClick(sm, screenX, screenY);
+    expect(sm.onBoxSelect).toHaveBeenCalledWith('box_neighbor');
   });
 });

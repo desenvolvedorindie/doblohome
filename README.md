@@ -40,8 +40,6 @@ npm run build
   - `src/components/modals/`: LoadsModal (Editor de Cargas & Balanço), BatteryModal (Kingbo 560Ah), MpptModal (MPPT 60A) e BomModal (Lista de Materiais e Cortes).
 
 # Correções Implementadas
- - [x] A corrediça expande a partir do início da base (não precisa expandir desde o centro)
- - [x] Colisão da base corrigida e verificada (travessas, sapatas, torres do subchassi, volume do baú e teto da Doblò)
- - [x] Reordenar itens da calculadora de consumo (setas ▲/▼ e arrastar e soltar)
- - [x] Presets de baú de teto com modal de cadastro completo e persistência
- - [x] Presets de placas solares de 100W (e 200W) com modal de cadastro completo e seletor rápido
+ - lista de itens de colisão quando fizer hover na lista, deve destacar o item na tela (tanto no modulo quanto no doblo e estrutura)
+ - preciso que adicione uma customização maior dos modulos, pq como ele dividie em colunas iguais, acaba que as vezes precisa ter um acrescimo
+ - quero que possa escolher a espessura da porta, bandeja corrediça

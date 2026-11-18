@@ -7,9 +7,6 @@ export const RightPanelAccessorySection: React.FC = () => {
     setCargoBoxEnabled,
     setCargoBoxVerticalLift,
     setCargoBoxTelescopic,
-    awning,
-    setAwning,
-    toggleAwningOpen,
     setTiltAngle,
     setBoxLidAngle,
     tiltSolarRack,
@@ -20,7 +17,26 @@ export const RightPanelAccessorySection: React.FC = () => {
     openModal,
     expansionProgress,
     retract,
+    internalBoxes,
+    updateInternalBox,
+    setInternalBoxes,
+    fridgePresets,
+    activeFridgePresetId,
+    stovePresets,
+    activeStovePresetId,
+    setViewMode,
+    setSelectedBoxId,
   } = useSolar();
+
+  const boxWithFridge = internalBoxes.find((b) => b.hasFridge);
+  const currentFridgePreset =
+    fridgePresets.find((p) => p.id === (boxWithFridge?.fridgePresetId || activeFridgePresetId)) ||
+    fridgePresets[0];
+
+  const boxWithStove = internalBoxes.find((b) => b.hasStove);
+  const currentStovePreset =
+    stovePresets.find((p) => p.id === (boxWithStove?.stovePresetId || activeStovePresetId)) ||
+    stovePresets[0];
 
   const expansionPct = Math.round(expansionProgress * 100);
 
@@ -291,146 +307,449 @@ export const RightPanelAccessorySection: React.FC = () => {
             </div>
           )}
 
-          {/* ⛺ CONTROLE DO TOLDO OVERLAND (TRASEIRO OU ASA DE MORCEGO 270°) */}
+          {/* ❄️ POSIÇÃO DA GELADEIRA 12V EMBARCADA */}
           <div className="expansion-widget-divider"></div>
           <div
             className="cargo-box-panel"
             style={{
-              borderColor: awning.enabled ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255, 255, 255, 0.08)',
-              background: awning.enabled ? 'rgba(15, 23, 42, 0.85)' : 'rgba(15, 23, 42, 0.4)'
+              background: 'rgba(15, 23, 42, 0.75)',
+              border: '1px solid rgba(56, 189, 248, 0.35)',
+              borderRadius: '8px',
+              padding: '11px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '9px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
             }}
           >
-            <div className="expansion-widget-header">
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 800,
-                  color: awning.enabled ? '#38bdf8' : 'var(--text-muted)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}
-              >
-                ⛺ TOLDO RETRÁTIL OVERLAND
+            <div className="expansion-widget-header" style={{ marginBottom: '2px' }}>
+              <span style={{ color: '#38bdf8', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                ❄️ GELADEIRA 12V / 24V
               </span>
-              <button
-                className={`btn-compact ${awning.enabled ? 'active' : ''}`}
-                onClick={() => setAwning({ enabled: !awning.enabled })}
+              <span
+                className="status-badge"
                 style={{
-                  fontSize: '10px',
-                  padding: '3px 8px',
+                  background: boxWithFridge ? 'rgba(56, 189, 248, 0.25)' : 'rgba(100, 116, 139, 0.25)',
+                  color: boxWithFridge ? '#38bdf8' : '#94a3b8',
+                  border: boxWithFridge ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid rgba(100, 116, 139, 0.3)',
+                  fontSize: '9.5px',
                   fontWeight: 700,
-                  color: awning.enabled ? '#38bdf8' : '#94a3b8',
-                  borderColor: awning.enabled ? '#38bdf8' : undefined
+                  padding: '2px 6px',
+                  borderRadius: '4px',
                 }}
               >
-                {awning.enabled ? 'Ativado' : 'Desativado'}
-              </button>
+                {boxWithFridge ? `Instalada (${boxWithFridge.name})` : 'Desinstalada'}
+              </span>
             </div>
 
-            {awning.enabled && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
-                {/* Modelo do Toldo: Traseiro Reto vs Asa de Morcego 270° */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
-                  <button
-                    className={`btn-compact ${awning.type === 'rear' ? 'active' : ''}`}
-                    onClick={() => setAwning({ type: 'rear', lengthMm: 1400, extensionMm: 2000 })}
-                    style={{
-                      fontSize: '10px',
-                      padding: '6px 4px',
-                      fontWeight: 700
-                    }}
-                  >
-                    🚗 Traseiro Reto
-                  </button>
-                  <button
-                    className={`btn-compact ${awning.type === 'batwing_270' ? 'active accent-amber' : ''}`}
-                    onClick={() => setAwning({ type: 'batwing_270', lengthMm: 2000, extensionMm: 2200 })}
-                    style={{
-                      fontSize: '10px',
-                      padding: '6px 4px',
-                      fontWeight: 700
-                    }}
-                  >
-                    🦇 Asa Morcego 270°
-                  </button>
+            {/* Seletor de Módulo / Local de Instalação */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>
+                Posição / Módulo da Van:
+              </label>
+              <select
+                value={boxWithFridge ? boxWithFridge.id : '__none'}
+                onChange={(e) => {
+                  const targetId = e.target.value;
+                  // Desativa de todos os módulos
+                  internalBoxes.forEach((b) => {
+                    if (b.hasFridge) {
+                      updateInternalBox(b.id, { hasFridge: false, fridgePresetId: undefined });
+                    }
+                  });
+                  // Ativa no módulo escolhido
+                  if (targetId !== '__none') {
+                    updateInternalBox(targetId, {
+                      hasFridge: true,
+                      fridgePresetId: currentFridgePreset.id,
+                    });
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  background: 'rgba(30, 41, 59, 0.95)',
+                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                  color: '#f8fafc',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                }}
+              >
+                <option value="__none">— Sem geladeira instalada —</option>
+                {internalBoxes.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    📦 {b.name} ({b.type === 'drawer' ? 'Gavetão' : b.type === 'chest' ? 'Baú' : 'Módulo'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Informações da Geladeira Instalada e Atalho */}
+            {boxWithFridge && (
+              <div
+                style={{
+                  background: 'rgba(15, 23, 42, 0.5)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '6px',
+                  padding: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  fontSize: '10px',
+                  color: '#cbd5e1',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Modelo:</span>
+                  <strong style={{ color: '#f8fafc' }}>{currentFridgePreset.name}</strong>
                 </div>
-
-                {/* Lado de Fixação se for Asa de Morcego */}
-                {awning.type === 'batwing_270' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: '#94a3b8' }}>
-                      <span>Montagem do Case:</span>
-                      <span style={{ color: '#38bdf8', fontWeight: 700 }}>
-                        {awning.side === 'passenger' ? 'Passageiro (Direita)' : 'Motorista (Esquerda)'}
-                      </span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
-                      <button
-                        className={`btn-compact ${awning.side === 'passenger' ? 'active' : ''}`}
-                        onClick={() => setAwning({ side: 'passenger' })}
-                        style={{ fontSize: '9.5px', padding: '4px' }}
-                      >
-                        Direita (Passageiro)
-                      </button>
-                      <button
-                        className={`btn-compact ${awning.side === 'driver' ? 'active' : ''}`}
-                        onClick={() => setAwning({ side: 'driver' })}
-                        style={{ fontSize: '9.5px', padding: '4px' }}
-                      >
-                        Esquerda (Motorista)
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Botão de Abrir / Desdobrar Lona */}
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Consumo / Vol.:</span>
+                  <strong style={{ color: '#fbbf24' }}>
+                    {currentFridgePreset.powerEcoWatts}W ECO · {currentFridgePreset.volumeLiters}L
+                  </strong>
+                </div>
                 <button
-                  className={`btn-compact primary ${awning.isOpen ? 'active' : ''}`}
-                  onClick={toggleAwningOpen}
+                  type="button"
+                  className="btn-compact primary"
+                  onClick={() => {
+                    setSelectedBoxId(boxWithFridge.id);
+                    setViewMode('internal_boxes');
+                  }}
                   style={{
+                    marginTop: '2px',
+                    fontSize: '10px',
+                    padding: '5px',
                     width: '100%',
-                    padding: '7px 8px',
-                    fontWeight: 800,
-                    fontSize: '11px',
-                    background: awning.isOpen
-                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.4))'
-                      : 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(37, 99, 235, 0.3))',
-                    borderColor: awning.isOpen ? '#10b981' : '#38bdf8',
-                    color: awning.isOpen ? '#34d399' : '#38bdf8'
+                    justifyContent: 'center',
+                    fontWeight: 700,
                   }}
                 >
-                  {awning.isOpen ? '⛺ Recolher Toldo no Estojo' : '⛺ Desdobrar Lona (Abrir Toldo)'}
+                  📐 Ajustar Rotação e Posição Fina (Modo 1)
                 </button>
-
-                {/* Seleção de cor da lona */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '9.5px', color: '#94a3b8', paddingTop: '2px' }}>
-                  <span>Cor da Lona Ripstop:</span>
-                  <div style={{ display: 'flex', gap: '5px' }}>
-                    {[
-                      { label: 'Safari', color: '#c2b280' },
-                      { label: 'Grafite', color: '#374151' },
-                      { label: 'Oliva', color: '#4b5320' },
-                      { label: 'Preto', color: '#18181b' }
-                    ].map(c => (
-                      <button
-                        key={c.color}
-                        onClick={() => setAwning({ fabricColor: c.color })}
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          borderRadius: '50%',
-                          backgroundColor: c.color,
-                          border: awning.fabricColor === c.color ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.3)',
-                          cursor: 'pointer'
-                        }}
-                        title={c.label}
-                      />
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
+          </div>
+
+          {/* 🔥 POSIÇÃO DO FOGAREIRO PORTÁTIL NTK */}
+          <div className="expansion-widget-divider"></div>
+          <div
+            className="cargo-box-panel"
+            style={{
+              background: 'rgba(15, 23, 42, 0.75)',
+              border: '1px solid rgba(249, 115, 22, 0.35)',
+              borderRadius: '8px',
+              padding: '11px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '9px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+            }}
+          >
+            <div className="expansion-widget-header" style={{ marginBottom: '2px' }}>
+              <span style={{ color: '#f97316', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                🔥 FOGAREIRO PORTÁTIL NTK
+              </span>
+              <span
+                className="status-badge"
+                style={{
+                  background: boxWithStove ? 'rgba(249, 115, 22, 0.25)' : 'rgba(100, 116, 139, 0.25)',
+                  color: boxWithStove ? '#fb923c' : '#94a3b8',
+                  border: boxWithStove ? '1px solid rgba(249, 115, 22, 0.5)' : '1px solid rgba(100, 116, 139, 0.3)',
+                  fontSize: '9.5px',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                }}
+              >
+                {boxWithStove
+                  ? `Instalado (${boxWithStove.name})`
+                  : 'Desinstalado'}
+              </span>
+            </div>
+
+            {/* Seletor de Módulo / Local de Instalação */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>
+                Posição / Módulo da Van:
+              </label>
+              <select
+                value={boxWithStove ? boxWithStove.id : '__none'}
+                onChange={(e) => {
+                  const targetId = e.target.value;
+                  setInternalBoxes((prev: any[]) =>
+                    prev.map((b) => {
+                      if (b.id === targetId) {
+                        return {
+                          ...b,
+                          hasStove: true,
+                          stovePresetId: currentStovePreset.id,
+                          stovePlacement: b.stovePlacement || 'top',
+                          stoveRotation: b.stoveRotation ?? 0,
+                          stoveAlignX: b.stoveAlignX ?? 'center',
+                          stoveAlignZ: b.stoveAlignZ ?? 'center',
+                          stoveOffsetX: b.stoveOffsetX ?? 0,
+                          stoveOffsetZ: b.stoveOffsetZ ?? 0,
+                        };
+                      }
+                      if (b.hasStove) {
+                        return { ...b, hasStove: false, stovePresetId: undefined };
+                      }
+                      return b;
+                    })
+                  );
+                  if (targetId !== '__none') {
+                    setSelectedBoxId(targetId);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  background: 'rgba(30, 41, 59, 0.95)',
+                  border: '1px solid rgba(249, 115, 22, 0.4)',
+                  color: '#f8fafc',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                }}
+              >
+                <option value="__none">— Sem fogareiro instalado —</option>
+                {internalBoxes.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    📦 {b.name} ({b.type === 'drawer' ? 'Gavetão' : b.type === 'chest' ? 'Baú' : 'Módulo'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Se instalado, opções completas de posicionamento e atalho para o modo 1 */}
+            {boxWithStove && (() => {
+              const placement = boxWithStove.stovePlacement || 'top';
+              const rotation = boxWithStove.stoveRotation || 0;
+              const alignX = boxWithStove.stoveAlignX || 'center';
+              const alignZ = boxWithStove.stoveAlignZ || 'center';
+              const offsetX = boxWithStove.stoveOffsetX || 0;
+              const offsetZ = boxWithStove.stoveOffsetZ || 0;
+
+              return (
+                <div
+                  style={{
+                    background: 'rgba(15, 23, 42, 0.5)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '6px',
+                    padding: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    fontSize: '10px',
+                    color: '#cbd5e1',
+                  }}
+                >
+                  {/* Superfície de Instalação */}
+                  <div>
+                    <div style={{ color: '#94a3b8', marginBottom: '3px', fontWeight: 700 }}>
+                      Superfície de Apoio:
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px' }}>
+                      {[
+                        { id: 'top', label: '🍳 Bancada' },
+                        { id: 'inside', label: '📥 Gaveta' },
+                        { id: 'rear_shelf', label: '🪑 Mesa Tras.' }
+                      ].map(s => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className={`btn-compact ${placement === s.id ? 'active' : ''}`}
+                          onClick={() => updateInternalBox(boxWithStove.id, { stovePlacement: s.id as any })}
+                          style={{
+                            fontSize: '9.5px',
+                            padding: '4px 2px',
+                            borderColor: placement === s.id ? '#f97316' : undefined,
+                            color: placement === s.id ? '#f97316' : undefined
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Rotação / Orientação */}
+                  <div>
+                    <div style={{ color: '#94a3b8', marginBottom: '3px', fontWeight: 700 }}>
+                      Orientação:
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '3px' }}>
+                      {[
+                        { label: '0°', val: 0 },
+                        { label: '90°', val: 90 },
+                        { label: '180°', val: 180 },
+                        { label: '270°', val: 270 }
+                      ].map(r => (
+                        <button
+                          key={r.val}
+                          type="button"
+                          className={`btn-compact ${rotation === r.val ? 'active' : ''}`}
+                          onClick={() => updateInternalBox(boxWithStove.id, { stoveRotation: r.val as any })}
+                          style={{
+                            fontSize: '9.5px',
+                            padding: '3px 2px',
+                            borderColor: rotation === r.val ? '#f97316' : undefined,
+                            color: rotation === r.val ? '#fb923c' : undefined
+                          }}
+                        >
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Alinhamento Rápido X e Z */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                    <div>
+                      <div style={{ color: '#94a3b8', marginBottom: '3px', fontWeight: 700 }}>
+                        Alinh. Lateral:
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px' }}>
+                        {[
+                          { label: 'Esq', val: 'left' },
+                          { label: 'Cen', val: 'center' },
+                          { label: 'Dir', val: 'right' }
+                        ].map(a => (
+                          <button
+                            key={a.val}
+                            type="button"
+                            className={`btn-compact ${alignX === a.val ? 'active' : ''}`}
+                            onClick={() => updateInternalBox(boxWithStove.id, { stoveAlignX: a.val as any })}
+                            style={{
+                              fontSize: '9px',
+                              padding: '3px 1px',
+                              borderColor: alignX === a.val ? '#f97316' : undefined,
+                              color: alignX === a.val ? '#fb923c' : undefined
+                            }}
+                          >
+                            {a.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: '#94a3b8', marginBottom: '3px', fontWeight: 700 }}>
+                        Alinh. Prof.:
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px' }}>
+                        {[
+                          { label: 'Fre', val: 'front' },
+                          { label: 'Cen', val: 'center' },
+                          { label: 'Fun', val: 'back' }
+                        ].map(a => (
+                          <button
+                            key={a.val}
+                            type="button"
+                            className={`btn-compact ${alignZ === a.val ? 'active' : ''}`}
+                            onClick={() => updateInternalBox(boxWithStove.id, { stoveAlignZ: a.val as any })}
+                            style={{
+                              fontSize: '9px',
+                              padding: '3px 1px',
+                              borderColor: alignZ === a.val ? '#f97316' : undefined,
+                              color: alignZ === a.val ? '#fb923c' : undefined
+                            }}
+                          >
+                            {a.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ajustes Finos (Sliders) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', paddingTop: '4px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#94a3b8' }}>
+                        <span>Offset X:</span>
+                        <strong style={{ color: '#fb923c' }}>{offsetX > 0 ? `+${offsetX}` : offsetX}mm</strong>
+                      </div>
+                      <input
+                        type="range"
+                        className="custom-slider"
+                        min="-150"
+                        max="150"
+                        step="5"
+                        value={offsetX}
+                        onChange={(e) => updateInternalBox(boxWithStove.id, { stoveOffsetX: parseInt(e.target.value, 10) })}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#94a3b8' }}>
+                        <span>Offset Z:</span>
+                        <strong style={{ color: '#fb923c' }}>{offsetZ > 0 ? `+${offsetZ}` : offsetZ}mm</strong>
+                      </div>
+                      <input
+                        type="range"
+                        className="custom-slider"
+                        min="-150"
+                        max="150"
+                        step="5"
+                        value={offsetZ}
+                        onChange={(e) => updateInternalBox(boxWithStove.id, { stoveOffsetZ: parseInt(e.target.value, 10) })}
+                      />
+                    </div>
+                  </div>
+
+                  {(offsetX !== 0 || offsetZ !== 0) && (
+                    <button
+                      type="button"
+                      className="btn-compact"
+                      onClick={() => updateInternalBox(boxWithStove.id, { stoveOffsetX: 0, stoveOffsetZ: 0 })}
+                      style={{
+                        width: '100%',
+                        fontSize: '9px',
+                        padding: '2px',
+                        color: '#94a3b8',
+                        background: 'rgba(30, 41, 59, 0.5)'
+                      }}
+                    >
+                      ↺ Centralizar Offsets (0, 0 mm)
+                    </button>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
+                    <span style={{ color: '#94a3b8' }}>Modelo:</span>
+                    <strong style={{ color: '#f8fafc' }}>{currentStovePreset.name}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>Dimensões:</span>
+                    <strong style={{ color: '#fb923c' }}>
+                      {currentStovePreset.width} × {currentStovePreset.depth} × {currentStovePreset.height} mm
+                    </strong>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn-compact primary"
+                    onClick={() => {
+                      setSelectedBoxId(boxWithStove.id);
+                      setViewMode('internal_boxes');
+                    }}
+                    style={{
+                      marginTop: '2px',
+                      fontSize: '10px',
+                      padding: '5px',
+                      width: '100%',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      borderColor: '#f97316',
+                      color: '#f97316',
+                      background: 'rgba(249, 115, 22, 0.15)'
+                    }}
+                  >
+                    📐 Focar no Módulo (Modo 1)
+                  </button>
+                </div>
+              );
+            })()}
           </div>
 
       <div className="expansion-widget-divider"></div>

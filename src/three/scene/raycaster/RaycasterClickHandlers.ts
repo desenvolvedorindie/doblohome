@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   getIsolatedBoxId,
   getStrictIsolatedBoxId,
+  isAncestorVisible,
   isCeilingObject
 } from './RaycasterTargetResolver';
 
@@ -21,14 +22,16 @@ export function handleRaycasterCanvasClick(sceneManager: any, screenX: number, s
   for (const hit of intersects) {
     const obj = hit.object;
 
+    if (!isAncestorVisible(obj)) continue;
     if ((obj as any).isLine || (obj as any).isLineSegments || (obj as any).isSprite) continue;
+    if (obj.userData?.isNominalUpholstery) continue;
     if (isCeilingObject(obj, sceneManager)) continue;
 
     if (obj.name === '__box_hitbox' || obj.userData?.isInternalBoxHitbox) {
       const boxId = obj.userData?.boxId || obj.parent?.userData?.boxId;
       if (boxId) {
-        if (activeBoxId) {
-          if (boxId !== activeBoxId) continue;
+        if (strictIsolatedBoxId && boxId !== strictIsolatedBoxId) continue;
+        if (activeBoxId && boxId === activeBoxId) {
           return;
         }
         if (sceneManager.onBoxSelect && sceneManager.viewMode === 'internal_boxes') {
@@ -50,8 +53,8 @@ export function handleRaycasterCanvasClick(sceneManager: any, screenX: number, s
     }
 
     if (foundBoxId) {
-      if (activeBoxId) {
-        if (foundBoxId !== activeBoxId) continue;
+      if (strictIsolatedBoxId && foundBoxId !== strictIsolatedBoxId) continue;
+      if (activeBoxId && foundBoxId === activeBoxId) {
         // Clicar em uma peça do próprio módulo já aberto mantém o foco sem reiniciar a câmera
         return;
       }
@@ -101,7 +104,9 @@ export function handleRaycasterCanvasDoubleClick(sceneManager: any, screenX: num
   for (const hit of intersects) {
     const obj = hit.object;
 
+    if (!isAncestorVisible(obj)) continue;
     if ((obj as any).isLine || (obj as any).isLineSegments || (obj as any).isSprite) continue;
+    if (obj.userData?.isNominalUpholstery) continue;
     if (isCeilingObject(obj, sceneManager)) continue;
 
     if (obj.name === '__box_hitbox' || obj.userData?.isInternalBoxHitbox) {

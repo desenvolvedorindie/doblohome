@@ -17,10 +17,10 @@ export function buildStoveApplianceAccessory(
   _isOpen: boolean = false,
   isBedOpen: boolean = false
 ) {
-  const placement = box.stovePlacement || 'inside';
+  const placement = box.stovePlacement || 'top';
 
-  // Quando a cama está aberta, o fogareiro posicionado em cima do móvel ('top') some para dar lugar à cama
-  if (placement === 'top' && isBedOpen) {
+  // Quando o próprio móvel é o sofá-cama estendido, oculta o fogareiro na bancada para não conflitar com as ripas/colchão
+  if (placement === 'top' && box.type === 'slat_bed' && isBedOpen) {
     return;
   }
 
@@ -32,7 +32,7 @@ export function buildStoveApplianceAccessory(
     (box.stovePresetId && allPresets.find(p => p.id === box.stovePresetId)) ||
     DEFAULT_STOVE_PRESETS[0];
 
-  const isRotated = box.stoveRotation === 90;
+  const isRotated90 = box.stoveRotation === 90 || box.stoveRotation === 270;
 
   const swRaw = preset.width / 1000;
   const sdRaw = preset.depth / 1000;
@@ -43,8 +43,8 @@ export function buildStoveApplianceAccessory(
     const availW = Math.max(0.12, w - 0.036);
     const availD = Math.max(0.12, l - 0.036);
     const availH = Math.max(0.05, h - 0.024);
-    const effW = isRotated ? sdRaw : swRaw;
-    const effD = isRotated ? swRaw : sdRaw;
+    const effW = isRotated90 ? sdRaw : swRaw;
+    const effD = isRotated90 ? swRaw : sdRaw;
     scale = Math.min(1, availW / effW, availD / effD, availH / shRaw);
   }
 
@@ -54,7 +54,7 @@ export function buildStoveApplianceAccessory(
 
   const stoveGroup = new THREE.Group();
   stoveGroup.name = `StoveAppliance_${box.id}`;
-  stoveGroup.rotation.y = isRotated ? Math.PI / 2 : 0;
+  stoveGroup.rotation.y = ((box.stoveRotation || 0) * Math.PI) / 180;
 
   const isInox = preset.id === 'ntk-bistro-inox' || preset.material.toLowerCase().includes('inox');
   const isCeramic = preset.burnerType.toLowerCase().includes('cerâm') || preset.burnerType.toLowerCase().includes('ceram');
@@ -332,9 +332,31 @@ export function buildStoveApplianceAccessory(
     m.userData = partData;
   });
 
+  // Cálculo de limites de folga e alinhamento na bancada / módulo
+  const effW = isRotated90 ? sd : sw;
+  const effD = isRotated90 ? sw : sd;
+  const slackX = Math.max(0, (w - effW) / 2 - 0.005);
+  const slackZ = Math.max(0, (l - effD) / 2 - 0.005);
+
+  let alignXOffset = 0;
+  if (box.stoveAlignX === 'left') alignXOffset = slackX;
+  else if (box.stoveAlignX === 'right') alignXOffset = -slackX;
+
+  let alignZOffset = 0;
+  if (box.stoveAlignZ === 'front') alignZOffset = slackZ;
+  else if (box.stoveAlignZ === 'back') alignZOffset = -slackZ;
+
+  const fineOffsetX = (box.stoveOffsetX || 0) / 1000;
+  const fineOffsetZ = (box.stoveOffsetZ || 0) / 1000;
+
   // Posicionamento conforme o local escolhido
   if (placement === 'top') {
-    stoveGroup.position.set(0, h / 2 + sh / 2 + 0.001, 0);
+    // Sobre o Tampo / Bancada com alinhamento e deslocamento fino configurável
+    stoveGroup.position.set(
+      alignXOffset + fineOffsetX,
+      h / 2 + sh / 2 + 0.001,
+      alignZOffset + fineOffsetZ
+    );
     container.add(stoveGroup);
   } else if (placement === 'rear_shelf') {
     const rearPivot = container.getObjectByName('RearFoldShelfPivot') as THREE.Group | undefined;
@@ -346,25 +368,25 @@ export function buildStoveApplianceAccessory(
 
       const uprightWrapper = new THREE.Group();
       uprightWrapper.name = `StoveRearShelfUpright_${box.id}`;
-      uprightWrapper.position.set(0, -shelfH / 2, -shelfT - 0.003 - sh / 2);
+      uprightWrapper.position.set(alignXOffset + fineOffsetX, -shelfH / 2, -shelfT - 0.003 - sh / 2);
       uprightWrapper.rotation.x = -Math.PI / 2;
       uprightWrapper.add(stoveGroup);
       rearPivot.add(uprightWrapper);
     } else {
       // Quando a prateleira traseira está fechada, guarda no interior do módulo
       const bottomY = -h / 2 + sh / 2 + 0.018;
-      stoveGroup.position.set(0, bottomY, 0);
+      stoveGroup.position.set(alignXOffset + fineOffsetX, bottomY, alignZOffset + fineOffsetZ);
       targetParent.add(stoveGroup);
     }
   } else {
     if (drawerSlide && drawerSlide.userData?.trayTopY !== undefined) {
-      const posX = drawerSlide.userData.cabCenterX || 0;
-      const posZ = drawerSlide.userData.cabCenterZ || 0;
+      const posX = (drawerSlide.userData.cabCenterX || 0) + alignXOffset + fineOffsetX;
+      const posZ = (drawerSlide.userData.cabCenterZ || 0) + alignZOffset + fineOffsetZ;
       const posY = drawerSlide.userData.trayTopY + sh / 2;
       stoveGroup.position.set(posX, posY, posZ);
     } else {
       const bottomY = -h / 2 + sh / 2 + 0.018;
-      stoveGroup.position.set(0, bottomY, 0);
+      stoveGroup.position.set(alignXOffset + fineOffsetX, bottomY, alignZOffset + fineOffsetZ);
     }
     targetParent.add(stoveGroup);
   }

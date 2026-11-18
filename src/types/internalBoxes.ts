@@ -150,6 +150,8 @@ export interface BoxPanelThicknessConfig {
   top?: number;      // Espessura do tampo superior / tampa basculante em mm
   bottom?: number;   // Espessura do piso / base do módulo em mm
   cabinet?: number;  // Espessura das chapas do armário aéreo em mm
+  door?: number;     // Espessura da porta (armário aéreo, tampa/frente de gaveta) em mm
+  tray?: number;     // Espessura da bandeja corrediça / caixa interna da gaveta em mm
   slat?: number;     // Espessura das ripas da cama retrátil em mm
   shelf?: number;    // Espessura da mesa/prateleira rebatível traseira em mm
 }
@@ -291,6 +293,10 @@ export interface InternalBoxItem {
   rowStart: number;
   rowSpan: number;
   heightMm: number;
+  extraWidthMm?: number;         // Acréscimo/redução fina de largura em mm além das colunas do grid (-250 a +400mm)
+  extraLengthMm?: number;        // Acréscimo/redução fina de comprimento em mm além das linhas do grid (-250 a +400mm)
+  offsetXMm?: number;            // Deslocamento fino lateral do módulo em mm (-250 a +250mm)
+  offsetZMm?: number;            // Deslocamento fino longitudinal do módulo em mm (-250 a +250mm)
   color: string;
   material: InternalBoxMaterial;
   chestHingeDirection?: ChestHingeDirection;
@@ -338,12 +344,21 @@ export interface InternalBoxItem {
   ledCorner?: BoxLedConfig;      // Configuração de iluminação e quinas da base com perfil LED
   hasFridge?: boolean;           // Geladeira portátil 12V instalada no interior do módulo (gavetão ou baú)
   fridgePresetId?: string;       // ID do preset de geladeira selecionado (ex: 'resfriar-35l')
+  fridgeRotation?: 0 | 90 | 180 | 270; // Rotação horizontal da geladeira no módulo (0°, 90°, 180°, 270°)
+  fridgeAlignX?: 'center' | 'left' | 'right'; // Alinhamento lateral no interior do módulo
+  fridgeAlignZ?: 'center' | 'front' | 'back'; // Alinhamento longitudinal no interior do módulo
+  fridgeOffsetX?: number;        // Deslocamento fino lateral em mm (-150 a +150mm)
+  fridgeOffsetZ?: number;        // Deslocamento fino longitudinal em mm (-150 a +150mm)
   hasPortaPotti?: boolean;       // Vaso sanitário químico portátil instalado no interior do módulo (gavetão, bandeja ou baú)
   portaPottiPresetId?: string;   // ID do preset de porta potti selecionado (ex: 'seaflo-20l')
   hasStove?: boolean;            // Fogareiro portátil instalado no módulo (interior, tampo ou mesa traseira)
   stovePresetId?: string;        // ID do preset de fogareiro selecionado (ex: 'ntk-duo-ceramik')
   stovePlacement?: 'inside' | 'top' | 'rear_shelf'; // Local de instalação do fogareiro no módulo
-  stoveRotation?: 0 | 90;        // Rotação horizontal do fogareiro (0° ou 90°)
+  stoveRotation?: 0 | 90 | 180 | 270; // Rotação horizontal do fogareiro (0°, 90°, 180°, 270°)
+  stoveAlignX?: 'center' | 'left' | 'right'; // Alinhamento lateral no tampo / bancada / módulo
+  stoveAlignZ?: 'center' | 'front' | 'back'; // Alinhamento longitudinal no tampo / bancada / módulo
+  stoveOffsetX?: number;         // Deslocamento fino lateral em mm (-250 a +250mm)
+  stoveOffsetZ?: number;         // Deslocamento fino longitudinal em mm (-250 a +250mm)
   hasBattery?: boolean;          // Bateria LiFePO4 instalada no interior do módulo
   batteryPresetId?: string;      // ID do preset de bateria selecionado
   isOpen?: boolean;
@@ -358,6 +373,8 @@ export interface InternalGridConfig {
   widthMm: number;  // Largura total da área de carga (padrão 1200mm)
   heightMm: number; // Altura padrão do estrado/baús (padrão 400mm)
   floorThicknessMm?: number; // Espessura da chapa do assoalho base em mm (padrão 15mm)
+  hasFloor?: boolean;        // Se false: desativa e omite a chapa do assoalho base (tampo de baixo)
+  floorVisibleIn3D?: boolean; // Se false: oculta a chapa do assoalho base no 3D
   colsX: number;    // Divisórias na largura (X: 1 a 6)
   rowsZ: number;    // Divisórias no comprimento (Z: 1 a 8)
   offsetX?: number; // Deslocamento lateral em metros (padrão 0)
@@ -366,6 +383,19 @@ export interface InternalGridConfig {
   ledBaseboard?: LedBaseboardConfig; // Iluminação em perfil de LED no rodapé do assoalho
   centralTable?: CentralTableConfig; // Mesa dinette central fixada na chapa de compensado naval de 15mm (assoalho)
   ceiling?: CeilingConfig;           // Teto e forro do campervan (ripado ou chapa MDF/compensado com LED)
+}
+
+export function getBoxEffectiveDimensionsMm(
+  box: Pick<InternalBoxItem, 'colSpan' | 'rowSpan' | 'extraWidthMm' | 'extraLengthMm'>,
+  grid: Pick<InternalGridConfig, 'widthMm' | 'lengthMm' | 'colsX' | 'rowsZ'>
+): { widthMm: number; lengthMm: number; baseWidthMm: number; baseLengthMm: number } {
+  const cols = Math.max(1, grid.colsX);
+  const rows = Math.max(1, grid.rowsZ);
+  const baseWidthMm = Math.round(box.colSpan * (grid.widthMm / cols));
+  const baseLengthMm = Math.round(box.rowSpan * (grid.lengthMm / rows));
+  const widthMm = Math.max(50, Math.round(baseWidthMm + (box.extraWidthMm || 0)));
+  const lengthMm = Math.max(50, Math.round(baseLengthMm + (box.extraLengthMm || 0)));
+  return { widthMm, lengthMm, baseWidthMm, baseLengthMm };
 }
 
 export interface InternalBoxesPreset {

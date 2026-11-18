@@ -49,14 +49,14 @@ export class SlatBedMattressBuilder {
     });
 
     const partsName = parts === 1
-      ? 'Inteiro'
+      ? '1 Parte'
       : parts === 3
-        ? 'Tripartido'
+        ? '3 Partes da Doblò'
         : parts === 5
           ? '5 Partes (Total c/ Caixas de Roda)'
           : parts === 4
-            ? 'Quadripartido'
-            : 'Bipartido';
+            ? '4 Partes da Doblò'
+            : '2 Partes';
     const mattressThickness = (box.mattressThicknessMm ?? 80) / 1000;
     const foamName = getMattressFoamName(box.mattressFoam);
     const mattressY = topOfSlatsY + mattressThickness / 2;
@@ -69,7 +69,16 @@ export class SlatBedMattressBuilder {
     const seamMat = new THREE.MeshBasicMaterial({ color: 0x1e293b });
 
     if (direction === 'left' || direction === 'right') {
-      const cellW = cellWM || w;
+      // As almofadas do colchão ocupam exatamente N partes da largura/divisão total da Doblò:
+      // - 3 partes = 3 terços da largura útil da Doblò (1200mm / 3 = 400mm cada parte)
+      // - 4 partes = 4 quartos da largura útil da Doblò (1200mm / 4 = 300mm cada parte)
+      const gridWidthM = grid ? grid.widthMm / 1000 : (cellWM ? cellWM * 3 : w * 2);
+      const cellW =
+        parts === 4
+          ? gridWidthM / 4
+          : parts === 3 || parts === 5
+            ? gridWidthM / 3
+            : (cellWM || w);
       const cushionW = cellW - 0.012;
       const cushionL = l - 0.016;
 
@@ -111,7 +120,13 @@ export class SlatBedMattressBuilder {
         });
       }
     } else {
-      const cellL = cellLM || l;
+      const gridLengthM = grid ? grid.lengthMm / 1000 : (cellLM ? cellLM * 4 : l * 2);
+      const cellL =
+        parts === 4
+          ? gridLengthM / 4
+          : parts === 3
+            ? gridLengthM / 3
+            : (cellLM || l);
       buildLongitudinalMattress({
         container,
         w,

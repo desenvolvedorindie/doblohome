@@ -28,6 +28,8 @@ export class DrawerBuilder {
     const tFront = tConfig.front;
     const tRear = tConfig.rear;
     const tDef = tConfig.default;
+    const tTray = tConfig.tray;
+    const tDoor = box.panelThickness?.door !== undefined ? tConfig.door : tFront;
     const woodMat = getWoodMaterialName(box.material);
     const tTopMm = Math.round(tTop * 1000);
     const tBottomMm = Math.round(tBottom * 1000);
@@ -35,6 +37,8 @@ export class DrawerBuilder {
     const tRightMm = Math.round(tRight * 1000);
     const tFrontMm = Math.round(tFront * 1000);
     const tDefMm = Math.round(tDef * 1000);
+    const tTrayMm = Math.round(tTray * 1000);
+    const tDoorMm = Math.round(tDoor * 1000);
 
     const edgeMat = new THREE.LineBasicMaterial({
       color: isSelected ? 0x38bdf8 : 0x475569,
@@ -201,18 +205,18 @@ export class DrawerBuilder {
 
     drawerGroup.position.set(slideOffsetX, 0, slideOffsetZ);
 
-    const trayY = -dH / 2 + tBottom / 2;
+    const trayY = -dH / 2 + tTray / 2;
     drawerGroup.userData = {
       isDrawerSlide: true,
       slideDirection: slideDir,
       cabCenterX,
       cabCenterZ,
       trayY,
-      trayTopY: trayY + tBottom / 2,
+      trayTopY: trayY + tTray / 2,
       dW,
       dL,
       dH,
-      tBottom,
+      tBottom: tTray,
       isOpen
     };
 
@@ -229,7 +233,7 @@ export class DrawerBuilder {
       addPanel(
         drawerBodyGroup,
         dW,
-        tBottom,
+        tTray,
         dL,
         0,
         trayY,
@@ -238,22 +242,22 @@ export class DrawerBuilder {
         edgeMat,
         box.id,
         container,
-        `${box.name} • Base Bandeja Corrediça Rasa (${tBottomMm}mm)`,
-        { thicknessMm: tBottomMm, woodMaterial: woodMat, moduleName: box.name, partType: 'bottom', material: `${woodMat} ${tBottomMm}mm Impermeabilizado` }
+        `${box.name} • Base Bandeja Corrediça Rasa (${tTrayMm}mm)`,
+        { thicknessMm: tTrayMm, woodMaterial: woodMat, moduleName: box.name, partType: 'tray', material: `${woodMat} ${tTrayMm}mm Impermeabilizado` }
       );
 
       // Abas de contenção (Laterais, traseira e frontal de 45mm)
-      addPanel(drawerBodyGroup, tLeft, lipH, dL, dW / 2 - tLeft / 2, trayY + tBottom / 2 + lipH / 2, 0, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Lateral Esq. (${tLeftMm}mm)`, {
-        thicknessMm: tLeftMm, woodMaterial: woodMat, moduleName: box.name, partType: 'left', material: `${woodMat} ${tLeftMm}mm`
+      addPanel(drawerBodyGroup, tTray, lipH, dL, dW / 2 - tTray / 2, trayY + tTray / 2 + lipH / 2, 0, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Lateral Esq. (${tTrayMm}mm)`, {
+        thicknessMm: tTrayMm, woodMaterial: woodMat, moduleName: box.name, partType: 'tray', material: `${woodMat} ${tTrayMm}mm`
       });
-      addPanel(drawerBodyGroup, tRight, lipH, dL, -dW / 2 + tRight / 2, trayY + tBottom / 2 + lipH / 2, 0, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Lateral Dir. (${tRightMm}mm)`, {
-        thicknessMm: tRightMm, woodMaterial: woodMat, moduleName: box.name, partType: 'right', material: `${woodMat} ${tRightMm}mm`
+      addPanel(drawerBodyGroup, tTray, lipH, dL, -dW / 2 + tTray / 2, trayY + tTray / 2 + lipH / 2, 0, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Lateral Dir. (${tTrayMm}mm)`, {
+        thicknessMm: tTrayMm, woodMaterial: woodMat, moduleName: box.name, partType: 'tray', material: `${woodMat} ${tTrayMm}mm`
       });
-      addPanel(drawerBodyGroup, dW - tLeft - tRight, lipH, tRear, 0, trayY + tBottom / 2 + lipH / 2, -dL / 2 + tRear / 2, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Traseira (${Math.round(tRear * 1000)}mm)`, {
-        thicknessMm: Math.round(tRear * 1000), woodMaterial: woodMat, moduleName: box.name, partType: 'rear', material: `${woodMat} ${Math.round(tRear * 1000)}mm`
+      addPanel(drawerBodyGroup, dW - 2 * tTray, lipH, tTray, 0, trayY + tTray / 2 + lipH / 2, -dL / 2 + tTray / 2, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Traseira (${tTrayMm}mm)`, {
+        thicknessMm: tTrayMm, woodMaterial: woodMat, moduleName: box.name, partType: 'tray', material: `${woodMat} ${tTrayMm}mm`
       });
-      addPanel(drawerBodyGroup, dW - tLeft - tRight, lipH, tFront, 0, trayY + tBottom / 2 + lipH / 2, dL / 2 - tFront / 2, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Frontal (${tFrontMm}mm)`, {
-        thicknessMm: tFrontMm, woodMaterial: woodMat, moduleName: box.name, partType: 'front', material: `${woodMat} ${tFrontMm}mm`
+      addPanel(drawerBodyGroup, dW - 2 * tTray, lipH, tTray, 0, trayY + tTray / 2 + lipH / 2, dL / 2 - tTray / 2, mat, edgeMat, box.id, container, `${box.name} • Aba Baixa Frontal (${tTrayMm}mm)`, {
+        thicknessMm: tTrayMm, woodMaterial: woodMat, moduleName: box.name, partType: 'tray', material: `${woodMat} ${tTrayMm}mm`
       });
 
       // Puxador embutido na aba frontal de abertura
@@ -262,19 +266,19 @@ export class DrawerBuilder {
       if (slideDir === 'rear') {
         const handleGeo = new THREE.BoxGeometry(Math.min(0.20, dW * 0.4), 0.020, 0.015);
         handleMesh = new THREE.Mesh(handleGeo, handleMat);
-        handleMesh.position.set(0, trayY + tBottom / 2 + lipH / 2, -dL / 2 - 0.01);
+        handleMesh.position.set(0, trayY + tTray / 2 + lipH / 2, -dL / 2 - 0.01);
       } else if (slideDir === 'front') {
         const handleGeo = new THREE.BoxGeometry(Math.min(0.20, dW * 0.4), 0.020, 0.015);
         handleMesh = new THREE.Mesh(handleGeo, handleMat);
-        handleMesh.position.set(0, trayY + tBottom / 2 + lipH / 2, dL / 2 + 0.01);
+        handleMesh.position.set(0, trayY + tTray / 2 + lipH / 2, dL / 2 + 0.01);
       } else if (slideDir === 'left') {
         const handleGeo = new THREE.BoxGeometry(0.015, 0.020, Math.min(0.20, dL * 0.4));
         handleMesh = new THREE.Mesh(handleGeo, handleMat);
-        handleMesh.position.set(dW / 2 + 0.01, trayY + tBottom / 2 + lipH / 2, 0);
+        handleMesh.position.set(dW / 2 + 0.01, trayY + tTray / 2 + lipH / 2, 0);
       } else { // 'right'
         const handleGeo = new THREE.BoxGeometry(0.015, 0.020, Math.min(0.20, dL * 0.4));
         handleMesh = new THREE.Mesh(handleGeo, handleMat);
-        handleMesh.position.set(-dW / 2 - 0.01, trayY + tBottom / 2 + lipH / 2, 0);
+        handleMesh.position.set(-dW / 2 - 0.01, trayY + tTray / 2 + lipH / 2, 0);
       }
       handleMesh.userData = {
         isInternalBox: true,
@@ -316,14 +320,27 @@ export class DrawerBuilder {
         });
       }
     } else {
-      // Gaveteiro Alto Fechado Convencional
-      buildHollowBox(drawerBodyGroup, dW, dH, dL, tDef, mat, edgeMat, true, box.id, container, undefined, box.name, box);
+      // Gaveteiro Alto Fechado Convencional — usa tTray na caixa interna da gaveta e tDoor na porta/frente
+      const drawerInnerBox: InternalBoxItem = {
+        ...box,
+        thicknessMm: tTrayMm,
+        panelThickness: {
+          ...box.panelThickness,
+          top: tTrayMm,
+          bottom: tTrayMm,
+          left: tTrayMm,
+          right: tTrayMm,
+          front: tTrayMm,
+          rear: tTrayMm
+        }
+      };
+      buildHollowBox(drawerBodyGroup, dW, dH, dL, tTray, mat, edgeMat, true, box.id, container, undefined, box.name, drawerInnerBox);
 
       // Renomeia as peças internas da gaveta mantendo moduleName limpo e identificando-as claramente no hover/corte
       drawerBodyGroup.traverse((child) => {
         if ((child as THREE.Mesh).isMesh && child.userData?.isWoodPart) {
           const pt = child.userData.partType;
-          const pThickMm = child.userData.thicknessMm || tDefMm;
+          const pThickMm = child.userData.thicknessMm || tTrayMm;
           child.userData.moduleName = box.name;
           if (pt === 'bottom') {
             child.userData.partLabel = `${box.name} • Fundo Base da Gaveta (${pThickMm}mm)`;
@@ -351,20 +368,20 @@ export class DrawerBuilder {
           drawerGroup,
           w - 0.008,
           h - 0.008,
-          tFront,
+          tDoor,
           0,
           0,
-          -l / 2 - tFront / 2,
+          -l / 2 - tDoor / 2,
           mat,
           edgeMat,
           box.id,
           container,
-          `${box.name} • Frente Externa Gaveta (${tFrontMm}mm)`,
-          { thicknessMm: tFrontMm, woodMaterial: woodMat, moduleName: box.name, partType: 'front', material: `${woodMat} ${tFrontMm}mm` }
+          `${box.name} • Frente Externa Gaveta (${tDoorMm}mm)`,
+          { thicknessMm: tDoorMm, woodMaterial: woodMat, moduleName: box.name, partType: 'door', material: `${woodMat} ${tDoorMm}mm` }
         );
         const handleGeo = new THREE.BoxGeometry(Math.min(0.24, dW * 0.5), 0.024, 0.02);
         const handleMesh = new THREE.Mesh(handleGeo, handleMat);
-        handleMesh.position.set(0, 0, -l / 2 - tFront - 0.01);
+        handleMesh.position.set(0, 0, -l / 2 - tDoor - 0.01);
         handleMesh.userData = {
           isInternalBox: true,
           isHardware: true,
@@ -380,20 +397,20 @@ export class DrawerBuilder {
           drawerGroup,
           w - 0.008,
           h - 0.008,
-          tFront,
+          tDoor,
           0,
           0,
-          l / 2 + tFront / 2,
+          l / 2 + tDoor / 2,
           mat,
           edgeMat,
           box.id,
           container,
-          `${box.name} • Frente Externa Gaveta (${tFrontMm}mm)`,
-          { thicknessMm: tFrontMm, woodMaterial: woodMat, moduleName: box.name, partType: 'front', material: `${woodMat} ${tFrontMm}mm` }
+          `${box.name} • Frente Externa Gaveta (${tDoorMm}mm)`,
+          { thicknessMm: tDoorMm, woodMaterial: woodMat, moduleName: box.name, partType: 'door', material: `${woodMat} ${tDoorMm}mm` }
         );
         const handleGeo = new THREE.BoxGeometry(Math.min(0.24, dW * 0.5), 0.024, 0.02);
         const handleMesh = new THREE.Mesh(handleGeo, handleMat);
-        handleMesh.position.set(0, 0, l / 2 + tFront + 0.01);
+        handleMesh.position.set(0, 0, l / 2 + tDoor + 0.01);
         handleMesh.userData = {
           isInternalBox: true,
           isHardware: true,
@@ -405,24 +422,26 @@ export class DrawerBuilder {
         };
         drawerGroup.add(handleMesh);
       } else if (slideDir === 'left') {
+        const doorLeft = box.panelThickness?.door !== undefined ? tDoor : tLeft;
+        const doorLeftMm = Math.round(doorLeft * 1000);
         addPanel(
           drawerGroup,
-          tLeft,
+          doorLeft,
           h - 0.008,
           l - 0.008,
-          w / 2 + tLeft / 2,
+          w / 2 + doorLeft / 2,
           0,
           0,
           mat,
           edgeMat,
           box.id,
           container,
-          `${box.name} • Frente Externa Gaveta (${tLeftMm}mm)`,
-          { thicknessMm: tLeftMm, woodMaterial: woodMat, moduleName: box.name, partType: 'left', material: `${woodMat} ${tLeftMm}mm` }
+          `${box.name} • Frente Externa Gaveta (${doorLeftMm}mm)`,
+          { thicknessMm: doorLeftMm, woodMaterial: woodMat, moduleName: box.name, partType: 'door', material: `${woodMat} ${doorLeftMm}mm` }
         );
         const handleGeo = new THREE.BoxGeometry(0.02, 0.024, Math.min(0.24, dL * 0.5));
         const handleMesh = new THREE.Mesh(handleGeo, handleMat);
-        handleMesh.position.set(w / 2 + tLeft + 0.01, 0, 0);
+        handleMesh.position.set(w / 2 + doorLeft + 0.01, 0, 0);
         handleMesh.userData = {
           isInternalBox: true,
           isHardware: true,
@@ -434,24 +453,26 @@ export class DrawerBuilder {
         };
         drawerGroup.add(handleMesh);
       } else { // 'right'
+        const doorRight = box.panelThickness?.door !== undefined ? tDoor : tRight;
+        const doorRightMm = Math.round(doorRight * 1000);
         addPanel(
           drawerGroup,
-          tRight,
+          doorRight,
           h - 0.008,
           l - 0.008,
-          -w / 2 - tRight / 2,
+          -w / 2 - doorRight / 2,
           0,
           0,
           mat,
           edgeMat,
           box.id,
           container,
-          `${box.name} • Frente Externa Gaveta (${tRightMm}mm)`,
-          { thicknessMm: tRightMm, woodMaterial: woodMat, moduleName: box.name, partType: 'right', material: `${woodMat} ${tRightMm}mm` }
+          `${box.name} • Frente Externa Gaveta (${doorRightMm}mm)`,
+          { thicknessMm: doorRightMm, woodMaterial: woodMat, moduleName: box.name, partType: 'door', material: `${woodMat} ${doorRightMm}mm` }
         );
         const handleGeo = new THREE.BoxGeometry(0.02, 0.024, Math.min(0.24, dL * 0.5));
         const handleMesh = new THREE.Mesh(handleGeo, handleMat);
-        handleMesh.position.set(-w / 2 - tRight - 0.01, 0, 0);
+        handleMesh.position.set(-w / 2 - doorRight - 0.01, 0, 0);
         handleMesh.userData = {
           isInternalBox: true,
           isHardware: true,

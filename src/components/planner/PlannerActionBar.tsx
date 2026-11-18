@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSolar } from '../../context/SolarContext';
 import { INTERNAL_BOXES_PRESETS } from '../../data/internalBoxesPresets';
 
@@ -14,6 +14,7 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
   hasUpperCabinets
 }) => {
   const {
+    sceneManager,
     internalGrid,
     setInternalGrid,
     internalBoxes,
@@ -26,7 +27,29 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
     toggleCabinetsOpenPreview,
     updateInternalBox,
     toggleCeiling3D,
+    toggleFloor3D,
   } = useSolar();
+
+  const [wallsGhost, setWallsGhost] = useState<boolean>(
+    () => Boolean(sceneManager?.internalBoxesBuilder?.ghostWalls)
+  );
+
+  useEffect(() => {
+    setWallsGhost(Boolean(sceneManager?.internalBoxesBuilder?.ghostWalls));
+  }, [sceneManager]);
+
+  useEffect(
+    () => () => {
+      sceneManager?.setModuleWallsGhost(false);
+    },
+    [sceneManager]
+  );
+
+  const toggleWallsGhost = () => {
+    const next = !wallsGhost;
+    setWallsGhost(next);
+    sceneManager?.setModuleWallsGhost(next);
+  };
 
   const isolatedBox = internalBoxes.find(b => b.id === isolatedBoxId);
 
@@ -110,34 +133,45 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
             💡 LED Rodapé: {(internalGrid.ledBaseboard?.enabled ?? true) ? 'Ligado' : 'Desligado'}
           </button>
 
-          <button
-            onClick={() => {
-              const next = !isOpenPreview;
-              setIsOpenPreview(next);
-              // Quando abre a prévia, se houver cama retrátil, abre 100% (abrir toda a cama com colchão casal)
-              if (next) {
-                internalBoxes.forEach(b => {
-                  if (b.type === 'slat_bed') {
-                    updateInternalBox(b.id, { slatExtensionPercent: 100 });
-                  }
-                });
-              }
-            }}
-            className="btn-compact primary"
-            style={{
-              width: '100%',
-              fontSize: '11.5px',
-              padding: '8px 12px',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              background: isOpenPreview ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #0284c7, #2563eb)'
-            }}
-          >
-            {isOpenPreview ? '🛋️ Modo Sofá / Fechar' : '🛌 Abrir Toda a Cama (100%)'}
-          </button>
+          {(() => {
+            const slatBeds = internalBoxes.filter((b) => b.type === 'slat_bed');
+            if (slatBeds.length === 0) return null;
+            const isBedOpen = isOpenPreview || slatBeds.some((b) => Boolean(b.isOpen));
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !isBedOpen;
+                  setIsOpenPreview(next);
+                  slatBeds.forEach((b) => {
+                    const nextParts = next && b.mattressParts === 1 ? 2 : b.mattressParts;
+                    updateInternalBox(b.id, {
+                      isOpen: next,
+                      slatExtensionPercent: 100,
+                      ...(nextParts !== undefined ? { mattressParts: nextParts } : {})
+                    });
+                  });
+                }}
+                className="btn-compact primary"
+                style={{
+                  width: '100%',
+                  fontSize: '11.5px',
+                  padding: '8px 12px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: isBedOpen
+                    ? 'linear-gradient(135deg, #10b981, #059669)'
+                    : 'linear-gradient(135deg, #0284c7, #2563eb)'
+                }}
+                title="Estende ou recolhe exclusivamente a cama retrátil (100%)"
+              >
+                {isBedOpen ? '🛋️ Modo Sofá / Fechar Cama' : '🛌 Abrir Toda a Cama (100%)'}
+              </button>
+            );
+          })()}
 
           {(() => {
             const tableBoxes = internalBoxes.filter((b) => b.rearFoldShelf);
@@ -273,6 +307,104 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
               </span>
             </button>
           )}
+
+          {/* Botão de Alternar / Tirar Tampo de Baixo (Assoalho Base da Van) */}
+          <button
+            type="button"
+            onClick={toggleFloor3D}
+            className="btn-compact"
+            style={{
+              width: '100%',
+              fontSize: '11.5px',
+              padding: '8px 12px',
+              fontWeight: 700,
+              background: internalGrid.floorVisibleIn3D !== false
+                ? 'rgba(15, 23, 42, 0.85)'
+                : 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+              borderColor: internalGrid.floorVisibleIn3D !== false
+                ? 'rgba(56, 189, 248, 0.4)'
+                : '#fbbf24',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+            title={
+              internalGrid.floorVisibleIn3D !== false
+                ? 'Tirar / Ocultar o tampo de baixo (assoalho base de compensado naval) no 3D para ver por baixo ou trabalhar sem piso'
+                : 'Exibir o tampo de baixo (assoalho base de compensado naval) no 3D'
+            }
+          >
+            <span>{internalGrid.floorVisibleIn3D !== false ? '🪵' : '🙈'}</span>
+            <span>
+              {internalGrid.floorVisibleIn3D !== false
+                ? 'Tampo de Baixo (Assoalho): Visível'
+                : 'Tampo de Baixo: Oculto (Sem Assoalho)'}
+            </span>
+          </button>
+
+          {/* Botão para Tirar Tampo de Baixo dos Módulos (se algum tiver fundo ativo) */}
+          {internalBoxes.some((b) => b.panels?.bottom) && (
+            <button
+              type="button"
+              onClick={() => {
+                internalBoxes.forEach((b) => {
+                  if (b.panels?.bottom) {
+                    updateInternalBox(b.id, {
+                      panels: { ...b.panels, bottom: false }
+                    });
+                  }
+                });
+              }}
+              className="btn-compact"
+              style={{
+                width: '100%',
+                fontSize: '11.5px',
+                padding: '8px 12px',
+                fontWeight: 700,
+                background: 'rgba(239, 68, 68, 0.15)',
+                borderColor: 'rgba(239, 68, 68, 0.4)',
+                color: '#f87171',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+              title="Remove a chapa inferior/fundo de todas as caixas, deixando-as vazadas no fundo"
+            >
+              <span>⏹️</span>
+              <span>Tirar Tampo de Baixo das Caixas</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={toggleWallsGhost}
+            disabled={!sceneManager}
+            className="btn-compact"
+            style={{
+              width: '100%',
+              fontSize: '11.5px',
+              padding: '8px 12px',
+              fontWeight: 700,
+              background: wallsGhost
+                ? 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)'
+                : 'rgba(15, 23, 42, 0.85)',
+              borderColor: wallsGhost ? '#38bdf8' : 'rgba(56, 189, 248, 0.4)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+            title="Deixa as paredes dos módulos translúcidas no 3D para visualizar e inspecionar apenas os componentes internos"
+          >
+            <span>{wallsGhost ? '👻' : '👁️'}</span>
+            <span>
+              {wallsGhost ? 'Paredes Translúcidas: ON (Ver Tudo)' : 'Ocultar Paredes (Ver Só Componentes)'}
+            </span>
+          </button>
 
           <button
             onClick={onRequestClear}

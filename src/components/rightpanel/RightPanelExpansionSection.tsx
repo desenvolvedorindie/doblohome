@@ -3,6 +3,7 @@ import { useSolar } from '../../context/SolarContext';
 
 export const RightPanelExpansionSection: React.FC = () => {
   const {
+    sceneManager,
     expansionProgress,
     setExpansion,
     retract,
@@ -233,7 +234,10 @@ export const RightPanelExpansionSection: React.FC = () => {
               {collisionSummary.collisions.slice(0, 5).map((c, i) => (
                 <div
                   key={i}
-                  style={{ color: 'var(--text-muted)', borderBottom: i < Math.min(4, collisionSummary.collisions.length - 1) ? '1px solid rgba(255,255,255,0.05)' : 'none', paddingBottom: '2px', marginBottom: '2px' }}
+                  onMouseEnter={() => sceneManager?.hoverCollisionObjects([c.meshA, c.meshB])}
+                  onMouseLeave={() => sceneManager?.hoverCollisionObjects(null)}
+                  style={{ color: 'var(--text-muted)', borderBottom: i < Math.min(4, collisionSummary.collisions.length - 1) ? '1px solid rgba(255,255,255,0.05)' : 'none', padding: '3px 4px', marginBottom: '2px', borderRadius: '4px', cursor: 'pointer' }}
+                  title="Passe o mouse para destacar os itens em colisão no 3D"
                 >
                   <span style={{ color: '#fbbf24' }}>⚠</span>{' '}
                   <span style={{ fontFamily: 'var(--font-mono)', color: '#fca5a5' }}>{c.labelA}</span>
@@ -327,7 +331,10 @@ export const RightPanelExpansionSection: React.FC = () => {
               {floatingSummary.floatingList.slice(0, 5).map((f, i) => (
                 <div
                   key={i}
-                  style={{ color: 'var(--text-muted)', borderBottom: i < Math.min(4, floatingSummary.floatingList.length - 1) ? '1px solid rgba(255,255,255,0.05)' : 'none', paddingBottom: '2px', marginBottom: '2px' }}
+                  onMouseEnter={() => sceneManager?.hoverCollisionObjects([f.mesh])}
+                  onMouseLeave={() => sceneManager?.hoverCollisionObjects(null)}
+                  style={{ color: 'var(--text-muted)', borderBottom: i < Math.min(4, floatingSummary.floatingList.length - 1) ? '1px solid rgba(255,255,255,0.05)' : 'none', padding: '3px 4px', marginBottom: '2px', borderRadius: '4px', cursor: 'pointer' }}
+                  title="Passe o mouse para destacar a peça no 3D"
                 >
                   <span style={{ color: '#f59e0b' }}>⚠</span>{' '}
                   <span style={{ fontFamily: 'var(--font-mono)', color: '#fde68a' }}>{f.label}</span>
@@ -364,3 +371,4 @@ export const RightPanelExpansionSection: React.FC = () => {
     </>
   );
 };
+

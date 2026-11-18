@@ -8,6 +8,12 @@ export const CEILING_Y = 1.72;
 export function getBoxThickness(box?: InternalBoxItem) {
   const dMm = box?.thicknessMm || 15;
   const p = box?.panelThickness;
+  const cabinetMm = (p?.cabinet ?? dMm) || 15;
+  const isSlidingUpper =
+    box?.upperCabinet &&
+    (box.upperCabinetClosure === 'sliding_doors' ||
+      (box.upperCabinetClosure === undefined && box.upperCabinetDoors === undefined));
+  const defaultDoorMm = isSlidingUpper ? 6 : cabinetMm;
   return {
     default: dMm / 1000,
     top: ((p?.top ?? dMm) || 15) / 1000,
@@ -16,7 +22,9 @@ export function getBoxThickness(box?: InternalBoxItem) {
     right: ((p?.right ?? dMm) || 15) / 1000,
     front: ((p?.front ?? dMm) || 15) / 1000,
     rear: ((p?.rear ?? dMm) || 15) / 1000,
-    cabinet: ((p?.cabinet ?? dMm) || 15) / 1000,
+    cabinet: cabinetMm / 1000,
+    door: ((p?.door ?? defaultDoorMm) || defaultDoorMm) / 1000,
+    tray: ((p?.tray ?? dMm) || 15) / 1000,
     slat: ((p?.slat ?? dMm) || 15) / 1000,
     shelf: ((p?.shelf ?? dMm) || 15) / 1000
   };
@@ -111,7 +119,8 @@ export function getUpperCabinetExclusionZones(
 
   const zones: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> = [];
 
-  const doorT = 0.016; // 15mm espessura da porta/trilho + folga
+  const tCfg = getBoxThickness(box);
+  const doorT = box.panelThickness?.door !== undefined ? (Math.max(0.004, tCfg.door) + 0.002) : 0.016; // 15mm espessura da porta/trilho + folga
 
   activeSides.forEach(side => {
     if (side === 'rear' || side === 'front') {
@@ -134,7 +143,9 @@ export function getUpperCabinetExclusionZones(
           : (boxWM / 2 + cabinetWidthM / 2 + besideOffsetM);
       }
       if (positionMode === 'behind_box') {
-        cabinetCenterZ = (-boxLM / 2 - cabinetDepthM / 2) - behindOffsetM;
+        cabinetCenterZ = side === 'rear'
+          ? (-boxLM / 2 - cabinetDepthM / 2 - behindOffsetM)
+          : (boxLM / 2 + cabinetDepthM / 2 + behindOffsetM);
       }
 
       const minZ = side === 'rear'

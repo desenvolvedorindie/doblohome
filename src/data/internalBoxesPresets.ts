@@ -152,17 +152,7 @@ export const INTERNAL_BOXES_PRESETS: InternalBoxesPreset[] = [
       widthMm: 1200,
       heightMm: 400,
       colsX: 3,
-      rowsZ: 4,
-      centralTable: {
-        enabled: true,
-        lengthMm: 650,
-        widthMm: 450,
-        heightMm: 720,
-        offsetX: 0,
-        offsetZ: 0,
-        rotationDeg: 0,
-        finish: 'pine_block'
-      }
+      rowsZ: 4
     },
     boxes: [
       {
@@ -222,25 +212,15 @@ export const INTERNAL_BOXES_PRESETS: InternalBoxesPreset[] = [
       widthMm: 1200,
       heightMm: 400,
       colsX: 3,
-      rowsZ: 4,
-      centralTable: {
-        enabled: true,
-        lengthMm: 650,
-        widthMm: 450,
-        heightMm: 720,
-        offsetX: 0,
-        offsetZ: 0,
-        rotationDeg: 0,
-        finish: 'pine_block'
-      }
+      rowsZ: 4
     },
     boxes: [
       {
         id: 'box_slat_bed_full',
         name: '🛏️ Sofá-Cama Ripas Total (Ocupar Tudo 120cm)',
         type: 'slat_bed',
-        colStart: 2,
-        colSpan: 1,
+        colStart: 1,
+        colSpan: 2,
         rowStart: 0,
         rowSpan: 4,
         heightMm: 400,
@@ -248,7 +228,7 @@ export const INTERNAL_BOXES_PRESETS: InternalBoxesPreset[] = [
         material: 'plywood',
         slatBedDirection: 'left',
         slatExtensionPercent: 100,
-        mattressParts: 3,
+        mattressParts: 2,
         rearFoldShelf: true,
         rearShelfFinish: 'pine_block',
         hasLedCorner: true,
