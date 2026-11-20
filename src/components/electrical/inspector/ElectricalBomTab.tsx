@@ -1,6 +1,8 @@
 import React from 'react';
 import { FUSE_COLOR_TABLE } from '../../../types/electricalPlanar';
 import { ElectricalBomSummary } from '../../../utils/electricalCalculations';
+import { ConnectorIllustration } from '../schematic/ConnectorIllustration';
+import { useElectricalIconScale } from '../planar/ElectricalIconScaleContext';
 
 interface ElectricalBomTabProps {
   bom: ElectricalBomSummary;
@@ -11,6 +13,7 @@ export const ElectricalBomTab: React.FC<ElectricalBomTabProps> = ({
   bom,
   nodesCount
 }) => {
+  const iconScale = useElectricalIconScale();
   return (
     <>
       {/* Lista de Cabos */}
@@ -72,6 +75,71 @@ export const ElectricalBomTab: React.FC<ElectricalBomTabProps> = ({
                   }}
                 >
                   {c.totalMeters} m
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Lista de Conectores & Terminais */}
+      <div
+        style={{
+          background: 'rgba(15, 23, 42, 0.7)',
+          border: '1px solid rgba(148, 163, 184, 0.2)',
+          borderRadius: '8px',
+          padding: '9px'
+        }}
+      >
+        <div style={{ fontSize: '11px', fontWeight: 800, color: '#a78bfa', marginBottom: '6px' }}>
+          🔌 Conectores & Terminais ({bom.totalConnectors} un)
+        </div>
+        {bom.connectors.length === 0 ? (
+          <div style={{ fontSize: '10.5px', color: '#64748b' }}>
+            Conecte os componentes no diagrama para calcular os terminais e conectores por bitola.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {bom.connectors.map((conn) => (
+              <div
+                key={conn.key}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '4px 7px',
+                  borderRadius: '6px',
+                  background: 'rgba(2, 6, 23, 0.45)',
+                  border: '1px solid rgba(148, 163, 184, 0.14)',
+                  fontSize: '10.5px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                  <ConnectorIllustration type={conn.connectorType} size={26} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, color: '#f1f5f9' }}>{conn.label}</div>
+                    {conn.gaugeMm2 !== undefined && (
+                      <div
+                        style={{
+                          color: '#94a3b8',
+                          fontSize: '9.5px',
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      >
+                        Bitola {conn.gaugeMm2} mm²
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 800,
+                    color: '#a78bfa',
+                    marginLeft: '6px'
+                  }}
+                >
+                  ×{conn.qty}
                 </span>
               </div>
             ))}
@@ -160,7 +228,9 @@ export const ElectricalBomTab: React.FC<ElectricalBomTabProps> = ({
                 }}
               >
                 <div style={{ minWidth: 0 }}>
-                  <span style={{ marginRight: '5px' }}>{eq.icon}</span>
+                  <span style={{ marginRight: '5px', fontSize: `${Math.round(12 * iconScale)}px` }}>
+                    {eq.icon}
+                  </span>
                   <span style={{ fontWeight: 700, color: '#f1f5f9' }}>{eq.label}</span>
                   <span style={{ color: '#94a3b8', marginLeft: '5px', fontSize: '9.5px' }}>
                     {eq.detail}

@@ -11,8 +11,10 @@ interface PlanarCanvasToolbarProps {
   edgesCount: number;
   bomSummary: ElectricalBomSummary;
   edgeStyle: ElectricalEdgeStyle;
+  iconScale: number;
   confirmClear: boolean;
   onEdgeStyleChange: (style: ElectricalEdgeStyle) => void;
+  onIconScaleChange: (scale: number) => void;
   onFitView: () => void;
   onClearCanvas: () => void;
 }
@@ -22,8 +24,10 @@ export const PlanarCanvasToolbar: React.FC<PlanarCanvasToolbarProps> = ({
   edgesCount,
   bomSummary,
   edgeStyle,
+  iconScale,
   confirmClear,
   onEdgeStyleChange,
+  onIconScaleChange,
   onFitView,
   onClearCanvas
 }) => {
@@ -117,6 +121,62 @@ export const PlanarCanvasToolbar: React.FC<PlanarCanvasToolbarProps> = ({
         >
           ╲ Reta
         </button>
+
+        <div
+          style={{
+            width: '1px',
+            height: '16px',
+            background: 'rgba(148, 163, 184, 0.25)',
+            margin: '0 2px'
+          }}
+        />
+
+        <label
+          title="Ajustar tamanho dos ícones e ilustrações de conectores (clique na porcentagem para resetar)"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            fontSize: '10px',
+            color: '#cbd5e1',
+            padding: '0 4px',
+            userSelect: 'none'
+          }}
+        >
+          <span>🔎 Ícones</span>
+          <input
+            type="range"
+            min="0.8"
+            max="2.5"
+            step="0.1"
+            value={iconScale}
+            onChange={(e) => onIconScaleChange(parseFloat(e.target.value) || 1)}
+            style={{
+              width: '72px',
+              accentColor: '#38bdf8',
+              cursor: 'pointer'
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => onIconScaleChange(1)}
+            title="Clique para voltar ao tamanho padrão (100%)"
+            style={{
+              background: 'rgba(56, 189, 248, 0.14)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              color: '#38bdf8',
+              borderRadius: '4px',
+              padding: '1px 4px',
+              fontSize: '9.5px',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono)',
+              minWidth: '38px',
+              cursor: 'pointer'
+            }}
+          >
+            {Math.round(iconScale * 100)}%
+          </button>
+        </label>
 
         <div
           style={{

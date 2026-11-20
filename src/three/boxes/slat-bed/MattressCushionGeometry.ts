@@ -91,12 +91,12 @@ export function collectMattressCutoutZones(params: {
   }
 
   for (const cabBox of allCabinets) {
-    // Se a base do armário aéreo descer abaixo do topo do colchão (passar da altura do colchão),
-    // ou se o espaçamento inferior for menor/igual à espessura do colchão, o colchão DEVE ser recortado!
+    // Só recorta o colchão se a base do armário aéreo entrar fisicamente na faixa vertical do colchão
+    // (se o armário ficar no topo ou acima do colchão, não há necessidade de corte)
     const cabBoxHeightMm = cabBox.heightMm ?? grid?.heightMm ?? 400;
     const bottomGapMm = Math.max(0, cabBox.upperCabinetBottomGapMm ?? 0);
     const cabinetBottomMm = cabBoxHeightMm + bottomGapMm;
-    const cutsByHeight = cabinetBottomMm < mattressTopMm || bottomGapMm <= mattressThicknessMm;
+    const cutsByHeight = cabinetBottomMm < mattressTopMm - 1;
     if (!cutsByHeight) {
       continue;
     }
@@ -313,8 +313,12 @@ export function buildCushionMesh(
   cutoutZones: CushionRect[],
   thickness: number,
   yPos: number,
-  material: THREE.Material
+  material: THREE.Material,
+  options: { edgeSnapM?: number } = {}
 ): CushionMeshResult | null {
+  // Se o recorte do armário ficar próximo da borda do colchão (deixando apenas uma tira fina <= 80mm),
+  // estende o corte automaticamente até o final da borda para não sobrar uma "linha" inútil de espuma.
+  const edgeSnapM = options.edgeSnapM ?? 0.08;
   const activeCuts: CushionRect[] = [];
   for (const zone of cutoutZones) {
     const oMinX = Math.max(c.minX, zone.minX);
@@ -323,10 +327,10 @@ export function buildCushionMesh(
     const oMaxZ = Math.min(c.maxZ, zone.maxZ);
     if (oMaxX > oMinX + 0.005 && oMaxZ > oMinZ + 0.005) {
       activeCuts.push({
-        minX: oMinX <= c.minX + 0.012 ? c.minX : oMinX,
-        maxX: oMaxX >= c.maxX - 0.012 ? c.maxX : oMaxX,
-        minZ: oMinZ <= c.minZ + 0.012 ? c.minZ : oMinZ,
-        maxZ: oMaxZ >= c.maxZ - 0.012 ? c.maxZ : oMaxZ
+        minX: oMinX <= c.minX + edgeSnapM ? c.minX : oMinX,
+        maxX: oMaxX >= c.maxX - edgeSnapM ? c.maxX : oMaxX,
+        minZ: oMinZ <= c.minZ + edgeSnapM ? c.minZ : oMinZ,
+        maxZ: oMaxZ >= c.maxZ - edgeSnapM ? c.maxZ : oMaxZ
       });
     }
   }
@@ -601,5 +605,273 @@ export function buildCushionMesh(
     actualMaxX,
     actualMinZ,
     actualMaxZ
+  };
+}
+
+/**
+ * Constrói uma única malha contínua de almofada a partir da união de múltiplos retângulos
+ * adjacentes (mesmo formando L, T ou U entre módulos diferentes), subtraindo as zonas de recorte.
+ */
+export function buildUnionCushionMesh(
+  rects: CushionRect[],
+  cutoutZones: CushionRect[],
+  thickness: number,
+  yPos: number,
+  material: THREE.Material
+): CushionMeshResult | null {
+  if (!rects || rects.length === 0) return null;
+  if (rects.length === 1) {
+    return buildCushionMesh(rects[0], cutoutZones, thickness, yPos, material);
+  }
+
+  const bbox: CushionRect = {
+    minX: Math.min(...rects.map((r) => r.minX)),
+    maxX: Math.max(...rects.map((r) => r.maxX)),
+    minZ: Math.min(...rects.map((r) => r.minZ)),
+    maxZ: Math.max(...rects.map((r) => r.maxZ))
+  };
+
+  // Coleta grade de coordenadas dos retângulos unidos (agrupando valores a <= 4mm para selar folgas de dobradiça)
+  const snapUnique = (vals: number[]): number[] => {
+    const sorted = [...vals].sort((a, b) => a - b);
+    const out: number[] = [];
+    for (const v of sorted) {
+      if (out.length === 0 || v - out[out.length - 1] > 0.004) {
+        out.push(v);
+      }
+    }
+    return out;
+  };
+
+  const xs = snapUnique(rects.flatMap((r) => [r.minX, r.maxX]));
+  const zs = snapUnique(rects.flatMap((r) => [r.minZ, r.maxZ]));
+
+  const emptyZones: CushionRect[] = [];
+  const tol = 0.005;
+  for (let ix = 0; ix < xs.length - 1; ix++) {
+    const mx = (xs[ix] + xs[ix + 1]) / 2;
+    for (let iz = 0; iz < zs.length - 1; iz++) {
+      const mz = (zs[iz] + zs[iz + 1]) / 2;
+      const covered = rects.some(
+        (r) => mx >= r.minX - tol && mx <= r.maxX + tol && mz >= r.minZ - tol && mz <= r.maxZ + tol
+      );
+      if (!covered) {
+        emptyZones.push({ minX: xs[ix], maxX: xs[ix + 1], minZ: zs[iz], maxZ: zs[iz + 1] });
+      }
+    }
+  }
+
+  // Estende recortes reais de armário que ficam a <= 80mm das bordas do colchão até o final,
+  // sem afetar os emptyZones do formato em L/T
+  const edgeSnapM = 0.08;
+  const snappedCutouts: CushionRect[] = cutoutZones.map((zone) => {
+    const oMinX = Math.max(bbox.minX, zone.minX);
+    const oMaxX = Math.min(bbox.maxX, zone.maxX);
+    const oMinZ = Math.max(bbox.minZ, zone.minZ);
+    const oMaxZ = Math.min(bbox.maxZ, zone.maxZ);
+    if (oMaxX <= oMinX + 0.005 || oMaxZ <= oMinZ + 0.005) return zone;
+    return {
+      minX: oMinX <= bbox.minX + edgeSnapM ? bbox.minX : zone.minX,
+      maxX: oMaxX >= bbox.maxX - edgeSnapM ? bbox.maxX : zone.maxX,
+      minZ: oMinZ <= bbox.minZ + edgeSnapM ? bbox.minZ : zone.minZ,
+      maxZ: oMaxZ >= bbox.maxZ - edgeSnapM ? bbox.maxZ : zone.maxZ
+    };
+  });
+
+  const realCutoutsHit = snappedCutouts.some(
+    (z) => z.maxX > bbox.minX + 0.002 && z.minX < bbox.maxX - 0.002 && z.maxZ > bbox.minZ + 0.002 && z.minZ < bbox.maxZ - 0.002
+  );
+
+  const res = buildCushionMesh(bbox, [...emptyZones, ...snappedCutouts], thickness, yPos, material, { edgeSnapM: 0.012 });
+  if (!res) return null;
+
+  if (!realCutoutsHit) {
+    return {
+      ...res,
+      isCutout: emptyZones.length > 0,
+      labelSuffix: emptyZones.length > 0 ? ' • Formato L/União' : ''
+    };
+  }
+  return res;
+}
+
+export interface GroupJunctionSegment3D {
+  x1: number;
+  z1: number;
+  x2: number;
+  z2: number;
+}
+
+/**
+ * Constrói o grupo 3D visual das linhas de junção/emenda (costura pontilhada + marcação lateral)
+ * sobre uma almofada conectada em grupo, usando segmentos em coordenadas locais da malha.
+ */
+export function buildGroupJunctionLinesGroup(
+  segments: GroupJunctionSegment3D[],
+  thickness: number
+): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'MattressGroupJunctionDetails';
+
+  const topY = thickness / 2 + 0.0018;
+  const botY = -thickness / 2 - 0.0005;
+
+  const dashMat = new THREE.LineDashedMaterial({
+    color: 0x34d399,
+    dashSize: 0.028,
+    gapSize: 0.014,
+    transparent: true,
+    opacity: 0.95
+  });
+
+  const stripMat = new THREE.MeshBasicMaterial({
+    color: 0x065f46,
+    transparent: true,
+    opacity: 0.55
+  });
+
+  segments.forEach((seg, idx) => {
+    const dx = seg.x2 - seg.x1;
+    const dz = seg.z2 - seg.z1;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.015) return;
+
+    // 1. Faixa discreta de vinco/emenda no topo da espuma
+    const isAlongZ = Math.abs(dz) >= Math.abs(dx);
+    const stripW = isAlongZ ? 0.004 : len;
+    const stripL = isAlongZ ? len : 0.004;
+    const stripGeo = new THREE.BoxGeometry(stripW, 0.0014, stripL);
+    const stripMesh = new THREE.Mesh(stripGeo, stripMat);
+    stripMesh.name = `MattressJunctionStrip_${idx}`;
+    stripMesh.position.set((seg.x1 + seg.x2) / 2, topY - 0.0006, (seg.z1 + seg.z2) / 2);
+    group.add(stripMesh);
+
+    // 2. Linha tracejada verde-esmeralda no topo indicando a junção das partes do grupo
+    const topGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(seg.x1, topY, seg.z1),
+      new THREE.Vector3(seg.x2, topY, seg.z2)
+    ]);
+    const topLine = new THREE.Line(topGeo, dashMat);
+    topLine.name = `MattressJunctionTopLine_${idx}`;
+    topLine.computeLineDistances();
+    group.add(topLine);
+
+    // 3. Linhas verticais nas duas bordas laterais da emenda para visualização em perspectiva
+    const side1Geo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(seg.x1, topY, seg.z1),
+      new THREE.Vector3(seg.x1, botY, seg.z1)
+    ]);
+    const side1Line = new THREE.Line(side1Geo, dashMat);
+    side1Line.computeLineDistances();
+    group.add(side1Line);
+
+    const side2Geo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(seg.x2, topY, seg.z2),
+      new THREE.Vector3(seg.x2, botY, seg.z2)
+    ]);
+    const side2Line = new THREE.Line(side2Geo, dashMat);
+    side2Line.computeLineDistances();
+    group.add(side2Line);
+  });
+
+  return group;
+}
+
+/**
+ * Calcula e anexa na malha 3D de uma almofada conectada os detalhes visuais das junções
+ * entre todas as subpartes que compõem o grupo (respeitando recortes de armários aéreos).
+ */
+export function addGroupJunctionDetailsToCushion(
+  res: CushionMeshResult,
+  memberRects: CushionRect[],
+  cutoutZones: CushionRect[],
+  thickness: number
+): void {
+  if (!res || !memberRects || memberRects.length < 2) return;
+
+  const tol = 0.025;
+  const minSeg = 0.015;
+  const rawSegments: GroupJunctionSegment3D[] = [];
+
+  const subtractIntervals = (
+    start: number,
+    end: number,
+    cuts: Array<[number, number]>
+  ): Array<[number, number]> => {
+    let intervals: Array<[number, number]> = [[start, end]];
+    for (const [cMin, cMax] of cuts) {
+      const next: Array<[number, number]> = [];
+      for (const [a, b] of intervals) {
+        if (cMax <= a || cMin >= b) {
+          next.push([a, b]);
+        } else {
+          if (cMin > a + minSeg) next.push([a, cMin]);
+          if (cMax < b - minSeg) next.push([cMax, b]);
+        }
+      }
+      intervals = next;
+    }
+    return intervals.filter(([a, b]) => b - a > minSeg);
+  };
+
+  for (let i = 0; i < memberRects.length; i++) {
+    const rA = memberRects[i];
+    for (let j = i + 1; j < memberRects.length; j++) {
+      const rB = memberRects[j];
+
+      const touchesX = Math.abs(rA.maxX - rB.minX) <= tol || Math.abs(rB.maxX - rA.minX) <= tol;
+      const ovMinZ = Math.max(rA.minZ, rB.minZ, res.actualMinZ);
+      const ovMaxZ = Math.min(rA.maxZ, rB.maxZ, res.actualMaxZ);
+
+      if (touchesX && ovMaxZ - ovMinZ > minSeg) {
+        const sharedX = Math.abs(rA.maxX - rB.minX) <= tol
+          ? (rA.maxX + rB.minX) / 2
+          : (rB.maxX + rA.minX) / 2;
+        const cutsZ: Array<[number, number]> = cutoutZones
+          .filter((z) => sharedX >= z.minX - 0.006 && sharedX <= z.maxX + 0.006)
+          .map((z) => [z.minZ, z.maxZ]);
+
+        for (const [sMinZ, sMaxZ] of subtractIntervals(ovMinZ, ovMaxZ, cutsZ)) {
+          rawSegments.push({
+            x1: sharedX - res.mesh.position.x,
+            z1: sMinZ - res.mesh.position.z,
+            x2: sharedX - res.mesh.position.x,
+            z2: sMaxZ - res.mesh.position.z
+          });
+        }
+        continue;
+      }
+
+      const touchesZ = Math.abs(rA.maxZ - rB.minZ) <= tol || Math.abs(rB.maxZ - rA.minZ) <= tol;
+      const ovMinX = Math.max(rA.minX, rB.minX, res.actualMinX);
+      const ovMaxX = Math.min(rA.maxX, rB.maxX, res.actualMaxX);
+
+      if (touchesZ && ovMaxX - ovMinX > minSeg) {
+        const sharedZ = Math.abs(rA.maxZ - rB.minZ) <= tol
+          ? (rA.maxZ + rB.minZ) / 2
+          : (rB.maxZ + rA.minZ) / 2;
+        const cutsX: Array<[number, number]> = cutoutZones
+          .filter((z) => sharedZ >= z.minZ - 0.006 && sharedZ <= z.maxZ + 0.006)
+          .map((z) => [z.minX, z.maxX]);
+
+        for (const [sMinX, sMaxX] of subtractIntervals(ovMinX, ovMaxX, cutsX)) {
+          rawSegments.push({
+            x1: sMinX - res.mesh.position.x,
+            z1: sharedZ - res.mesh.position.z,
+            x2: sMaxX - res.mesh.position.x,
+            z2: sharedZ - res.mesh.position.z
+          });
+        }
+      }
+    }
+  }
+
+  if (rawSegments.length === 0) return;
+
+  const junctionGroup = buildGroupJunctionLinesGroup(rawSegments, thickness);
+  res.mesh.add(junctionGroup);
+  res.mesh.userData = {
+    ...res.mesh.userData,
+    groupJunctionSegments: rawSegments
   };
 }

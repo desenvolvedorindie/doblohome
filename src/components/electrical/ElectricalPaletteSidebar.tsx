@@ -9,6 +9,8 @@ import {
   buildSystemFixedTemplates
 } from '../../utils/electricalCatalog';
 import { useSolar } from '../../context/SolarContext';
+import { ConnectorIllustration } from './schematic/ConnectorIllustration';
+import { useElectricalIconScale } from './planar/ElectricalIconScaleContext';
 
 interface ElectricalPaletteSidebarProps {
   onAddTemplate: (template: ElectricalCatalogTemplate) => void;
@@ -35,6 +37,7 @@ export const ElectricalPaletteSidebar: React.FC<ElectricalPaletteSidebarProps> =
     activeMpptPreset,
     activeB2bPreset
   } = useSolar();
+  const iconScale = useElectricalIconScale();
   const [search, setSearch] = useState('');
   const [showCustomForm, setShowCustomForm] = useState(false);
 
@@ -120,7 +123,13 @@ export const ElectricalPaletteSidebar: React.FC<ElectricalPaletteSidebarProps> =
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0, flex: 1 }}>
-          <span style={{ fontSize: '15px', lineHeight: 1 }}>{tpl.icon}</span>
+          {tpl.kind === 'connector' && tpl.connectorType ? (
+            <ConnectorIllustration type={tpl.connectorType} size={24} />
+          ) : (
+            <span style={{ fontSize: `${Math.round(15 * iconScale)}px`, lineHeight: 1 }}>
+              {tpl.icon}
+            </span>
+          )}
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
               style={{

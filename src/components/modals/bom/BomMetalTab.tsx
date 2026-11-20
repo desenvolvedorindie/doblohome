@@ -355,16 +355,16 @@ export const BomMetalTab: React.FC<BomMetalTabProps> = ({
         </thead>
         <tbody>
           <tr>
-            <td><strong>Ponteiras Plásticas para Metalon 40×40 mm (CAPs c/ Aletas)</strong></td>
-            <td>Polietileno PEAD preto de alta densidade · aba de acabamento 4 mm · encaixe 16 mm c/ 3 aletas flexíveis de pressão anti-recuo · compatível c/ tubo 40×40 mm</td>
+            <td><strong>Ponteiras Plásticas para Perfil/Metalon 40×40 mm (CAPs c/ Aletas)</strong></td>
+            <td>Polietileno PEAD preto de alta densidade · aba de acabamento 4 mm · encaixe 16 mm c/ 3 aletas flexíveis de pressão anti-recuo · compatível c/ perfil alumínio/metalon 40×40 mm</td>
             <td>{barStats?.metalonCaps ? barStats.metalonCaps.filter((c: any) => c.sizeSpec === '40x40').reduce((acc: number, c: any) => acc + c.qty, 0) : 4} un</td>
-            <td>Vedação estanque contra água de chuva nas longarinas do rack base (e baú), proteção anti-corte e acabamento estético</td>
+            <td>Vedação estanque contra água de chuva nas longarinas do rack base (e subchassi do baú), proteção anti-corte e acabamento estético</td>
           </tr>
           <tr>
-            <td><strong>Ponteiras Plásticas para Metalon 30×30 mm (CAPs c/ Aletas)</strong></td>
-            <td>Polietileno PEAD preto · aba 3.5 mm · encaixe 16 mm c/ aletas flexíveis · compatível c/ tubo 30×30 mm</td>
-            <td>{barStats?.metalonCaps?.find((c: any) => c.sizeSpec === '30x30')?.qty || 4} un</td>
-            <td>Fechamento e proteção das extremidades abertas das travessas superiores e tubos 30×30</td>
+            <td><strong>Ponteiras Plásticas para Perfil/Metalon 30×30 mm (CAPs c/ Aletas)</strong></td>
+            <td>Polietileno PEAD preto · aba 4 mm · encaixe 16 mm c/ 3 aletas flexíveis · compatível c/ perfil alumínio/metalon 30×30 mm</td>
+            <td>{barStats?.metalonCaps ? barStats.metalonCaps.filter((c: any) => c.sizeSpec === '30x30').reduce((acc: number, c: any) => acc + c.qty, 0) : 4} un</td>
+            <td>Fechamento e proteção das extremidades abertas das bandejas solares e travessas superiores 30×30</td>
           </tr>
           <tr>
             <td><strong>Sistema Deslizante: Perfil Alumínio + Parafusos Guia</strong></td>

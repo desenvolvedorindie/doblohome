@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { InternalBoxItem, SlatBedDirection } from '../../../types';
+import { buildMattressPartitions, getPartitionLabel } from '../../../utils/mattressGrouping';
 import {
+  addGroupJunctionDetailsToCushion,
   buildCushionMesh,
   CushionMeshResult,
   CushionRect
@@ -23,6 +25,7 @@ export function buildLongitudinalMattress(params: {
   seamMat: THREE.Material;
   cutoutZones: CushionRect[];
   foamName?: string;
+  skipSubpartIndices?: Set<number>;
 }) {
   const {
     container,
@@ -40,7 +43,8 @@ export function buildLongitudinalMattress(params: {
     mattressMat,
     seamMat,
     cutoutZones,
-    foamName
+    foamName,
+    skipSubpartIndices
   } = params;
 
   const foamLabel = foamName || 'Espuma D33';
@@ -51,60 +55,92 @@ export function buildLongitudinalMattress(params: {
   const cushionL = cellL;
 
   if (isExtended) {
-    const cushionResults: Array<CushionMeshResult | null> = [];
+    const baseIntervalsZ: Array<{ minZ: number; maxZ: number }> = [];
 
     if (parts === 2 && box.bedMode === 'hinged') {
       const leafL = Math.min(l, Math.max(Math.min(0.10, l), (box.hingedBedLeafSizeMm !== undefined ? box.hingedBedLeafSizeMm / 1000 : l)));
       const hingeGap = 0.003;
-
-      const ranges = direction === 'front'
-        ? [
-            { minZ: -l / 2, maxZ: l / 2 },
-            { minZ: l / 2, maxZ: l / 2 + hingeGap + leafL }
-          ]
-        : [
-            { minZ: -l / 2, maxZ: l / 2 },
-            { minZ: -l / 2 - hingeGap - leafL, maxZ: -l / 2 }
-          ];
-
-      for (let i = 0; i < 2; i++) {
-        const rng = ranges[i];
-        const cRes = buildCushionMesh(
-          { minX: -cushionW / 2, maxX: cushionW / 2, minZ: rng.minZ, maxZ: rng.maxZ },
-          cutoutZones,
-          mattressThickness,
-          mattressY,
-          mattressMat
-        );
-        cushionResults.push(cRes);
-        if (cRes) {
-          cRes.mesh.castShadow = true;
-          cRes.mesh.receiveShadow = true;
-          const curW = cRes.actualMaxX - cRes.actualMinX;
-          const curL = cRes.actualMaxZ - cRes.actualMinZ;
-          cRes.mesh.userData = {
-            isWoodPart: false,
-            isUpholstery: true,
-            dimW: curW,
-            dimH: mattressThickness,
-            dimL: curL,
-            thicknessMm: Math.round(mattressThickness * 1000),
-            partLabel: `Almofada Longitudinal ${i + 1}/2 (${partsName})${cRes.labelSuffix}`,
-            material: `${foamLabel} Revestida em Tecido Impermeável ${partsName}`,
-            woodMaterial: upholsteryWoodMat,
-            category: '🛏️ Estofaria Campervan',
-            hasCabinetCutout: cRes.isCutout,
-            moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
-            partType: 'upholstery'
-          };
-          container.add(cRes.mesh);
-        }
+      if (direction === 'front') {
+        baseIntervalsZ.push({ minZ: -l / 2, maxZ: l / 2 });
+        baseIntervalsZ.push({ minZ: l / 2, maxZ: l / 2 + hingeGap + leafL });
+      } else {
+        baseIntervalsZ.push({ minZ: -l / 2, maxZ: l / 2 });
+        baseIntervalsZ.push({ minZ: -l / 2 - hingeGap - leafL, maxZ: -l / 2 });
       }
+    } else {
+      for (let i = 0; i < parts; i++) {
+        const pieceCenterZ = direction === 'front'
+          ? (-l / 2 + (i + 0.5) * cellL)
+          : (l / 2 - (i + 0.5) * cellL);
+        baseIntervalsZ.push({ minZ: pieceCenterZ - cushionL / 2, maxZ: pieceCenterZ + cushionL / 2 });
+      }
+    }
 
-      const seamZ = direction === 'front' ? l / 2 : -l / 2;
-      const cA = cushionResults[0];
-      const cB = cushionResults[1];
+    const partitions = buildMattressPartitions(parts, box.mattressMergedGroups);
+    const partitionResults: Array<CushionMeshResult | null> = [];
+    const partitionBounds: Array<{ minZ: number; maxZ: number }> = [];
+
+    partitions.forEach((partition) => {
+      if (skipSubpartIndices && partition.indices.every((idx) => skipSubpartIndices.has(idx))) {
+        partitionBounds.push({ minZ: 0, maxZ: 0 });
+        partitionResults.push(null);
+        return;
+      }
+      const minZ = Math.min(...partition.indices.map((idx) => baseIntervalsZ[idx].minZ));
+      const maxZ = Math.max(...partition.indices.map((idx) => baseIntervalsZ[idx].maxZ));
+      partitionBounds.push({ minZ, maxZ });
+
+      const cRes = buildCushionMesh(
+        { minX: -cushionW / 2, maxX: cushionW / 2, minZ, maxZ },
+        cutoutZones,
+        mattressThickness,
+        mattressY,
+        mattressMat
+      );
+      partitionResults.push(cRes);
+
+      if (cRes) {
+        cRes.mesh.castShadow = true;
+        cRes.mesh.receiveShadow = true;
+        const curW = cRes.actualMaxX - cRes.actualMinX;
+        const curL = cRes.actualMaxZ - cRes.actualMinZ;
+        const baseLabel = getPartitionLabel(partition, parts, direction, partsName);
+        cRes.mesh.userData = {
+          isWoodPart: false,
+          isUpholstery: true,
+          dimW: curW,
+          dimH: mattressThickness,
+          dimL: curL,
+          thicknessMm: Math.round(mattressThickness * 1000),
+          partLabel: `${baseLabel}${cRes.labelSuffix}`,
+          material: `${foamLabel} Revestida em Tecido Impermeável ${partsName}`,
+          woodMaterial: upholsteryWoodMat,
+          category: '🛏️ Estofaria Campervan',
+          hasCabinetCutout: cRes.isCutout,
+          moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
+          partType: 'upholstery',
+          mattressSubpartIndices: partition.indices,
+          isMergedMattressGroup: partition.isMerged
+        };
+        if (partition.isMerged) {
+          const memberRects = partition.indices.map((idx) => ({
+            minX: -cushionW / 2,
+            maxX: cushionW / 2,
+            minZ: baseIntervalsZ[idx].minZ,
+            maxZ: baseIntervalsZ[idx].maxZ
+          }));
+          addGroupJunctionDetailsToCushion(cRes, memberRects, cutoutZones, mattressThickness);
+        }
+        container.add(cRes.mesh);
+      }
+    });
+
+    // Costuras apenas entre partições separadas
+    for (let p = 0; p < partitions.length - 1; p++) {
+      const cA = partitionResults[p];
+      const cB = partitionResults[p + 1];
       if (cA && cB) {
+        const seamZ = direction === 'front' ? partitionBounds[p].maxZ : partitionBounds[p].minZ;
         const seamMinX = Math.max(cA.actualMinX, cB.actualMinX);
         const seamMaxX = Math.min(cA.actualMaxX, cB.actualMaxX);
         if (seamMaxX > seamMinX + 0.01) {
@@ -113,63 +149,6 @@ export function buildLongitudinalMattress(params: {
           const seamMesh = new THREE.Mesh(seamGeo, seamMat);
           seamMesh.position.set((seamMinX + seamMaxX) / 2, mattressY, seamZ);
           container.add(seamMesh);
-        }
-      }
-    } else {
-      for (let i = 0; i < parts; i++) {
-        const pieceCenterZ = direction === 'front'
-          ? (-l / 2 + (i + 0.5) * cellL)
-          : (l / 2 - (i + 0.5) * cellL);
-
-        const cRes = buildCushionMesh(
-          { minX: -cushionW / 2, maxX: cushionW / 2, minZ: pieceCenterZ - cushionL / 2, maxZ: pieceCenterZ + cushionL / 2 },
-          cutoutZones,
-          mattressThickness,
-          mattressY,
-          mattressMat
-        );
-        cushionResults.push(cRes);
-
-        if (cRes) {
-          cRes.mesh.castShadow = true;
-          cRes.mesh.receiveShadow = true;
-          const curW = cRes.actualMaxX - cRes.actualMinX;
-          const curL = cRes.actualMaxZ - cRes.actualMinZ;
-          cRes.mesh.userData = {
-            isWoodPart: false,
-            isUpholstery: true,
-            dimW: curW,
-            dimH: mattressThickness,
-            dimL: curL,
-            thicknessMm: Math.round(mattressThickness * 1000),
-            partLabel: `Almofada Longitudinal ${i + 1}/${parts} (${partsName})${cRes.labelSuffix}`,
-            material: `${foamLabel} Revestida em Tecido Impermeável ${partsName}`,
-            woodMaterial: upholsteryWoodMat,
-            category: '🛏️ Estofaria Campervan',
-            hasCabinetCutout: cRes.isCutout,
-            moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
-            partType: 'upholstery'
-          };
-          container.add(cRes.mesh);
-        }
-      }
-
-      for (let i = 0; i < parts - 1; i++) {
-        const cA = cushionResults[i];
-        const cB = cushionResults[i + 1];
-        if (cA && cB) {
-          const pieceCenterZ = direction === 'front'
-            ? (-l / 2 + (i + 1) * cellL)
-            : (l / 2 - (i + 1) * cellL);
-          const seamMinX = Math.max(cA.actualMinX, cB.actualMinX);
-          const seamMaxX = Math.min(cA.actualMaxX, cB.actualMaxX);
-          if (seamMaxX > seamMinX + 0.01) {
-            const seamW = seamMaxX - seamMinX;
-            const seamGeo = new THREE.BoxGeometry(seamW, mattressThickness + 0.002, 0.004);
-            const seamMesh = new THREE.Mesh(seamGeo, seamMat);
-            seamMesh.position.set((seamMinX + seamMaxX) / 2, mattressY, pieceCenterZ);
-            container.add(seamMesh);
-          }
         }
       }
     }

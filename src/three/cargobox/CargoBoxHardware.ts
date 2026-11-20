@@ -11,24 +11,128 @@ export interface GasStrutRuntime {
 
 export class CargoBoxHardware {
   /**
-   * Constrói uma dobradiça industrial reforçada em aço inox 304
+   * Constrói uma dobradiça industrial reforçada em aço inox 304 posicionada na face externa
+   * da junção entre a torre vertical e a longarina do rack basculante (sem enterrar dentro do perfil).
+   * - Aba inferior + 3 gomos + pino externo ficam fixos no subchassi (`targetGroup`)
+   * - Aba superior fica no grupo móvel (`upperTargetGroup`), acompanhando o basculamento do rack
    */
-  static buildStainlessHinge(x: number, y: number, z: number, targetGroup: THREE.Group) {
+  static buildStainlessHinge(
+    x: number,
+    y: number,
+    z: number,
+    targetGroup: THREE.Group,
+    options: {
+      outwardSign?: number;
+      profileSize?: number;
+      isTelescopic?: boolean;
+      upperTargetGroup?: THREE.Group;
+    } = {}
+  ) {
     const mats = MaterialLibrary.materials;
-    const hinge = new THREE.Group();
+    const hingeMat = mats.stainlessHinge || new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.94, roughness: 0.22 });
+    const boltMat = mats.allenScrew || hingeMat;
 
-    // Pino cilíndrico central
-    const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.08, 16), mats.stainlessHinge);
+    const outwardSign = options.outwardSign ?? (x < 0 ? -1 : 1);
+    const pSize = options.profileSize ?? 0.04;
+    const isTelescopic = options.isTelescopic ?? false;
+    const upperTarget = options.upperTargetGroup || targetGroup;
+
+    const leafThick = 0.004;
+    const leafLenZ = 0.072;
+    const lowerLeafH = 0.044;
+    const upperLeafH = 0.036;
+    const barrelRadius = 0.006;
+
+    // Face externa do perfil 40x40 e eixo externo do pino da dobradiça
+    const outerFaceX = x + outwardSign * (pSize / 2);
+    const pinX = outerFaceX + outwardSign * barrelRadius;
+    const seamY = y - pSize / 2;
+
+    // ─── 1. Parte Fixa (na torre / subchassi) ───────────────────────────────
+    const lowerGroup = new THREE.Group();
+    lowerGroup.name = 'StainlessHinge_Lower';
+
+    // Aba inferior encostada na face externa da torre (para baixo da emenda)
+    const lowerLeafX = outerFaceX + outwardSign * (leafThick / 2);
+    const lowerLeaf = new THREE.Mesh(
+      new THREE.BoxGeometry(leafThick, lowerLeafH, leafLenZ),
+      hingeMat
+    );
+    lowerLeaf.position.set(lowerLeafX, seamY - lowerLeafH / 2, z);
+    lowerLeaf.castShadow = true;
+    lowerGroup.add(lowerLeaf);
+
+    // Calço espaçador de 5mm quando torre telescópica (tubo interno 30x30 dentro de camisa 40x40)
+    if (isTelescopic) {
+      const shimThick = 0.005;
+      const shim = new THREE.Mesh(
+        new THREE.BoxGeometry(shimThick, lowerLeafH - 0.004, leafLenZ - 0.006),
+        hingeMat
+      );
+      shim.position.set(outerFaceX - outwardSign * (shimThick / 2), seamY - lowerLeafH / 2, z);
+      lowerGroup.add(shim);
+    }
+
+    // Parafusos inox na aba inferior
+    [-0.022, 0.022].forEach((zOff) => {
+      const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.003, 12), boltMat);
+      bolt.rotation.z = Math.PI / 2;
+      bolt.position.set(lowerLeafX + outwardSign * (leafThick / 2 + 0.0012), seamY - lowerLeafH * 0.55, z + zOff);
+      lowerGroup.add(bolt);
+    });
+
+    // Pino cilíndrico central externo
+    const pin = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.0038, 0.0038, leafLenZ + 0.008, 16),
+      boltMat
+    );
     pin.rotation.x = Math.PI / 2;
-    hinge.add(pin);
+    pin.position.set(pinX, seamY, z);
+    pin.castShadow = true;
+    lowerGroup.add(pin);
 
-    // Folha inferior fixa no subchassi
-    const leafLower = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.004, 0.07), mats.stainlessHinge);
-    leafLower.position.set(-0.015 * Math.sign(x), -0.004, 0);
-    hinge.add(leafLower);
+    // 3 gomos (knuckles) ao longo do pino
+    const knuckleLen = leafLenZ / 3 - 0.0015;
+    [-leafLenZ / 3, 0, leafLenZ / 3].forEach((zOff, idx) => {
+      const knuckle = new THREE.Mesh(
+        new THREE.CylinderGeometry(barrelRadius, barrelRadius, knuckleLen, 16),
+        hingeMat
+      );
+      knuckle.rotation.x = Math.PI / 2;
+      knuckle.position.set(pinX, seamY, z + zOff);
+      knuckle.castShadow = true;
+      // Gomo central na aba superior; pontas na aba inferior
+      if (idx === 1) {
+        upperTarget.add(knuckle);
+      } else {
+        lowerGroup.add(knuckle);
+      }
+    });
 
-    hinge.position.set(x, y, z);
-    targetGroup.add(hinge);
+    targetGroup.add(lowerGroup);
+
+    // ─── 2. Parte Móvel (aba superior fixa na face externa da longarina do rack) ───
+    const upperGroup = new THREE.Group();
+    upperGroup.name = 'StainlessHinge_Upper';
+
+    const upperLeafX = outerFaceX + outwardSign * (leafThick / 2);
+    const upperLeaf = new THREE.Mesh(
+      new THREE.BoxGeometry(leafThick, upperLeafH, leafLenZ),
+      hingeMat
+    );
+    upperLeaf.position.set(upperLeafX, seamY + upperLeafH / 2, z);
+    upperLeaf.castShadow = true;
+    upperGroup.add(upperLeaf);
+
+    // Parafusos inox na aba superior
+    [-0.022, 0.022].forEach((zOff) => {
+      const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.003, 12), boltMat);
+      bolt.rotation.z = Math.PI / 2;
+      bolt.position.set(upperLeafX + outwardSign * (leafThick / 2 + 0.0012), seamY + upperLeafH * 0.52, z + zOff);
+      upperGroup.add(bolt);
+    });
+
+    upperTarget.add(upperGroup);
   }
 
   /**

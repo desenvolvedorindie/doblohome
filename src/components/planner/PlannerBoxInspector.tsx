@@ -36,8 +36,6 @@ export const PlannerBoxInspector: React.FC<PlannerBoxInspectorProps> = ({ cols: 
     setSelectedBoxId,
     isolatedBoxId,
     setIsolatedBoxId,
-    isOpenPreview,
-    setIsOpenPreview,
     updateInternalBox,
     removeInternalBox,
   } = useSolar();
@@ -836,16 +834,39 @@ export const PlannerBoxInspector: React.FC<PlannerBoxInspectorProps> = ({ cols: 
 
         {/* Direção da Dobradiça (Exclusivo para Baú) */}
         {selectedBox.type === 'chest' && (
-          <div>
-            <label style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
-              Direção de Abertura do Baú:
-            </label>
+          <div style={{ gridColumn: '1 / -1', background: 'rgba(15, 23, 42, 0.45)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '10.5px', color: '#f59e0b', fontWeight: 700, margin: 0 }}>
+                🧰 Direção de Abertura do Baú:
+              </label>
+              <button
+                type="button"
+                className="btn-compact"
+                onClick={() => updateInternalBox(selectedBox.id, { isOpen: !selectedBox.isOpen })}
+                style={{
+                  fontSize: '10.5px',
+                  padding: '4px 10px',
+                  fontWeight: 700,
+                  background: selectedBox.isOpen
+                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                    : 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                  borderColor: selectedBox.isOpen ? '#34d399' : '#fbbf24',
+                  color: '#ffffff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                title="Abrir ou fechar apenas a tampa deste baú no modelo 3D"
+              >
+                <span>{selectedBox.isOpen ? '🔓' : '🧰'}</span>
+                <span>{selectedBox.isOpen ? 'Tampa Aberta (Fechar)' : 'Abrir Tampa do Baú'}</span>
+              </button>
+            </div>
             <select
               value={selectedBox.chestHingeDirection || 'front'}
               onChange={(e) => {
                 const newDir = e.target.value as ChestHingeDirection;
-                updateInternalBox(selectedBox.id, { chestHingeDirection: newDir });
-                setIsOpenPreview(true);
+                updateInternalBox(selectedBox.id, { chestHingeDirection: newDir, isOpen: true });
               }}
               style={{
                 width: '100%',

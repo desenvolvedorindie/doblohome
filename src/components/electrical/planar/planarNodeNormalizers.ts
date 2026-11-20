@@ -14,6 +14,7 @@ export interface SavedDiagramState {
   nodes: Node<ElectricalNodeData>[];
   edges: Edge<ElectricalEdgeData>[];
   edgeStyle?: ElectricalEdgeStyle;
+  iconScale?: number;
 }
 
 export function normalizeBusbarNode(

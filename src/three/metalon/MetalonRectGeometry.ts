@@ -249,20 +249,56 @@ export function createMetalonTubeMesh(
 
   // Tampões plásticos / CAPs nas extremidades
   if (options.addCaps) {
-    const capFront = buildMetalonCapMesh(width, height, thickness, options.capMaterial, { centered: true });
-    capFront.position.set(0, 0, length / 2);
-    mesh.add(capFront);
-
-    const capRear = buildMetalonCapMesh(width, height, thickness, options.capMaterial, { centered: true });
-    capRear.position.set(0, 0, -length / 2);
-    mesh.add(capRear);
+    attachEndCapsToMesh(mesh, length, width, height, thickness, axis, options.capMaterial);
   }
 
   return mesh;
 }
 
 /**
- * Constrói o Mesh 3D de um CAP de Metalon (Ponteira plástica com aletas de retenção e flange)
+ * Anexa 2 tampões plásticos / CAPs nas extremidades abertas de um perfil/tubo ao longo do eixo especificado.
+ * Funciona tanto para Metalon/Tubo Retangular quanto para Perfil T-Slot de Alumínio.
+ */
+export function attachEndCapsToMesh(
+  mesh: THREE.Object3D,
+  length: number,
+  width: number,
+  height: number,
+  wallThickness: number = 0.0020,
+  axis: 'x' | 'y' | 'z' = 'z',
+  capMaterial?: THREE.Material
+): void {
+  const mat = capMaterial || MaterialLibrary.materials?.metalonCap;
+  const sizeMm = Math.round(Math.max(width, height) * 1000);
+
+  const capPos = buildMetalonCapMesh(width, height, wallThickness, mat, { centered: false });
+  capPos.userData = { isMetalonCap: true, capSizeMm: sizeMm };
+
+  const capNeg = buildMetalonCapMesh(width, height, wallThickness, mat, { centered: false });
+  capNeg.userData = { isMetalonCap: true, capSizeMm: sizeMm };
+
+  if (axis === 'z') {
+    capPos.position.set(0, 0, length / 2);
+    capNeg.position.set(0, 0, -length / 2);
+    capNeg.rotation.y = Math.PI;
+  } else if (axis === 'x') {
+    capPos.position.set(length / 2, 0, 0);
+    capPos.rotation.y = Math.PI / 2;
+    capNeg.position.set(-length / 2, 0, 0);
+    capNeg.rotation.y = -Math.PI / 2;
+  } else {
+    capPos.position.set(0, length / 2, 0);
+    capPos.rotation.x = -Math.PI / 2;
+    capNeg.position.set(0, -length / 2, 0);
+    capNeg.rotation.x = Math.PI / 2;
+  }
+
+  mesh.add(capPos);
+  mesh.add(capNeg);
+}
+
+/**
+ * Constrói o Mesh 3D de um CAP de Metalon / Perfil de Alumínio (Ponteira plástica com aletas de retenção e flange)
  */
 export function buildMetalonCapMesh(
   width: number = 0.040,
@@ -274,10 +310,10 @@ export function buildMetalonCapMesh(
   const group = new THREE.Group();
   group.name = 'MetalonCapMesh';
 
-  const capMat = material || new THREE.MeshStandardMaterial({
-    color: 0x1e293b,
-    roughness: 0.65,
-    metalness: 0.15
+  const capMat = material || MaterialLibrary.materials?.metalonCap || new THREE.MeshStandardMaterial({
+    color: 0x181a1f,
+    roughness: 0.62,
+    metalness: 0.06
   });
 
   const flangeThick = 0.004;
@@ -287,29 +323,34 @@ export function buildMetalonCapMesh(
   const shankW = Math.max(0.010, width - 2 * wallThickness - 0.001);
   const shankH = Math.max(0.010, height - 2 * wallThickness - 0.001);
 
-  // Offset Z caso centered seja true
-  const zOffset = options.centered ? 0 : -totalDepth / 2;
+  // Quando centered=true: geometria centrada em z=0 (usado na bancada de peças)
+  // Quando centered=false: flange fica para fora (0..+flangeThick) e haste encaixada dentro (-shankDepth..0)
+  const flangeZ = options.centered ? (totalDepth / 2 - flangeThick / 2) : (flangeThick / 2);
+  const shankZ = options.centered ? (-flangeThick / 2) : (-shankDepth / 2);
+  const hitZ = options.centered ? 0 : ((flangeThick - shankDepth) / 2);
 
   // Hitbox
   const hitGeo = new THREE.BoxGeometry(width, height, totalDepth);
   const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
   const hitbox = new THREE.Mesh(hitGeo, hitMat);
   hitbox.name = '__hitbox';
-  hitbox.position.set(0, 0, zOffset);
+  hitbox.position.set(0, 0, hitZ);
   group.add(hitbox);
 
   // Flange frontal externa
   const flangeGeo = new THREE.BoxGeometry(width, height, flangeThick);
   const flange = new THREE.Mesh(flangeGeo, capMat);
   flange.name = 'MetalonCap_Flange';
-  flange.position.set(0, 0, zOffset + (totalDepth / 2 - flangeThick / 2));
+  flange.castShadow = true;
+  flange.receiveShadow = true;
+  flange.position.set(0, 0, flangeZ);
   group.add(flange);
 
   // Haste de encaixe interno (Shank)
   const shankGeo = new THREE.BoxGeometry(shankW, shankH, shankDepth);
   const shank = new THREE.Mesh(shankGeo, capMat);
   shank.name = 'MetalonCap_Shank';
-  shank.position.set(0, 0, zOffset - flangeThick / 2);
+  shank.position.set(0, 0, shankZ);
   group.add(shank);
 
   // 3 Aletas de retenção (Ribs)
@@ -318,7 +359,7 @@ export function buildMetalonCapMesh(
   ribPositions.forEach((zRel, idx) => {
     const rib = new THREE.Mesh(ribGeo, capMat);
     rib.name = `MetalonCap_Rib_${idx + 1}`;
-    rib.position.set(0, 0, zOffset - flangeThick / 2 + zRel);
+    rib.position.set(0, 0, shankZ + zRel);
     group.add(rib);
   });
 

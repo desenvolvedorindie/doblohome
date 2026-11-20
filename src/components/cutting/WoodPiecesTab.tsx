@@ -90,6 +90,9 @@ export const WoodPiecesTab: React.FC<WoodPiecesTabProps> = ({
               <tbody>
                 {cat.pieces.map((p) => {
                   const isSelected = selectedPieceKey === p.key;
+                  const displayPieceName = p.label.includes('•')
+                    ? p.label.split('•').slice(1).join('•').trim().replace(/\s*\(\d+.*?\)$/, '')
+                    : p.label.replace(/\s*\(\d+.*?\)$/, '');
                   return (
                     <tr
                       key={p.key}
@@ -98,8 +101,11 @@ export const WoodPiecesTab: React.FC<WoodPiecesTabProps> = ({
                         background: isSelected ? 'rgba(56, 189, 248, 0.18)' : 'transparent'
                       }}
                     >
-                      <td style={{ padding: '4px 6px', fontWeight: 600, color: isSelected ? '#38bdf8' : '#f8fafc' }}>
-                        {p.label}
+                      <td
+                        style={{ padding: '4px 6px', fontWeight: 600, color: isSelected ? '#38bdf8' : '#f8fafc' }}
+                        title={p.label}
+                      >
+                        {displayPieceName}
                         {p.isPerforated && (
                           <span style={{ fontSize: '9px', color: '#34d399', marginLeft: '4px' }}>
                             🕳️ Furos CNC

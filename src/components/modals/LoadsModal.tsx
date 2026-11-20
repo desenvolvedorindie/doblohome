@@ -124,7 +124,7 @@ export const LoadsModal: React.FC = () => {
                 id="input-load-watts"
                 min="0.1"
                 max="5000"
-                step="0.5"
+                step="any"
                 placeholder="Ex: 45"
                 value={watts}
                 onChange={(e) => setWatts(e.target.value)}
@@ -138,7 +138,7 @@ export const LoadsModal: React.FC = () => {
                 id="input-load-hours"
                 min="0.05"
                 max="24"
-                step="0.1"
+                step="any"
                 placeholder="Ex: 8.0"
                 value={hours}
                 onChange={(e) => setHours(e.target.value)}

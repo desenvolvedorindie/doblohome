@@ -90,22 +90,6 @@ export class SpacerPostsBuilder {
         profileSpec: profileSpec30
       };
       targetGroup.add(post);
-
-      // Cantoneira de fixação na base sobre a longarina do rack
-      const baseBracketGeo = new THREE.BoxGeometry(0.036, 0.008, 0.036);
-      const baseBracket = new THREE.Mesh(baseBracketGeo, mats.telescopicRail || postMat);
-      baseBracket.position.set(xP, yFrom + 0.004, cfg.z);
-      targetGroup.add(baseBracket);
-
-      // Cantoneira de união do topo do pilar à face inferior da travessa superior
-      const topPillarBracketGeo = new THREE.BoxGeometry(0.026, 0.026, 0.026);
-      const topPillarBracket = new THREE.Mesh(topPillarBracketGeo, mats.telescopicRail || postMat);
-      topPillarBracket.position.set(
-        xP - cfg.xSign * (postSize / 2 + 0.013),
-        yTopRail - postSize / 2 - 0.013,
-        cfg.z
-      );
-      targetGroup.add(topPillarBracket);
     });
 
     // 2. Travessas Transversais Inteiriças no TOPO (Dianteira e Traseira)
@@ -122,9 +106,9 @@ export class SpacerPostsBuilder {
     transPositions.forEach(tp => {
       let transMesh;
       if (isTSlot) {
-        transMesh = AluminumExtrusionFactory.createProfileMesh(transLen, postMat, { axis: 'x', size: postSize, showCutFace: true });
+        transMesh = AluminumExtrusionFactory.createProfileMesh(transLen, postMat, { axis: 'x', size: postSize, showCutFace: true, addCaps: true });
       } else {
-        transMesh = MetalonTubeFactory.createTubeMesh(transLen, postMat, { axis: 'x', size: postSize, thickness: thicknessM });
+        transMesh = MetalonTubeFactory.createTubeMesh(transLen, postMat, { axis: 'x', size: postSize, thickness: thicknessM, showCutFace: true, addCaps: true });
       }
       transMesh.position.set(transCenterX, yTopRail, tp.z);
       transMesh.castShadow = true;
@@ -166,32 +150,6 @@ export class SpacerPostsBuilder {
         profileSpec: profileSpec30
       };
       targetGroup.add(longMesh);
-
-      // Cantoneiras nos 4 cantos internos de união entre longarina superior e travessa superior
-      [
-        { z: zLongStart + 0.013, labelZ: 'Traseira' },
-        { z: zLongEnd - 0.013, labelZ: 'Dianteira' }
-      ].forEach(corner => {
-        const cornerBracketGeo = new THREE.BoxGeometry(0.026, 0.026, 0.026);
-        const cornerBracket = new THREE.Mesh(cornerBracketGeo, mats.telescopicRail || postMat);
-        cornerBracket.position.set(xPos - side.xSign * (postSize / 2 + 0.013), yTopRail, corner.z);
-        targetGroup.add(cornerBracket);
-      });
-    });
-
-    // 4. Cantoneiras de fixação da bandeja L2 às longarinas superiores
-    const zCorners = [
-      zCenter + (l2Length / 2 - postSize / 2),
-      zCenter - (l2Length / 2 - postSize / 2)
-    ];
-    zCorners.forEach(zC => {
-      [-1, 1].forEach(xSign => {
-        const xTrayOuter = xSign * (l2Width / 2);
-        const trayBracketGeo = new THREE.BoxGeometry(0.026, 0.026, 0.026);
-        const trayBracket = new THREE.Mesh(trayBracketGeo, mats.telescopicRail || postMat);
-        trayBracket.position.set(xTrayOuter, yTopRail + postSize / 2, zC);
-        targetGroup.add(trayBracket);
-      });
     });
   }
 }

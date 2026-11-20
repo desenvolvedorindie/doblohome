@@ -17,6 +17,23 @@ interface CuttingSvgCanvasProps {
   onPointerUp: (e: React.PointerEvent) => void;
 }
 
+const getDisplayLabel = (label: string, maxLen = 22): string => {
+  if (!label) return '';
+  let partName = label;
+  if (label.includes('•')) {
+    const parts = label.split('•');
+    partName = parts[parts.length - 1].trim();
+  }
+  partName = partName.replace(/\s*\(\d+.*?\)$/, '');
+  if (/cama dobradiça.*pé|pé articulado/i.test(partName)) {
+    return 'Pé Articulado';
+  }
+  if (partName.length <= maxLen) {
+    return partName;
+  }
+  return partName.substring(0, maxLen - 2) + '..';
+};
+
 export const CuttingSvgCanvas: React.FC<CuttingSvgCanvasProps> = ({
   svgRef,
   currentSheet,
@@ -135,6 +152,29 @@ export const CuttingSvgCanvas: React.FC<CuttingSvgCanvasProps> = ({
             const hasHoles = piece.holes && piece.holes.length > 0;
 
             const isFoamPiece = Boolean(piece.isUpholstery || piece.woodMaterial?.includes('Espuma'));
+            const hasCustomOutline = Array.isArray(piece.cutOutlineNorm) && piece.cutOutlineNorm.length >= 4;
+            const pieceFill = !collisionCheck.isValid
+              ? 'rgba(239, 68, 68, 0.45)'
+              : isSelected
+                ? 'rgba(56, 189, 248, 0.38)'
+                : isFoamPiece
+                  ? piece.hasCabinetCutout
+                    ? 'rgba(245, 158, 11, 0.28)'
+                    : 'rgba(30, 58, 138, 0.45)'
+                  : piece.isPerforated
+                    ? 'rgba(52, 211, 153, 0.22)'
+                    : 'rgba(51, 65, 85, 0.85)';
+            const pieceStroke = !collisionCheck.isValid
+              ? '#ef4444'
+              : isSelected
+                ? '#38bdf8'
+                : isFoamPiece
+                  ? piece.hasCabinetCutout
+                    ? '#f59e0b'
+                    : '#60a5fa'
+                  : piece.isPerforated
+                    ? '#34d399'
+                    : 'rgba(245, 158, 11, 0.65)';
 
             return (
               <g
@@ -143,42 +183,51 @@ export const CuttingSvgCanvas: React.FC<CuttingSvgCanvasProps> = ({
                 onPointerDown={(e) => onPointerDownPiece(e, piece)}
                 style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
               >
-                {/* Retângulo Principal da Peça */}
-                <rect
-                  x="0"
-                  y="0"
-                  width={piece.w}
-                  height={piece.h}
-                  rx="3"
-                  ry="3"
-                  fill={
-                    !collisionCheck.isValid
-                      ? 'rgba(239, 68, 68, 0.45)'
-                      : isSelected
-                        ? 'rgba(56, 189, 248, 0.38)'
-                        : isFoamPiece
-                          ? piece.hasCabinetCutout
-                            ? 'rgba(245, 158, 11, 0.28)'
-                            : 'rgba(30, 58, 138, 0.45)'
-                          : piece.isPerforated
-                            ? 'rgba(52, 211, 153, 0.22)'
-                            : 'rgba(51, 65, 85, 0.85)'
-                  }
-                  stroke={
-                    !collisionCheck.isValid
-                      ? '#ef4444'
-                      : isSelected
-                        ? '#38bdf8'
-                        : isFoamPiece
-                          ? piece.hasCabinetCutout
-                            ? '#f59e0b'
-                            : '#60a5fa'
-                          : piece.isPerforated
-                            ? '#34d399'
-                            : 'rgba(245, 158, 11, 0.65)'
-                  }
-                  strokeWidth={isSelected || !collisionCheck.isValid ? 3 : 1.5}
-                />
+                <title>{piece.label} ({piece.w}×{piece.h} mm)</title>
+                {hasCustomOutline ? (
+                  <>
+                    {/* Contorno pontilhado sutil da área bruta do bloco necessária para o corte */}
+                    <rect
+                      x="0"
+                      y="0"
+                      width={piece.w}
+                      height={piece.h}
+                      rx="3"
+                      ry="3"
+                      fill="rgba(15, 23, 42, 0.18)"
+                      stroke="rgba(148, 163, 184, 0.32)"
+                      strokeWidth={1}
+                      strokeDasharray="6,4"
+                    />
+                    {/* Polígono exato do corte (formato L / T / degrau preservado) */}
+                    <polygon
+                      points={piece.cutOutlineNorm!
+                        .map((pt) =>
+                          piece.rotated
+                            ? `${(pt.v * piece.w).toFixed(1)},${(pt.u * piece.h).toFixed(1)}`
+                            : `${(pt.u * piece.w).toFixed(1)},${(pt.v * piece.h).toFixed(1)}`
+                        )
+                        .join(' ')}
+                      fill={pieceFill}
+                      stroke={pieceStroke}
+                      strokeWidth={isSelected || !collisionCheck.isValid ? 3 : 1.8}
+                      strokeLinejoin="round"
+                    />
+                  </>
+                ) : (
+                  /* Retângulo Principal da Peça */
+                  <rect
+                    x="0"
+                    y="0"
+                    width={piece.w}
+                    height={piece.h}
+                    rx="3"
+                    ry="3"
+                    fill={pieceFill}
+                    stroke={pieceStroke}
+                    strokeWidth={isSelected || !collisionCheck.isValid ? 3 : 1.5}
+                  />
+                )}
 
                 {/* Furações Passantes CNC do Tampo */}
                 {hasHoles &&
@@ -225,7 +274,7 @@ export const CuttingSvgCanvas: React.FC<CuttingSvgCanvasProps> = ({
                       fontFamily="sans-serif"
                       pointerEvents="none"
                     >
-                      {piece.label.length > 22 ? piece.label.substring(0, 20) + '...' : piece.label}
+                      {getDisplayLabel(piece.label, 26)}
                     </text>
 
                     {piece.h > 65 && (
@@ -259,7 +308,7 @@ export const CuttingSvgCanvas: React.FC<CuttingSvgCanvasProps> = ({
                     fontFamily="sans-serif"
                     pointerEvents="none"
                   >
-                    {piece.label.length > 22 ? piece.label.substring(0, 20) + '..' : piece.label} ({piece.w}×{piece.h})
+                    {getDisplayLabel(piece.label, 22)} ({piece.w}×{piece.h})
                   </text>
                 )}
 
@@ -277,7 +326,7 @@ export const CuttingSvgCanvas: React.FC<CuttingSvgCanvasProps> = ({
                       fontFamily="sans-serif"
                       pointerEvents="none"
                     >
-                      {piece.label.length > 22 ? piece.label.substring(0, 20) + '..' : piece.label} ({piece.h}×{piece.w})
+                      {getDisplayLabel(piece.label, 22)} ({piece.h}×{piece.w})
                     </text>
                   </g>
                 )}

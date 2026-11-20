@@ -27,6 +27,12 @@ import { UpperCabinetBuilder } from './boxes/UpperCabinetBuilder';
 import { BoxAccessoriesBuilder } from './boxes/BoxAccessoriesBuilder';
 import { BoxElectronicsBuilder } from './boxes/BoxElectronicsBuilder';
 import { CeilingBuilder, getCeilingArchOffset } from './boxes/CeilingBuilder';
+import { addGroupJunctionDetailsToCushion, buildUnionCushionMesh, CushionRect } from './boxes/slat-bed/MattressCushionGeometry';
+import {
+  collectEffectiveGlobalGroups,
+  computeAllVehicleMattressSubparts,
+  computeRectUnionPolygons
+} from '../utils/mattressGrouping';
 
 export class InternalBoxesBuilder {
   group: THREE.Group;
@@ -264,7 +270,8 @@ export class InternalBoxesBuilder {
 
       const isDrawerOpen = (box.type === 'drawer' || box.type === 'slide_tray') && Boolean(box.isOpen);
       const isChestOpen = box.type === 'chest' && Boolean(box.isOpen);
-      const isLiftOpen = box.type === 'vertical_lift' && Boolean(box.isOpen);
+      // Quando qualquer cama está aberta, os módulos elevatórios verticais permanecem recolhidos/ocultos
+      const isLiftOpen = !isAnyBedOpen && box.type === 'vertical_lift' && Boolean(box.isOpen);
       const isUpperCabinetOpen = globalCabinetsOpen || Boolean(box.isUpperCabinetOpen);
       const hasBed = box.type === 'slat_bed' || Boolean(box.hasBed);
       const isBedOpen = globalBedOpen || (hasBed && Boolean(box.isBedOpen ?? (box.type === 'slat_bed' ? box.isOpen : false)));
@@ -388,18 +395,18 @@ export class InternalBoxesBuilder {
       if ((box.electronics && box.electronics.length > 0) || box.hasBattery) {
         const effectiveBox = box.hasBattery && (!box.electronics || !box.electronics.some((e) => e.id === 'battery'))
           ? {
-              ...box,
-              electronics: [
-                ...(box.electronics || []),
-                {
-                  id: 'battery' as const,
-                  mountFace: 'bottom' as const,
-                  position: 'rear_center' as const,
-                  rotationDeg: 0,
-                  presetId: box.batteryPresetId
-                }
-              ]
-            }
+            ...box,
+            electronics: [
+              ...(box.electronics || []),
+              {
+                id: 'battery' as const,
+                mountFace: 'bottom' as const,
+                position: 'rear_center' as const,
+                rotationDeg: 0,
+                presetId: box.batteryPresetId
+              }
+            ]
+          }
           : box;
         this.electronicsBuilder.buildBoxElectronics(boxContainer, boxWM, boxLM, boxHM, effectiveBox, isSelected);
       }
@@ -440,6 +447,126 @@ export class InternalBoxesBuilder {
 
       this.boxesGroup.add(boxContainer);
     });
+
+    // --- ALMOFADAS UNIFICADAS ENTRE MÓDULOS ADJACENTES (CROSS-MODULE MERGED GROUPS) ---
+    if (showMattress && grid.mattressMergedGroups && grid.mattressMergedGroups.length > 0) {
+      const allSubparts = computeAllVehicleMattressSubparts(grid, boxes, floorY);
+      const effectiveGroups = collectEffectiveGlobalGroups(allSubparts, grid.mattressMergedGroups, boxes);
+      const byId = new Map(allSubparts.map((s) => [s.id, s]));
+
+      // Coleta zonas de recorte de armários aéreos em coordenadas do veículo com sua altura inferior
+      const worldCabinetCutouts: Array<{ rect: CushionRect; cabinetBottomMm: number }> = [];
+      for (const cabBox of boxes) {
+        if (!cabBox.upperCabinet) continue;
+        const cabBoxHeightMm = cabBox.heightMm ?? grid.heightMm ?? 400;
+        const bottomGapMm = Math.max(0, cabBox.upperCabinetBottomGapMm ?? 0);
+        const cabinetBottomMm = cabBoxHeightMm + bottomGapMm;
+
+        const cabColStart = Math.min(cols - 1, Math.max(0, cabBox.colStart));
+        const cabColSpan = Math.min(cols - cabColStart, Math.max(1, cabBox.colSpan));
+        const cabRowStart = Math.min(rows - 1, Math.max(0, cabBox.rowStart));
+        const cabRowSpan = Math.min(rows - cabRowStart, Math.max(1, cabBox.rowSpan));
+        const cabWM = Math.max(0.05, cabColSpan * cellWM + (cabBox.extraWidthMm || 0) / 1000);
+        const cabLM = Math.max(0.05, cabRowSpan * cellLM + (cabBox.extraLengthMm || 0) / 1000);
+        const posX_cab = widthM / 2 - (cabColStart + cabColSpan / 2) * cellWM + (cabBox.offsetXMm || 0) / 1000;
+        const posZ_cab = -(cabRowStart + cabRowSpan / 2) * cellLM + (cabBox.offsetZMm || 0) / 1000;
+        const rawZones = getUpperCabinetExclusionZones(cabBox, cabWM, cabLM, { maxGapMm: 10000, marginM: 0.003 });
+        for (const oz of rawZones) {
+          worldCabinetCutouts.push({
+            cabinetBottomMm,
+            rect: {
+              minX: posX_cab + oz.minX,
+              maxX: posX_cab + oz.maxX,
+              minZ: posZ_cab + oz.minZ,
+              maxZ: posZ_cab + oz.maxZ
+            }
+          });
+        }
+      }
+
+      effectiveGroups.forEach((grpIds, gIdx) => {
+        const grpSubparts = grpIds.map((id) => byId.get(id)!).filter(Boolean);
+        if (grpSubparts.length < 2) return;
+        const distinctBoxIds = new Set(grpSubparts.map((s) => s.boxId));
+        // Grupos dentro de um único módulo já são construídos pelo próprio SlatBedMattressBuilder
+        if (distinctBoxIds.size < 2) return;
+
+        const allBedsOpen = globalBedOpen || grpSubparts.every((s) => s.isBedOpen);
+        const thicknessM = Math.max(...grpSubparts.map((s) => s.thicknessM));
+        const topY = Math.max(...grpSubparts.map((s) => s.topOfSlatsY));
+        const mattressY = topY + thicknessM / 2;
+        const groupMattressTopMm = Math.round((topY - floorY + thicknessM) * 1000);
+        // Só aplica recorte de armários aéreos cuja base entra fisicamente abaixo do topo do colchão
+        const worldCutouts: CushionRect[] = worldCabinetCutouts
+          .filter((c) => c.cabinetBottomMm < groupMattressTopMm - 1)
+          .map((c) => c.rect);
+        const foamLabel = grpSubparts[0].foamName || 'Espuma D33';
+        const isAnySelected = selectedBoxId ? distinctBoxIds.has(selectedBoxId) : false;
+
+        const mattressMat = new THREE.MeshStandardMaterial({
+          color: isAnySelected ? 0x38bdf8 : 0x334155,
+          roughness: 0.90,
+          metalness: 0.02
+        });
+
+        const rects: CushionRect[] = grpSubparts.map((s) => ({
+          minX: s.minX,
+          maxX: s.maxX,
+          minZ: s.minZ,
+          maxZ: s.maxZ
+        }));
+
+        const res = buildUnionCushionMesh(rects, worldCutouts, thicknessM, mattressY, mattressMat);
+        if (!res) return;
+
+        res.mesh.name = `UnifiedCrossModuleMattress_${gIdx}`;
+        res.mesh.castShadow = true;
+        res.mesh.receiveShadow = true;
+        res.mesh.visible = allBedsOpen;
+
+        const curW = res.actualMaxX - res.actualMinX;
+        const curL = res.actualMaxZ - res.actualMinZ;
+
+        // Calcula o polígono exato normalizado (u ao longo do maior lado, v ao longo do menor lado) para o Plano de Corte 2D
+        let cutOutlineNorm: Array<{ u: number; v: number }> | undefined;
+        const polys = computeRectUnionPolygons(
+          rects.map((r) => ({ minX: r.minX, maxX: r.maxX, minY: r.minZ, maxY: r.maxZ })),
+          0.005
+        );
+        if (polys.length > 0 && polys[0].length > 4 && curW > 0.01 && curL > 0.01) {
+          const isXLonger = curW >= curL;
+          cutOutlineNorm = polys[0].map((pt) => {
+            const nx = Math.max(0, Math.min(1, (pt.x - res.actualMinX) / curW));
+            const nz = Math.max(0, Math.min(1, (pt.y - res.actualMinZ) / curL));
+            return isXLonger ? { u: nx, v: nz } : { u: nz, v: nx };
+          });
+        }
+
+        res.mesh.userData = {
+          isWoodPart: false,
+          isUpholstery: true,
+          dimW: curW,
+          dimH: thicknessM,
+          dimL: curL,
+          thicknessMm: Math.round(thicknessM * 1000),
+          partLabel: `Colchão Conectado (${grpSubparts.length} partes entre módulos)${res.labelSuffix}`,
+          material: `${foamLabel} Revestida em Tecido Impermeável`,
+          woodMaterial: `${foamLabel} (Colchão)`,
+          category: '🛏️ Estofaria Campervan',
+          hasCabinetCutout: res.isCutout,
+          moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
+          partType: 'upholstery',
+          isMergedMattressGroup: true,
+          globalSubpartIds: grpIds,
+          cutOutlineNorm
+        };
+
+        // Detalha na peça 3D as junções/emendas internas das subpartes que compõem o grupo
+        addGroupJunctionDetailsToCushion(res, rects, worldCutouts, thicknessM);
+
+        this.boxesGroup.add(res.mesh);
+      });
+    }
   }
 }
 

@@ -1,7 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { SlatBedMattressBuilder } from '../src/three/boxes/SlatBedMattressBuilder';
+import { InternalBoxesBuilder } from '../src/three/InternalBoxesBuilder';
 import { InternalBoxItem, InternalGridConfig } from '../src/types';
+import {
+  areSubpartsAdjacent,
+  buildMattressPartitions,
+  computeAllVehicleMattressSubparts,
+  computeRectUnionPolygons,
+  connectGlobalMattressSubparts,
+  connectMattressSubparts,
+  disconnectGlobalMattressGroup,
+  disconnectMattressGroup
+} from '../src/utils/mattressGrouping';
 
 describe('SlatBedMattressBuilder - Floating and Cutout Tests', () => {
   const grid: InternalGridConfig = {
@@ -527,5 +538,370 @@ describe('SlatBedMattressBuilder - Floating and Cutout Tests', () => {
     ) as THREE.Mesh;
     expect(baseArch).toBeDefined();
     expect((baseArch.userData as any).hasCabinetCutout).toBe(true);
+  });
+
+  it('connects and disconnects contiguous mattress subparts and updates 3D cushions & seams', () => {
+    // 1. Regras de agrupamento/desagrupamento
+    const merged1 = connectMattressSubparts(5, undefined, [0, 1]);
+    expect(merged1).toEqual([[0, 1]]);
+
+    // Não-contíguo deve retornar null
+    const invalidMerge = connectMattressSubparts(5, merged1!, [0, 3]);
+    expect(invalidMerge).toBeNull();
+
+    // Segundo grupo independente
+    const merged2 = connectMattressSubparts(5, merged1!, [3, 4]);
+    expect(merged2).toEqual([[0, 1], [3, 4]]);
+
+    // Partições resultantes: [0,1], [2], [3,4] -> 3 peças finais
+    const partitions = buildMattressPartitions(5, merged2!);
+    expect(partitions.map((p) => p.indices)).toEqual([[0, 1], [2], [3, 4]]);
+
+    // Desconectar grupo [0,1] devolve 0 e 1 ao estado individual
+    const afterDisconnect = disconnectMattressGroup(5, merged2!, [0, 1]);
+    expect(afterDisconnect).toEqual([[3, 4]]);
+
+    // 2. Construção 3D de colchão 5 partes com [[0,1], [3,4]] conectados
+    const builder = new SlatBedMattressBuilder();
+    const container = new THREE.Group();
+    const boxBed: InternalBoxItem = {
+      id: 'box_merged_5p',
+      name: 'Sofá-Cama Ripas',
+      type: 'slat_bed',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 4,
+      heightMm: 400,
+      color: '#d97706',
+      material: 'plywood',
+      slatBedDirection: 'left',
+      slatExtensionPercent: 100,
+      mattressParts: 5,
+      mattressMergedGroups: [[0, 1], [3, 4]]
+    };
+
+    builder.buildMattress({
+      container,
+      w: 0.4,
+      l: 1.7,
+      h: 0.4,
+      box: boxBed,
+      slatT,
+      direction: 'left',
+      isExtended: true,
+      extRatio: 1,
+      cellWM,
+      cellLM,
+      allBoxes: [boxBed],
+      grid,
+      isSelected: false
+    });
+
+    const cushions = container.children.filter((c) => (c.userData as any).isUpholstery);
+    // 3 peças finais em vez de 5
+    expect(cushions.length).toBe(3);
+    // Primeira peça conectada (Aba Base 142mm + Central 1 400mm = 542mm)
+    expect((cushions[0].userData as any).dimW).toBeCloseTo(0.142 + 0.4, 3);
+    expect((cushions[0].userData as any).isMergedMattressGroup).toBe(true);
+    // Peça do meio continua individual (400mm)
+    expect((cushions[1].userData as any).dimW).toBeCloseTo(0.4, 3);
+    expect((cushions[1].userData as any).isMergedMattressGroup).toBe(false);
+    // Última peça conectada (Central 3 400mm + Aba Oposta 142mm = 542mm)
+    expect((cushions[2].userData as any).dimW).toBeCloseTo(0.4 + 0.142, 3);
+    expect((cushions[2].userData as any).isMergedMattressGroup).toBe(true);
+
+    // 3. Construção 3D de colchão 3 partes totalmente conectado em 1 peça inteira (0 costuras)
+    const containerWhole = new THREE.Group();
+    builder.buildMattress({
+      container: containerWhole,
+      w: 0.4,
+      l: 1.7,
+      h: 0.4,
+      box: { ...boxBed, mattressParts: 3, mattressMergedGroups: [[0, 1, 2]] },
+      slatT,
+      direction: 'left',
+      isExtended: true,
+      extRatio: 1,
+      cellWM,
+      cellLM,
+      allBoxes: [boxBed],
+      grid,
+      isSelected: false
+    });
+    const wholeCushions = containerWhole.children.filter((c) => (c.userData as any).isUpholstery);
+    expect(wholeCushions.length).toBe(1);
+    expect((wholeCushions[0].userData as any).dimW).toBeCloseTo(1.2, 3);
+    // Sem costuras extras quando tudo está conectado em 1 peça
+    expect(containerWhole.children.length).toBe(1);
+  });
+
+  it('connects adjacent mattress subparts across DIFFERENT bed modules (all-to-all) and rejects non-adjacent ones', () => {
+    const bedFront: InternalBoxItem = {
+      id: 'bed_front',
+      name: 'Cama Frente',
+      type: 'slat_bed',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 2,
+      heightMm: 400,
+      color: '#d97706',
+      material: 'plywood',
+      slatBedDirection: 'left',
+      slatExtensionPercent: 100,
+      mattressParts: 2,
+      isOpen: true,
+      isBedOpen: true
+    };
+    const bedRear: InternalBoxItem = {
+      id: 'bed_rear',
+      name: 'Cama Trás',
+      type: 'slat_bed',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 2,
+      rowSpan: 2,
+      heightMm: 400,
+      color: '#d97706',
+      material: 'plywood',
+      slatBedDirection: 'left',
+      slatExtensionPercent: 100,
+      mattressParts: 2,
+      isOpen: true,
+      isBedOpen: true
+    };
+
+    const subparts = computeAllVehicleMattressSubparts(grid, [bedFront, bedRear], 0);
+    expect(subparts.length).toBe(4);
+
+    const byId = new Map(subparts.map((s) => [s.id, s]));
+    // Mesma coluna (frente e trás encostados em Z): adjacentes!
+    expect(areSubpartsAdjacent(byId.get('bed_front::0')!, byId.get('bed_rear::0')!)).toBe(true);
+    // Diagonal (não encostam em nenhum lado): NÃO adjacentes!
+    expect(areSubpartsAdjacent(byId.get('bed_front::0')!, byId.get('bed_rear::1')!)).toBe(false);
+
+    // Conectar diagonal deve falhar (null)
+    expect(connectGlobalMattressSubparts(subparts, undefined, ['bed_front::0', 'bed_rear::1'])).toBeNull();
+
+    // Conectar frente+trás entre módulos diferentes deve funcionar!
+    const mergedGroups = connectGlobalMattressSubparts(subparts, undefined, ['bed_front::0', 'bed_rear::0']);
+    expect(mergedGroups).toEqual([['bed_front::0', 'bed_rear::0']]);
+
+    // Constrói no 3D via InternalBoxesBuilder com o grupo global conectado
+    const boxesBuilder = new InternalBoxesBuilder();
+    const gridWithGroups: InternalGridConfig = { ...grid, mattressMergedGroups: mergedGroups! };
+    boxesBuilder.update(gridWithGroups, [bedFront, bedRear]);
+
+    const upholsteryMeshes: THREE.Mesh[] = [];
+    boxesBuilder.boxesGroup.traverse((obj: any) => {
+      if (obj.isMesh && obj.userData?.isUpholstery) {
+        upholsteryMeshes.push(obj);
+      }
+    });
+
+    // 4 subpartes originais -> 2 unidas em 1 + 2 individuais = 3 peças finais no 3D!
+    expect(upholsteryMeshes.length).toBe(3);
+    const unified = upholsteryMeshes.find((m) => m.name.startsWith('UnifiedCrossModuleMattress_'));
+    expect(unified).toBeDefined();
+    expect(unified!.visible).toBe(true);
+    // Comprimento total unido: 850mm + 850mm = 1700mm (1.70m)
+    expect((unified!.userData as any).dimL).toBeCloseTo(1.7, 2);
+    expect((unified!.userData as any).dimW).toBeCloseTo(0.4, 2);
+    // Verifica que os detalhes 3D da junção das peças do grupo foram anexados na malha
+    const junctionGroup = unified!.getObjectByName('MattressGroupJunctionDetails');
+    expect(junctionGroup).toBeDefined();
+    expect(junctionGroup!.children.length).toBeGreaterThan(0);
+    expect(((unified!.userData as any).groupJunctionSegments || []).length).toBe(1);
+
+    // Desconectar restaura tudo
+    const afterDisconnect = disconnectGlobalMattressGroup(subparts, mergedGroups!, ['bed_front::0']);
+    expect(afterDisconnect).toEqual([]);
+
+    // 2. União em formato L (3 retângulos formando L) deve preservar polígono de 6 vértices (não virar retângulo 4 vértices)
+    const lPolys = computeRectUnionPolygons(
+      [
+        { minX: 0, maxX: 400, minY: 0, maxY: 460 },
+        { minX: 0, maxX: 400, minY: 460, maxY: 1310 },
+        { minX: 400, maxX: 542, minY: 460, maxY: 1310 }
+      ],
+      5
+    );
+    expect(lPolys.length).toBe(1);
+    expect(lPolys[0].length).toBe(6);
+  });
+
+  it('clamps open slat bed extension so slats and front leg never invade adjacent modules', () => {
+    const boxesBuilder = new InternalBoxesBuilder();
+    // Cenário real do usuário: Doblò 1200mm, armário esquerdo 450mm (+50mm extra),
+    // corredor central 350mm, cama direita 400mm abrindo para a esquerda (+X)
+    const leftCabinet: InternalBoxItem = {
+      id: 'cab_left',
+      name: 'Cozinha Esquerda',
+      type: 'chest',
+      colStart: 0,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 2,
+      extraWidthMm: 50,
+      offsetXMm: -25, // face direita fica em +600 - 450 = +150mm
+      heightMm: 400,
+      color: '#f59e0b',
+      material: 'plywood'
+    };
+    const rightBed: InternalBoxItem = {
+      id: 'bed_right',
+      name: 'Elétrica',
+      type: 'slat_bed',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 2,
+      heightMm: 400,
+      color: '#d97706',
+      material: 'plywood',
+      slatBedDirection: 'left',
+      slatExtensionPercent: 100,
+      isOpen: true,
+      isBedOpen: true
+    };
+
+    boxesBuilder.update(grid, [leftCabinet, rightBed]);
+
+    const bedContainer = boxesBuilder.boxesGroup.children.find(
+      (c) => c.name === 'BoxContainer_bed_right'
+    ) as THREE.Group;
+    expect(bedContainer).toBeDefined();
+
+    const slidingFrame = bedContainer.getObjectByName('SlatBedSlidingFrame') as THREE.Group;
+    expect(slidingFrame).toBeDefined();
+
+    // Caixa direita: x in [-0.60, -0.20]. Armário esquerdo: x in [+0.15, +0.60].
+    // Vão livre = 0.35m (350mm). Com espessura t=15mm, slideOffsetX deve ser no máximo 0.335m (335mm),
+    // fazendo a face externa das ripas e do painel frontal parar exatamente em +0.15m (0mm de invasão)!
+    expect(slidingFrame.position.x).toBeLessThanOrEqual(0.35 - 0.015 + 0.002);
+    const outerFaceWorldX = bedContainer.position.x + slidingFrame.position.x + 0.40 / 2 + 0.015;
+    expect(outerFaceWorldX).toBeLessThanOrEqual(0.15 + 0.002);
+  });
+
+  it('does NOT cut mattress when upper cabinet starts at or above mattress top (e.g. taller module or gap >= mattress thickness)', () => {
+    const builder = new SlatBedMattressBuilder();
+    const container = new THREE.Group();
+
+    const boxBed: InternalBoxItem = {
+      id: 'bed_above_cab_test',
+      name: 'Sofá-Cama',
+      type: 'slat_bed',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 4,
+      heightMm: 400,
+      mattressThicknessMm: 80, // topo do colchão em 480mm
+      color: '#d97706',
+      material: 'plywood',
+      slatBedDirection: 'left',
+      slatExtensionPercent: 100,
+      mattressParts: 5,
+      upperCabinet: true,
+      upperCabinetAlign: 'right',
+      upperCabinetDepthMm: 250,
+      upperCabinetBottomGapMm: 80 // base do armário exatamente em 480mm (acima do colchão)
+    };
+
+    const neighborWithHighCabinet: InternalBoxItem = {
+      id: 'neighbor_high_cab',
+      name: 'Módulo Lateral c/ Aéreo Alto',
+      type: 'chest',
+      colStart: 0,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 2,
+      heightMm: 400, // mesma altura da cama
+      color: '#f59e0b',
+      material: 'plywood',
+      upperCabinet: true,
+      upperCabinetAlign: 'left',
+      upperCabinetDepthMm: 250,
+      upperCabinetBottomGapMm: 90 // base do aéreo em 490mm > 480mm (acima do topo do colchão)
+    };
+
+    builder.buildMattress({
+      container,
+      w: 0.4,
+      l: 1.7,
+      h: 0.4,
+      box: boxBed,
+      slatT,
+      direction: 'left',
+      isExtended: true,
+      extRatio: 1,
+      cellWM,
+      cellLM,
+      allBoxes: [boxBed, neighborWithHighCabinet],
+      grid,
+      isSelected: false
+    });
+
+    const cushions = container.children.filter((c) => (c.userData as any).isUpholstery);
+    expect(cushions.length).toBe(5);
+    cushions.forEach((c) => {
+      expect((c.userData as any).hasCabinetCutout).toBe(false);
+    });
+  });
+
+  it('extends cabinet cutout all the way to the mattress edge when remaining strip is thin (<= 80mm)', () => {
+    const builder = new SlatBedMattressBuilder();
+    const container = new THREE.Group();
+
+    // Armário aéreo de 350mm de profundidade sobre almofada de 400mm:
+    // Sobrariam apenas 50mm (uma "linha" fina) na borda — o corte deve ir até o final da borda!
+    const boxBed: InternalBoxItem = {
+      id: 'bed_thin_strip_test',
+      name: 'Sofá-Cama',
+      type: 'slat_bed',
+      colStart: 2,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 4,
+      heightMm: 400,
+      mattressThicknessMm: 80,
+      color: '#d97706',
+      material: 'plywood',
+      slatBedDirection: 'left',
+      slatExtensionPercent: 100,
+      mattressParts: 3,
+      upperCabinet: true,
+      upperCabinetAlign: 'right',
+      upperCabinetDepthMm: 350, // sobraria 50mm na almofada de 400mm (<= 80mm)
+      upperCabinetWidthMm: 800,
+      upperCabinetBottomGapMm: 0
+    };
+
+    builder.buildMattress({
+      container,
+      w: 0.4,
+      l: 1.7,
+      h: 0.4,
+      box: boxBed,
+      slatT,
+      direction: 'left',
+      isExtended: true,
+      extRatio: 1,
+      cellWM,
+      cellLM,
+      allBoxes: [boxBed],
+      grid,
+      isSelected: false
+    });
+
+    // Almofada 1/3 (400x1700mm) tem recorte de 800mm em Z que agora atravessa 100% da largura (sem sobrar tirinha de 50mm),
+    // resultando em um retângulo limpo de comprimento ~900mm (1700 - 800) e largura 400mm!
+    const cushion1 = container.children.find((c) =>
+      (c.userData as any).partLabel?.includes('Almofada 1/3')
+    ) as THREE.Mesh;
+    expect(cushion1).toBeDefined();
+    expect((cushion1.userData as any).hasCabinetCutout).toBe(true);
+    expect((cushion1.userData as any).dimL).toBeLessThan(1.0);
   });
 });

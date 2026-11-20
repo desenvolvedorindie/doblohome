@@ -46,7 +46,7 @@ export class UpperCabinetLongitudinalBuilder {
     // --- ARMARIO LONGITUDINAL (LATERAL ESQUERDA OU LATERAL DIREITA) ---
     // Profundidade (avanço da parede para o centro da van, eixo X):
     const maxDepthMm = Math.max(Math.round(boxWM * 1000), 1000);
-    const depthMm = Math.max(100, Math.min(maxDepthMm, box.upperCabinetDepthMm ?? 250));
+    const depthMm = Math.max(50, Math.min(maxDepthMm, box.upperCabinetDepthMm ?? 250));
     const cabinetDepthM = depthMm / 1000;
 
     // Comprimento útil ao longo da van (eixo Z):

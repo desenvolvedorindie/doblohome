@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { InternalBoxItem, SlatBedDirection } from '../../../types';
+import { buildMattressPartitions, getPartitionLabel } from '../../../utils/mattressGrouping';
 import {
+  addGroupJunctionDetailsToCushion,
   buildCushionMesh,
   CushionMeshResult,
   CushionRect
@@ -53,6 +55,7 @@ export function buildLateralStandardMattress(params: {
   seamMat: THREE.Material;
   cutoutZones: CushionRect[];
   foamName?: string;
+  skipSubpartIndices?: Set<number>;
 }) {
   const {
     container,
@@ -72,72 +75,100 @@ export function buildLateralStandardMattress(params: {
     mattressMat,
     seamMat,
     cutoutZones,
-    foamName
+    foamName,
+    skipSubpartIndices
   } = params;
 
   const foamLabel = foamName || 'Espuma D33';
   const upholsteryWoodMat = `${foamLabel} (Colchão)`;
 
   if (isExtended) {
-    const cushionResults: Array<CushionMeshResult | null> = [];
+    const baseIntervals: Array<{ minX: number; maxX: number }> = [];
 
     if (parts === 2 && box.bedMode === 'hinged') {
-      // Cama com dobradiça de 2 partes:
-      // Folha dobrável limitada logicamente ao tamanho configurado
       const leafW = Math.min(w, Math.max(Math.min(0.10, w), (box.hingedBedLeafSizeMm !== undefined ? box.hingedBedLeafSizeMm / 1000 : w)));
       const hingeGap = 0.003;
-
-      // Parte 1: 100% sobre o tampo fixo base [-w/2, w/2]
-      // Parte 2: 100% sobre a folha dobrável aberta
-      const ranges = direction === 'left'
-        ? [
-            { minX: -w / 2, maxX: w / 2 },
-            { minX: w / 2, maxX: w / 2 + hingeGap + leafW }
-          ]
-        : [
-            { minX: -w / 2, maxX: w / 2 },
-            { minX: -w / 2 - hingeGap - leafW, maxX: -w / 2 }
-          ];
-
-      for (let i = 0; i < 2; i++) {
-        const rng = ranges[i];
-        const cRes = buildCushionMesh(
-          { minX: rng.minX, maxX: rng.maxX, minZ: -cushionL / 2, maxZ: cushionL / 2 },
-          cutoutZones,
-          mattressThickness,
-          mattressY,
-          mattressMat
-        );
-        cushionResults.push(cRes);
-        if (cRes) {
-          cRes.mesh.castShadow = true;
-          cRes.mesh.receiveShadow = true;
-          const curW = cRes.actualMaxX - cRes.actualMinX;
-          const curL = cRes.actualMaxZ - cRes.actualMinZ;
-          cRes.mesh.userData = {
-            isWoodPart: false,
-            isUpholstery: true,
-            dimW: curW,
-            dimH: mattressThickness,
-            dimL: curL,
-            thicknessMm: Math.round(mattressThickness * 1000),
-            partLabel: `Almofada ${i + 1}/2 (${partsName})${cRes.labelSuffix}`,
-            material: `${foamLabel} Revestida em Tecido Impermeável ${partsName}`,
-            woodMaterial: upholsteryWoodMat,
-            category: '🛏️ Estofaria Campervan',
-            hasCabinetCutout: cRes.isCutout,
-            moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
-            partType: 'upholstery'
-          };
-          container.add(cRes.mesh);
-        }
+      if (direction === 'left') {
+        baseIntervals.push({ minX: -w / 2, maxX: w / 2 });
+        baseIntervals.push({ minX: w / 2, maxX: w / 2 + hingeGap + leafW });
+      } else {
+        baseIntervals.push({ minX: -w / 2, maxX: w / 2 });
+        baseIntervals.push({ minX: -w / 2 - hingeGap - leafW, maxX: -w / 2 });
       }
+    } else {
+      for (let i = 0; i < parts; i++) {
+        const pieceCenterX = direction === 'left'
+          ? (-w / 2 + (i + 0.5) * cellW)
+          : (w / 2 - (i + 0.5) * cellW);
+        baseIntervals.push({ minX: pieceCenterX - cushionW / 2, maxX: pieceCenterX + cushionW / 2 });
+      }
+    }
 
-      // Costura na divisão da dobradiça
-      const seamX = direction === 'left' ? w / 2 : -w / 2;
-      const cA = cushionResults[0];
-      const cB = cushionResults[1];
+    const partitions = buildMattressPartitions(parts, box.mattressMergedGroups);
+    const partitionResults: Array<CushionMeshResult | null> = [];
+    const partitionBounds: Array<{ minX: number; maxX: number }> = [];
+
+    partitions.forEach((partition) => {
+      if (skipSubpartIndices && partition.indices.every((idx) => skipSubpartIndices.has(idx))) {
+        partitionBounds.push({ minX: 0, maxX: 0 });
+        partitionResults.push(null);
+        return;
+      }
+      const minX = Math.min(...partition.indices.map((idx) => baseIntervals[idx].minX));
+      const maxX = Math.max(...partition.indices.map((idx) => baseIntervals[idx].maxX));
+      partitionBounds.push({ minX, maxX });
+
+      const cRes = buildCushionMesh(
+        { minX, maxX, minZ: -cushionL / 2, maxZ: cushionL / 2 },
+        cutoutZones,
+        mattressThickness,
+        mattressY,
+        mattressMat
+      );
+      partitionResults.push(cRes);
+
+      if (cRes) {
+        cRes.mesh.castShadow = true;
+        cRes.mesh.receiveShadow = true;
+        const curW = cRes.actualMaxX - cRes.actualMinX;
+        const curL = cRes.actualMaxZ - cRes.actualMinZ;
+        const baseLabel = getPartitionLabel(partition, parts, direction, partsName);
+        cRes.mesh.userData = {
+          isWoodPart: false,
+          isUpholstery: true,
+          dimW: curW,
+          dimH: mattressThickness,
+          dimL: curL,
+          thicknessMm: Math.round(mattressThickness * 1000),
+          partLabel: `${baseLabel}${cRes.labelSuffix}`,
+          material: `${foamLabel} Revestida em Tecido Impermeável ${partsName}`,
+          woodMaterial: upholsteryWoodMat,
+          category: '🛏️ Estofaria Campervan',
+          hasCabinetCutout: cRes.isCutout,
+          moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
+          partType: 'upholstery',
+          mattressSubpartIndices: partition.indices,
+          isMergedMattressGroup: partition.isMerged
+        };
+        if (partition.isMerged) {
+          const memberRects = partition.indices.map((idx) => ({
+            minX: baseIntervals[idx].minX,
+            maxX: baseIntervals[idx].maxX,
+            minZ: -cushionL / 2,
+            maxZ: cushionL / 2
+          }));
+          addGroupJunctionDetailsToCushion(cRes, memberRects, cutoutZones, mattressThickness);
+        }
+        container.add(cRes.mesh);
+      }
+    });
+
+    // Costuras apenas entre partições separadas
+    for (let p = 0; p < partitions.length - 1; p++) {
+      const cA = partitionResults[p];
+      const cB = partitionResults[p + 1];
       if (cA && cB) {
+        const seamX = direction === 'left' ? partitionBounds[p].maxX : partitionBounds[p].minX;
         const seamMinZ = Math.max(cA.actualMinZ, cB.actualMinZ);
         const seamMaxZ = Math.min(cA.actualMaxZ, cB.actualMaxZ);
         for (const seg of getUncutSeamIntervalsZ(seamX, seamMinZ, seamMaxZ, cutoutZones)) {
@@ -147,66 +178,6 @@ export function buildLateralStandardMattress(params: {
             const seamMesh = new THREE.Mesh(seamGeo, seamMat);
             seamMesh.position.set(seamX, mattressY, (seg.minZ + seg.maxZ) / 2);
             container.add(seamMesh);
-          }
-        }
-      }
-    } else {
-      // Modo padrão (Ripas ou N partes): cada almofada cobre exatamente uma subdivisão de cellW (100% de cobertura)
-      for (let i = 0; i < parts; i++) {
-        const pieceCenterX = direction === 'left'
-          ? (-w / 2 + (i + 0.5) * cellW)
-          : (w / 2 - (i + 0.5) * cellW);
-
-        const cRes = buildCushionMesh(
-          { minX: pieceCenterX - cushionW / 2, maxX: pieceCenterX + cushionW / 2, minZ: -cushionL / 2, maxZ: cushionL / 2 },
-          cutoutZones,
-          mattressThickness,
-          mattressY,
-          mattressMat
-        );
-        cushionResults.push(cRes);
-
-        if (cRes) {
-          cRes.mesh.castShadow = true;
-          cRes.mesh.receiveShadow = true;
-          const curW = cRes.actualMaxX - cRes.actualMinX;
-          const curL = cRes.actualMaxZ - cRes.actualMinZ;
-          cRes.mesh.userData = {
-            isWoodPart: false,
-            isUpholstery: true,
-            dimW: curW,
-            dimH: mattressThickness,
-            dimL: curL,
-            thicknessMm: Math.round(mattressThickness * 1000),
-            partLabel: `Almofada ${i + 1}/${parts} (${partsName})${cRes.labelSuffix}`,
-            material: `${foamLabel} Revestida em Tecido Impermeável ${partsName}`,
-            woodMaterial: upholsteryWoodMat,
-            category: '🛏️ Estofaria Campervan',
-            hasCabinetCutout: cRes.isCutout,
-            moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
-            partType: 'upholstery'
-          };
-          container.add(cRes.mesh);
-        }
-      }
-
-      for (let i = 0; i < parts - 1; i++) {
-        const cA = cushionResults[i];
-        const cB = cushionResults[i + 1];
-        if (cA && cB) {
-          const seamX = direction === 'left'
-            ? (-w / 2 + (i + 1) * cellW)
-            : (w / 2 - (i + 1) * cellW);
-          const seamMinZ = Math.max(cA.actualMinZ, cB.actualMinZ);
-          const seamMaxZ = Math.min(cA.actualMaxZ, cB.actualMaxZ);
-          for (const seg of getUncutSeamIntervalsZ(seamX, seamMinZ, seamMaxZ, cutoutZones)) {
-            const seamL = seg.maxZ - seg.minZ;
-            if (seamL > 0.01) {
-              const seamGeo = new THREE.BoxGeometry(0.004, mattressThickness + 0.002, seamL);
-              const seamMesh = new THREE.Mesh(seamGeo, seamMat);
-              seamMesh.position.set(seamX, mattressY, (seg.minZ + seg.maxZ) / 2);
-              container.add(seamMesh);
-            }
           }
         }
       }

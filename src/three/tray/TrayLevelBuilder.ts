@@ -54,13 +54,13 @@ export class TrayLevelBuilder {
     // Quadro Perimetral da Bandeja
     let sideL, sideR, frontBar, rearBar;
     if (isTSlot) {
-      sideL = AluminumExtrusionFactory.createProfileMesh(tL, frameMat, { axis: 'z', size: 0.030, showCutFace: true });
-      sideR = AluminumExtrusionFactory.createProfileMesh(tL, frameMat, { axis: 'z', size: 0.030, showCutFace: true });
+      sideL = AluminumExtrusionFactory.createProfileMesh(tL, frameMat, { axis: 'z', size: 0.030, showCutFace: true, addCaps: true });
+      sideR = AluminumExtrusionFactory.createProfileMesh(tL, frameMat, { axis: 'z', size: 0.030, showCutFace: true, addCaps: true });
       frontBar = AluminumExtrusionFactory.createProfileMesh(innerTrayW, frameMat, { axis: 'x', size: 0.030 });
       rearBar = AluminumExtrusionFactory.createProfileMesh(innerTrayW, frameMat, { axis: 'x', size: 0.030 });
     } else {
-      sideL = MetalonTubeFactory.createTubeMesh(tL, frameMat, { axis: 'z', size: 0.030, thickness: thicknessM, showCutFace: true });
-      sideR = MetalonTubeFactory.createTubeMesh(tL, frameMat, { axis: 'z', size: 0.030, thickness: thicknessM, showCutFace: true });
+      sideL = MetalonTubeFactory.createTubeMesh(tL, frameMat, { axis: 'z', size: 0.030, thickness: thicknessM, showCutFace: true, addCaps: true });
+      sideR = MetalonTubeFactory.createTubeMesh(tL, frameMat, { axis: 'z', size: 0.030, thickness: thicknessM, showCutFace: true, addCaps: true });
       frontBar = MetalonTubeFactory.createTubeMesh(innerTrayW, frameMat, { axis: 'x', size: 0.030, thickness: thicknessM });
       rearBar = MetalonTubeFactory.createTubeMesh(innerTrayW, frameMat, { axis: 'x', size: 0.030, thickness: thicknessM });
     }

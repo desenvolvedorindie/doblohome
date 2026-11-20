@@ -286,12 +286,13 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="ide-menu-separator" />
                 <a
                   href={`${API_URL}/cutting/pdf`}
-                  download="plano_de_corte_doblo_solar.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="ide-menu-item"
                   style={{ textDecoration: 'none' }}
                   onClick={closeMenu}
                 >
-                  <span>📄 Baixar Plano de Corte (PDF)</span>
+                  <span>📄 Abrir Plano de Corte (PDF)</span>
                   <span className="ide-menu-shortcut">13p</span>
                 </a>
               </div>

@@ -14,7 +14,8 @@ import {
   getPolarityGroup,
   getPortOnNode,
   isConverterNode,
-  isPassThroughNode
+  isPassThroughNode,
+  suggestConnectorForPort
 } from './graphHelpers';
 
 /**
@@ -183,10 +184,11 @@ export function recalculateDiagramEdges(
         continue;
       }
 
-      // C) Disjuntores, Interruptores, Shunt, Chave Comutadora (agrupado por polaridade)
+      // C) Disjuntores, Interruptores, Shunt, Chave Comutadora, Conectores (agrupado por polaridade)
       if (
         node.data.kind === 'breaker' ||
         node.data.kind === 'transfer_switch' ||
+        node.data.kind === 'connector' ||
         node.data.catalogId === 'switch_12v' ||
         node.data.catalogId === 'shunt_monitor'
       ) {
@@ -363,6 +365,15 @@ export function recalculateDiagramEdges(
       connectedMaxAmps
     });
 
+    const sourceConnector =
+      edge.data?.isManualSourceConnector && edge.data.sourceConnector
+        ? edge.data.sourceConnector
+        : suggestConnectorForPort(sNode, sPort);
+    const targetConnector =
+      edge.data?.isManualTargetConnector && edge.data.targetConnector
+        ? edge.data.targetConnector
+        : suggestConnectorForPort(tNode, tPort);
+
     const newData: ElectricalEdgeData = {
       ...edge.data,
       polarity,
@@ -378,7 +389,11 @@ export function recalculateDiagramEdges(
       voltageDropVolts: calc.voltageDropVolts,
       voltageDropPercent: calc.voltageDropPercent,
       isOverloaded: calc.isOverloaded,
-      overloadWarning: calc.overloadWarning
+      overloadWarning: calc.overloadWarning,
+      sourceConnector,
+      targetConnector,
+      isManualSourceConnector: edge.data?.isManualSourceConnector ?? false,
+      isManualTargetConnector: edge.data?.isManualTargetConnector ?? false
     };
 
     return {

@@ -43,7 +43,7 @@ export class UpperCabinetBuilder {
     const cabinetCeilingLimitY = ceilingY - ceilingThicknessM;
     const boxTopY = floorY + boxHM;
 
-    // Espaçamento inferior configurável (padrão 0mm)
+    // Espaçamento inferior configurável (limitado ao topo do módulo: mínimo 0mm)
     const bottomGapMm = Math.max(0, box.upperCabinetBottomGapMm ?? 0);
     const bottomGapM = bottomGapMm / 1000;
 

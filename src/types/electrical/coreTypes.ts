@@ -9,12 +9,122 @@ export type ElectricalPortPolarity =
 export type ElectricalPortSide = 'left' | 'right' | 'top' | 'bottom';
 export type ElectricalPortDirection = 'in' | 'out' | 'bidirectional';
 
+export type ElectricalConnectorType =
+  | 'ring_m8'
+  | 'ring_m6'
+  | 'ring_m5'
+  | 'spade'
+  | 'faston'
+  | 'ferrule'
+  | 'mc4'
+  | 'wago'
+  | 'anderson'
+  | 'xt60'
+  | 'bare'
+  | 'none';
+
+export interface ConnectorMeta {
+  id: ElectricalConnectorType;
+  label: string;
+  shortLabel: string;
+  description: string;
+  usesGauge: boolean;
+}
+
+export const CONNECTOR_META: Record<ElectricalConnectorType, ConnectorMeta> = {
+  ring_m8: {
+    id: 'ring_m8',
+    label: 'Terminal Olhal M8',
+    shortLabel: 'Olhal M8',
+    description: 'Bateria, Shunt, Inversor e Barramentos 250A',
+    usesGauge: true
+  },
+  ring_m6: {
+    id: 'ring_m6',
+    label: 'Terminal Olhal M6',
+    shortLabel: 'Olhal M6',
+    description: 'Barramentos e Entrada Geral da Caixa de Fusíveis',
+    usesGauge: true
+  },
+  ring_m5: {
+    id: 'ring_m5',
+    label: 'Terminal Olhal M4/M5',
+    shortLabel: 'Olhal M4/M5',
+    description: 'Parafusos menores, relés e sensores',
+    usesGauge: true
+  },
+  spade: {
+    id: 'spade',
+    label: 'Terminal Forquilha (Garfo)',
+    shortLabel: 'Forquilha',
+    description: 'Vias da Caixa de Fusíveis e bornes de parafuso',
+    usesGauge: true
+  },
+  faston: {
+    id: 'faston',
+    label: 'Terminal Faston 6.3mm',
+    shortLabel: 'Faston',
+    description: 'Interruptores, botões 12V e painéis USB',
+    usesGauge: true
+  },
+  ferrule: {
+    id: 'ferrule',
+    label: 'Terminal Tubular (Ilhós)',
+    shortLabel: 'Ilhós',
+    description: 'Disjuntores DIN, MPPT, B2B, Usina e bornes a parafuso',
+    usesGauge: true
+  },
+  mc4: {
+    id: 'mc4',
+    label: 'Conector Solar MC4',
+    shortLabel: 'MC4',
+    description: 'Placas solares e divisores MC4',
+    usesGauge: false
+  },
+  wago: {
+    id: 'wago',
+    label: 'Conector Wago (Alavanca)',
+    shortLabel: 'Wago',
+    description: 'Emendas rápidas 12V/220V sem crimpagem',
+    usesGauge: false
+  },
+  anderson: {
+    id: 'anderson',
+    label: 'Conector Anderson (SB50/120)',
+    shortLabel: 'Anderson',
+    description: 'Engate rápido DC de alta corrente',
+    usesGauge: false
+  },
+  xt60: {
+    id: 'xt60',
+    label: 'Conector XT60 / XT90',
+    shortLabel: 'XT60',
+    description: 'Engate rápido DC de média corrente',
+    usesGauge: false
+  },
+  bare: {
+    id: 'bare',
+    label: 'Fio Estanhado / Direto',
+    shortLabel: 'Direto',
+    description: 'Ligação direta no borne sem terminal',
+    usesGauge: false
+  },
+  none: {
+    id: 'none',
+    label: 'Nenhum',
+    shortLabel: 'Nenhum',
+    description: 'Sem conector nesta ponta',
+    usesGauge: false
+  }
+};
+
 export interface ElectricalPort {
   id: string;
   label: string;
   polarity: ElectricalPortPolarity;
   side: ElectricalPortSide;
   direction: ElectricalPortDirection;
+  connectorType?: ElectricalConnectorType;
   fuseAmps?: number;
   isManualFuse?: boolean;
   maxAmps?: number;
@@ -32,7 +142,8 @@ export type ElectricalNodeTypeKind =
   | 'fuse_box'
   | 'busbar'
   | 'breaker'
-  | 'transfer_switch';
+  | 'transfer_switch'
+  | 'connector';
 
 export interface ElectricalNodeData {
   catalogId: string;
@@ -59,6 +170,7 @@ export interface ElectricalNodeData {
   busbarTermCount?: number;
   breakerAmps?: number;
   breakerPoles?: 1 | 2;
+  connectorType?: ElectricalConnectorType;
   isEnabled?: boolean;
   isSource?: boolean;
   notes?: string;
@@ -81,6 +193,10 @@ export interface ElectricalEdgeData {
   isOverloaded: boolean;
   overloadWarning?: string;
   customLabel?: string;
+  sourceConnector?: ElectricalConnectorType;
+  targetConnector?: ElectricalConnectorType;
+  isManualSourceConnector?: boolean;
+  isManualTargetConnector?: boolean;
   [key: string]: unknown;
 }
 
@@ -193,5 +309,6 @@ export interface ElectricalCatalogTemplate {
   busbarTermCount?: number;
   breakerAmps?: number;
   breakerPoles?: 1 | 2;
+  connectorType?: ElectricalConnectorType;
   ports: ElectricalPort[];
 }

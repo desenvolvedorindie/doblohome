@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { MetalonTubeFactory } from '../src/three/MetalonTube';
+import { AluminumExtrusionFactory } from '../src/three/AluminumExtrusion';
+import { extractBarStats } from '../src/utils/woodUtils';
 import { getMetalonGauge, getSteelProfileSpec } from '../src/types';
 import { BaseRackBuilder } from '../src/three/BaseRackBuilder';
 import { SolarTrayBuilder } from '../src/three/SolarTrayBuilder';
@@ -461,5 +463,102 @@ describe('Metalon Tubular Paramétrico (Alumínio & Ferro Oco)', () => {
     expect(capLineupParts.length).toBe(12);
     expect(capLineupParts[0].userData.profileSpec).toContain('Metalon');
     expect(capLineupParts[0].userData.purpose).toContain('Ponteira');
+  });
+
+  it('21. AluminumExtrusionFactory.createProfileMesh com addCaps: true deve anexar caps nos eixos Z, X e Y', () => {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xc0c8d2 });
+
+    const meshZ = AluminumExtrusionFactory.createProfileMesh(2.20, mat, { axis: 'z', size: 0.040, addCaps: true });
+    const capsZ = meshZ.children.filter((c: any) => c.name === 'MetalonCapMesh');
+    expect(capsZ.length).toBe(2);
+    expect(capsZ[0].position.z).toBeCloseTo(1.10, 3);
+    expect(capsZ[1].position.z).toBeCloseTo(-1.10, 3);
+    expect(capsZ[1].rotation.y).toBeCloseTo(Math.PI, 3);
+
+    const meshX = AluminumExtrusionFactory.createProfileMesh(1.44, mat, { axis: 'x', size: 0.030, addCaps: true });
+    const capsX = meshX.children.filter((c: any) => c.name === 'MetalonCapMesh');
+    expect(capsX.length).toBe(2);
+    expect(capsX[0].position.x).toBeCloseTo(0.72, 3);
+    expect(capsX[1].position.x).toBeCloseTo(-0.72, 3);
+    expect(capsX[0].rotation.y).toBeCloseTo(Math.PI / 2, 3);
+    expect(capsX[1].rotation.y).toBeCloseTo(-Math.PI / 2, 3);
+  });
+
+  it('22. BaseRackBuilder, TrayLevelBuilder e SpacerPostsBuilder devem instalar CAPs nos perfis de alumínio e ferro', () => {
+    const materials: Array<'aluminum' | 'aluminum_tube' | 'steel'> = ['aluminum', 'aluminum_tube', 'steel'];
+
+    materials.forEach((structureMaterial) => {
+      const root = new THREE.Group();
+      const rackMeshes: THREE.Mesh[] = [];
+      const aluBrackets = new THREE.Group();
+      const weldGussets = new THREE.Group();
+      const dims = SolarTrayBuilder.calculateTrayDimensions(2, 'longitudinal');
+
+      BaseRackBuilder.buildBaseRack(
+        root,
+        rackMeshes,
+        aluBrackets,
+        weldGussets,
+        dims,
+        0,
+        2.06,
+        structureMaterial,
+        'silver',
+        false
+      );
+
+      SolarTrayBuilder.buildTrayLevel(
+        root,
+        dims,
+        0,
+        2.10,
+        0,
+        1,
+        'Nível 1',
+        structureMaterial,
+        'silver'
+      );
+
+      SpacerPostsBuilder.addSpacerPosts(
+        root,
+        dims.trayWidth,
+        dims.trayLength,
+        2.08,
+        2.17,
+        0,
+        structureMaterial,
+        'silver'
+      );
+
+      const stats = extractBarStats({
+        solarSystem: {
+          group: root,
+          cargoBoxConfig: { enabled: false },
+          cargoBoxSystem: { group: new THREE.Group() }
+        }
+      });
+
+      const cap40 = stats.metalonCaps.find(c => c.sizeSpec === '40x40');
+      const cap30 = stats.metalonCaps.find(c => c.sizeSpec === '30x30');
+      // 4 caps 40x40 nas longarinas do rack base
+      expect(cap40?.qty).toBe(4);
+      // 4 caps 30x30 na bandeja + 4 caps 30x30 nas travessas superiores = 8
+      expect(cap30?.qty).toBe(8);
+      expect(stats.totalCaps).toBe(12);
+
+      // Verifica que BarsLineupCollector coleta os mesmos 12 caps da cena 3D real
+      const collected = BarsLineupCollector.collect(
+        {
+          group: root,
+          cargoBoxConfig: { enabled: false },
+          cargoBoxSystem: { group: new THREE.Group() },
+          stackLevels: 2,
+          metalonThickness40: 2.0,
+          metalonThickness30: 1.5
+        },
+        { group: new THREE.Group() }
+      );
+      expect(collected.metalonCapItems.length).toBe(12);
+    });
   });
 });

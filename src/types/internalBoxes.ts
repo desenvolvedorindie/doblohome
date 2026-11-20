@@ -323,6 +323,7 @@ export interface InternalBoxItem {
   slatExtensionPercent?: number; // Porcentagem de extensão ao abrir (50% a 100%, padrão 85%)
   slatWidthMm?: number;          // Largura nominal de cada ripa em mm (padrão ~70mm)
   mattressParts?: 1 | 2 | 3 | 4 | 5; // Divisão do colchão/estofado (1 = Inteiro, 2 = Bipartido, 3 = Tripartido, 5 = Total c/ Caixas de Roda)
+  mattressMergedGroups?: number[][]; // Grupos de subpartes contíguas do colchão conectadas em uma peça inteira (ex: [[0,1], [3,4]])
   mattressFoam?: MattressFoamDensity; // Densidade/tipo da espuma do colchão ('D28', 'D33', 'D45', 'AG80', 'D33_SOFT')
   mattressThicknessMm?: number;       // Espessura da espuma em mm (50mm a 120mm, padrão 80mm)
   topPerforated?: boolean;       // Tampo/Tampa superior vazado para alívio de peso e aeração do colchão
@@ -419,6 +420,7 @@ export interface InternalGridConfig {
   ledBaseboard?: LedBaseboardConfig; // Iluminação em perfil de LED no rodapé do assoalho
   centralTable?: CentralTableConfig; // Mesa dinette central fixada na chapa de compensado naval de 15mm (assoalho)
   ceiling?: CeilingConfig;           // Teto e forro do campervan (ripado ou chapa MDF/compensado com LED)
+  mattressMergedGroups?: string[][]; // Grupos globais de subpartes de colchão conectadas entre quaisquer módulos adjacentes (IDs `${boxId}::${subpartIndex}`)
 }
 
 export function getBoxEffectiveDimensionsMm(

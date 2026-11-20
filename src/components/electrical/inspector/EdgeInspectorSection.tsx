@@ -1,14 +1,23 @@
 import React from 'react';
-import type { Edge } from '@xyflow/react';
+import type { Edge, Node } from '@xyflow/react';
 import {
+  CONNECTOR_META,
+  ElectricalConnectorType,
   ElectricalEdgeData,
+  ElectricalNodeData,
   ElectricalPortPolarity,
   POLARITY_META
 } from '../../../types/electricalPlanar';
-import { COPPER_WIRE_TABLE } from '../../../utils/electricalCalculations';
+import {
+  COPPER_WIRE_TABLE,
+  getPortOnNode,
+  suggestConnectorForPort
+} from '../../../utils/electricalCalculations';
+import { ConnectorIllustration } from '../schematic/ConnectorIllustration';
 
 interface EdgeInspectorSectionProps {
   selectedEdge: Edge<ElectricalEdgeData>;
+  nodes?: Node<ElectricalNodeData>[];
   onUpdateEdgeData: (
     edgeId: string,
     updater: (prev: ElectricalEdgeData) => ElectricalEdgeData
@@ -18,9 +27,22 @@ interface EdgeInspectorSectionProps {
 
 export const EdgeInspectorSection: React.FC<EdgeInspectorSectionProps> = ({
   selectedEdge,
+  nodes = [],
   onUpdateEdgeData,
   onDeleteEdge
 }) => {
+  const sNode = nodes.find((n) => n.id === selectedEdge.source);
+  const tNode = nodes.find((n) => n.id === selectedEdge.target);
+  const sPort = getPortOnNode(sNode, selectedEdge.sourceHandle);
+  const tPort = getPortOnNode(tNode, selectedEdge.targetHandle);
+  const autoSourceConn = suggestConnectorForPort(sNode, sPort);
+  const autoTargetConn = suggestConnectorForPort(tNode, tPort);
+  const sourceConnValue = selectedEdge.data?.isManualSourceConnector
+    ? selectedEdge.data.sourceConnector || autoSourceConn
+    : 'auto';
+  const targetConnValue = selectedEdge.data?.isManualTargetConnector
+    ? selectedEdge.data.targetConnector || autoTargetConn
+    : 'auto';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
       <div
@@ -297,6 +319,135 @@ export const EdgeInspectorSection: React.FC<EdgeInspectorSectionProps> = ({
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Conectores nas Pontas do Cabo */}
+        <div
+          style={{
+            marginBottom: '8px',
+            padding: '7px',
+            borderRadius: '6px',
+            background: 'rgba(2, 6, 23, 0.45)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px'
+          }}
+        >
+          <div style={{ fontSize: '10px', color: '#38bdf8', fontWeight: 700 }}>
+            🔌 Conectores nas Pontas
+          </div>
+
+          <label style={{ display: 'block', fontSize: '9.5px', color: '#94a3b8' }}>
+            Origem:{' '}
+            <strong style={{ color: '#e2e8f0' }}>
+              {sNode?.data.label || 'Origem'}
+              {sPort ? ` · ${sPort.label}` : ''}
+            </strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginTop: '4px' }}>
+              <ConnectorIllustration
+                type={selectedEdge.data?.sourceConnector || autoSourceConn}
+                size={34}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <select
+                  value={sourceConnValue}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === 'auto') {
+                      onUpdateEdgeData(selectedEdge.id, (prev) => ({
+                        ...prev,
+                        sourceConnector: autoSourceConn,
+                        isManualSourceConnector: false
+                      }));
+                    } else {
+                      onUpdateEdgeData(selectedEdge.id, (prev) => ({
+                        ...prev,
+                        sourceConnector: raw as ElectricalConnectorType,
+                        isManualSourceConnector: true
+                      }));
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '5px 7px',
+                    borderRadius: '5px',
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    border: '1px solid rgba(148, 163, 184, 0.25)',
+                    color: '#fff',
+                    fontSize: '10.5px'
+                  }}
+                >
+                  <option value="auto">
+                    ⚡ Auto ({CONNECTOR_META[autoSourceConn]?.label || autoSourceConn})
+                  </option>
+                  {Object.values(CONNECTOR_META).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ fontSize: '8.5px', color: '#64748b', marginTop: '2px' }}>
+                  {CONNECTOR_META[selectedEdge.data?.sourceConnector || autoSourceConn]?.description}
+                </div>
+              </div>
+            </div>
+          </label>
+
+          <label style={{ display: 'block', fontSize: '9.5px', color: '#94a3b8' }}>
+            Destino:{' '}
+            <strong style={{ color: '#e2e8f0' }}>
+              {tNode?.data.label || 'Destino'}
+              {tPort ? ` · ${tPort.label}` : ''}
+            </strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginTop: '4px' }}>
+              <ConnectorIllustration
+                type={selectedEdge.data?.targetConnector || autoTargetConn}
+                size={34}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <select
+                  value={targetConnValue}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === 'auto') {
+                      onUpdateEdgeData(selectedEdge.id, (prev) => ({
+                        ...prev,
+                        targetConnector: autoTargetConn,
+                        isManualTargetConnector: false
+                      }));
+                    } else {
+                      onUpdateEdgeData(selectedEdge.id, (prev) => ({
+                        ...prev,
+                        targetConnector: raw as ElectricalConnectorType,
+                        isManualTargetConnector: true
+                      }));
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '5px 7px',
+                    borderRadius: '5px',
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    border: '1px solid rgba(148, 163, 184, 0.25)',
+                    color: '#fff',
+                    fontSize: '10.5px'
+                  }}
+                >
+                  <option value="auto">
+                    ⚡ Auto ({CONNECTOR_META[autoTargetConn]?.label || autoTargetConn})
+                  </option>
+                  {Object.values(CONNECTOR_META).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ fontSize: '8.5px', color: '#64748b', marginTop: '2px' }}>
+                  {CONNECTOR_META[selectedEdge.data?.targetConnector || autoTargetConn]?.description}
+                </div>
+              </div>
+            </div>
+          </label>
         </div>
 
         {/* Rótulo personalizado opcional */}

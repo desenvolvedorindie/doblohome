@@ -166,7 +166,8 @@ export function optimizeCuttingPlan(
           holes,
           partType: item.partType,
           isUpholstery: item.isUpholstery,
-          hasCabinetCutout: item.hasCabinetCutout
+          hasCabinetCutout: item.hasCabinetCutout,
+          cutOutlineNorm: item.cutOutlineNorm
         };
 
         state.plan.placedPieces.push(placedObj);
@@ -248,7 +249,8 @@ export function optimizeCuttingPlan(
           holes,
           partType: item.partType,
           isUpholstery: item.isUpholstery,
-          hasCabinetCutout: item.hasCabinetCutout
+          hasCabinetCutout: item.hasCabinetCutout,
+          cutOutlineNorm: item.cutOutlineNorm
         });
 
         const remW = rect.w - pieceW - kerfMm;

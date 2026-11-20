@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { WoodGroupByCategory, UpholsteryStats, UpholsteryFabricId } from '../../utils/woodUtils';
+import { MattressTopDownConnector } from './MattressTopDownConnector';
 
 export interface UpholsteryPiecesTabProps {
   upholsteryStats: UpholsteryStats;
@@ -68,6 +69,9 @@ export const UpholsteryPiecesTab: React.FC<UpholsteryPiecesTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Vista Superior Interativa do Colchão (Conectar / Desconectar Subpartes em Peça Inteira) */}
+      <MattressTopDownConnector />
 
       {upholsteryCategories.length === 0 ? (
         <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>

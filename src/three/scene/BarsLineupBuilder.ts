@@ -3,7 +3,10 @@ import { PartsGroupFilter } from '../../types';
 import { LineupItem, LineupRowGroup } from './LineupTypes';
 import { BarsLineupCollector } from './BarsLineupCollector';
 import { MetalonTubeFactory } from '../MetalonTube';
+import { AluminumExtrusionFactory } from '../AluminumExtrusion';
+import { MaterialLibrary } from '../Materials';
 import { InternalBoxesBuilder } from '../InternalBoxesBuilder';
+import { buildGroupJunctionLinesGroup, GroupJunctionSegment3D } from '../boxes/slat-bed/MattressCushionGeometry';
 
 export class BarsLineupBuilder {
   static build(
@@ -102,17 +105,20 @@ export class BarsLineupBuilder {
         const isFitting = item.type === 'pvc' && (item.pvcFittingType === 'elbow_90' || item.pvcFittingType === 'tee_90' || item.pvcFittingType === 'cap');
 
         if (item.isMetalonCap) {
+          const wallThickM = (item.capProfileSize || 40) >= 35
+            ? ((solarSystem?.metalonThickness40 || 2.0) / 1000)
+            : ((solarSystem?.metalonThickness30 || 1.5) / 1000);
           const capObj = MetalonTubeFactory.createMetalonCapMesh(
             item.width,
             item.thickness,
-            item.thicknessMm ? item.thicknessMm / 1000 : 0.002,
-            undefined,
+            wallThickM,
+            MaterialLibrary.materials?.metalonCap,
             { centered: true }
           );
           capObj.userData = {
             isMetalonCap: true,
             profileSpec: item.profileSpec,
-            purpose: 'Ponteira Plástica / CAP Protetor de Metalon',
+            purpose: 'Ponteira Plástica / CAP Protetor de Perfil Alumínio/Ferro',
             name: item.name
           };
           partObj = capObj;
@@ -187,6 +193,8 @@ export class BarsLineupBuilder {
           partObj = mesh;
         } else {
           let geo: THREE.BufferGeometry;
+          let geoCenterOffset = new THREE.Vector3();
+          const isTSlotProfile = item.type === 'metal' && item.profileSpec?.includes('T-Slot');
           const isMetalonOrTube = item.type === 'metal' && (item.profileSpec?.includes('Metalon') || item.profileSpec?.includes('Tubo'));
           if (item.isPerforated) {
             geo = InternalBoxesBuilder.createPerforatedGeometry(item.width, item.thickness, item.length, {
@@ -194,6 +202,9 @@ export class BarsLineupBuilder {
               spacingMm: item.sourceMesh?.userData?.spacingMm,
               exclusionZones: item.sourceMesh?.userData?.exclusionZones
             });
+          } else if (isTSlotProfile) {
+            const pSize = item.profileSpec?.includes('40') ? 0.040 : 0.030;
+            geo = AluminumExtrusionFactory.getProfileGeometry(item.length, pSize, 'z');
           } else if (isMetalonOrTube) {
             const tMm = item.profileSpec?.includes('40') ? (solarSystem.metalonThickness40 || 2.0) : (solarSystem.metalonThickness30 || 1.5);
             geo = MetalonTubeFactory.getTubeGeometry(item.length, item.width, item.thickness, tMm / 1000, 'z');
@@ -202,9 +213,8 @@ export class BarsLineupBuilder {
             geo = item.sourceMesh.geometry.clone();
             geo.computeBoundingBox();
             if (geo.boundingBox) {
-              const center = new THREE.Vector3();
-              geo.boundingBox.getCenter(center);
-              geo.translate(-center.x, -center.y, -center.z);
+              geo.boundingBox.getCenter(geoCenterOffset);
+              geo.translate(-geoCenterOffset.x, -geoCenterOffset.y, -geoCenterOffset.z);
             }
           } else {
             geo = new THREE.BoxGeometry(item.width, item.thickness, item.length);
@@ -220,6 +230,18 @@ export class BarsLineupBuilder {
           const mesh = new THREE.Mesh(geo, mat);
           mesh.castShadow = true;
           mesh.receiveShadow = true;
+
+          // Se for almofada conectada em grupo, replica as linhas 3D de junção/emenda na vista de peças
+          const rawJunctionSegs = item.sourceMesh?.userData?.groupJunctionSegments as GroupJunctionSegment3D[] | undefined;
+          if (item.type === 'upholstery' && Array.isArray(rawJunctionSegs) && rawJunctionSegs.length > 0) {
+            const shiftedSegs = rawJunctionSegs.map((s) => ({
+              x1: s.x1 - geoCenterOffset.x,
+              z1: s.z1 - geoCenterOffset.z,
+              x2: s.x2 - geoCenterOffset.x,
+              z2: s.z2 - geoCenterOffset.z
+            }));
+            mesh.add(buildGroupJunctionLinesGroup(shiftedSegs, item.thickness));
+          }
 
           const edgeGeo = new THREE.EdgesGeometry(geo, item.isPerforated ? 25 : undefined);
           const edgeMat = new THREE.LineBasicMaterial({
@@ -283,7 +305,9 @@ export class BarsLineupBuilder {
             ? 'Tê 90°'
             : item.pvcFittingType === 'cap'
               ? 'CAP Tampão'
-              : undefined;
+              : item.isMetalonCap
+                ? `CAP ${item.capProfileSize || 40}×${item.capProfileSize || 40}`
+                : undefined;
         const labelSprite = (typeof caller?.createBarLengthSprite === 'function')
           ? caller.createBarLengthSprite(idx + 1, item.length, item.width, item.area, item.type, customLabel)
           : BarsLineupBuilder.createBarLengthSprite(idx + 1, item.length, item.width, item.area, item.type, customLabel);

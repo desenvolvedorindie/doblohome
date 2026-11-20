@@ -1,5 +1,7 @@
 import type { Edge, Node } from '@xyflow/react';
 import {
+  CONNECTOR_META,
+  ElectricalConnectorType,
   ElectricalEdgeData,
   ElectricalNodeData,
   ElectricalPortPolarity,
@@ -123,9 +125,20 @@ export interface EquipmentBomItem {
   qty: number;
 }
 
+export interface ConnectorBomItem {
+  key: string;
+  connectorType: ElectricalConnectorType;
+  label: string;
+  shortLabel: string;
+  gaugeMm2?: number;
+  qty: number;
+}
+
 export interface ElectricalBomSummary {
   cables: CableBomItem[];
   totalCableMeters: number;
+  connectors: ConnectorBomItem[];
+  totalConnectors: number;
   fuses: FuseBomItem[];
   totalFuses: number;
   equipment: EquipmentBomItem[];
@@ -133,15 +146,41 @@ export interface ElectricalBomSummary {
 }
 
 /**
- * Consolida a Lista de Compras Elétrica (metragem de cabos por cor/bitola, fusíveis e componentes).
+ * Consolida a Lista de Compras Elétrica (metragem de cabos por cor/bitola, conectores, fusíveis e componentes).
  */
 export function calculateElectricalBom(
   nodes: Node<ElectricalNodeData>[],
   edges: Edge<ElectricalEdgeData>[]
 ): ElectricalBomSummary {
   const cableMap = new Map<string, CableBomItem>();
+  const connectorMap = new Map<string, ConnectorBomItem>();
   let totalCableMeters = 0;
+  let totalConnectors = 0;
   let overloadedEdgesCount = 0;
+
+  const registerConnector = (
+    connType: ElectricalConnectorType | undefined,
+    gaugeMm2: number
+  ) => {
+    if (!connType || connType === 'none' || connType === 'bare') return;
+    const meta = CONNECTOR_META[connType];
+    if (!meta) return;
+    const key = meta.usesGauge ? `${connType}_${gaugeMm2}` : connType;
+    totalConnectors += 1;
+    const existing = connectorMap.get(key);
+    if (existing) {
+      existing.qty += 1;
+    } else {
+      connectorMap.set(key, {
+        key,
+        connectorType: connType,
+        label: meta.label,
+        shortLabel: meta.shortLabel,
+        gaugeMm2: meta.usesGauge ? gaugeMm2 : undefined,
+        qty: 1
+      });
+    }
+  };
 
   for (const edge of edges) {
     const d = edge.data;
@@ -165,6 +204,9 @@ export function calculateElectricalBom(
         wireCount: 1
       });
     }
+
+    registerConnector(d.sourceConnector, d.gaugeMm2);
+    registerConnector(d.targetConnector, d.gaugeMm2);
   }
 
   // Fusíveis usados nas caixas de fusíveis
@@ -218,9 +260,11 @@ export function calculateElectricalBom(
           ? `${d.busbarTermCount || 8} Terminais`
           : d.kind === 'breaker'
             ? `${d.breakerAmps || 60}A (${d.breakerPoles || 2}P)`
-            : d.watts > 0
-              ? `${d.watts}W @ ${d.voltage}V`
-              : `${d.voltage}V`;
+            : d.kind === 'connector'
+              ? CONNECTOR_META[d.connectorType || 'anderson']?.shortLabel || 'Conector'
+              : d.watts > 0
+                ? `${d.watts}W @ ${d.voltage}V`
+                : `${d.voltage}V`;
 
     const eqKey = `${d.catalogId}_${detail}`;
     const existingEq = equipMap.get(eqKey);
@@ -240,6 +284,10 @@ export function calculateElectricalBom(
   return {
     cables: Array.from(cableMap.values()).sort((a, b) => b.gaugeMm2 - a.gaugeMm2),
     totalCableMeters: +totalCableMeters.toFixed(1),
+    connectors: Array.from(connectorMap.values()).sort(
+      (a, b) => a.label.localeCompare(b.label) || (b.gaugeMm2 || 0) - (a.gaugeMm2 || 0)
+    ),
+    totalConnectors,
     fuses: Array.from(fuseMap.values()).sort((a, b) => a.amps - b.amps),
     totalFuses,
     equipment: Array.from(equipMap.values()),

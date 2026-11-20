@@ -19,6 +19,7 @@ export class CargoBoxSystem {
   boxLidGroup: THREE.Group;
   tiltingPivotGroup: THREE.Group;
   tiltingMountGroup: THREE.Group;
+  hingeUpperLeavesGroup: THREE.Group;
   gasStrutsGroup: THREE.Group;
 
   config: CargoBoxConfig;
@@ -83,6 +84,9 @@ export class CargoBoxSystem {
     this.tiltingMountGroup = new THREE.Group();
     this.tiltingMountGroup.name = "SolarSuperstructureMount";
 
+    this.hingeUpperLeavesGroup = new THREE.Group();
+    this.hingeUpperLeavesGroup.name = "HingeUpperLeaves";
+
     this.gasStrutsGroup = new THREE.Group();
     this.gasStrutsGroup.name = "GasStruts";
 
@@ -91,6 +95,7 @@ export class CargoBoxSystem {
     this.group.add(this.gasStrutsGroup);
     this.group.add(this.tiltingPivotGroup);
     this.tiltingPivotGroup.add(this.tiltingMountGroup);
+    this.tiltingMountGroup.add(this.hingeUpperLeavesGroup);
 
     this.build();
   }
@@ -127,6 +132,7 @@ export class CargoBoxSystem {
     this.clearGroup(this.subchassisGroup);
     this.clearGroup(this.boxGroup);
     this.clearGroup(this.boxLidGroup);
+    this.clearGroup(this.hingeUpperLeavesGroup);
     this.clearGroup(this.gasStrutsGroup);
     this.struts = [];
 
@@ -174,7 +180,8 @@ export class CargoBoxSystem {
       subchassisWidth: this.SUBCHASSIS_WIDTH,
       subchassisLength: this.SUBCHASSIS_LENGTH,
       profileSize: this.PROFILE_SIZE,
-      targetGroup: this.subchassisGroup
+      targetGroup: this.subchassisGroup,
+      hingeUpperLeavesGroup: this.hingeUpperLeavesGroup
     });
 
     // 2. Baú Motobul
@@ -199,9 +206,12 @@ export class CargoBoxSystem {
       }
     });
 
-    // 3. Posiciona o Grupo de Pivô
-    this.tiltingPivotGroup.position.set(pivotX, pivotElevationY, 0);
-    this.tiltingMountGroup.position.set(-pivotX, -pivotElevationY, 0);
+    // 3. Posiciona o Grupo de Pivô exatamente no eixo externo do pino da dobradiça
+    const outwardSign = this.config.hingeSide === 'driver' ? -1 : 1;
+    const hingePinX = pivotX + outwardSign * (this.PROFILE_SIZE / 2 + 0.006);
+    const hingePinY = pivotElevationY - this.PROFILE_SIZE / 2;
+    this.tiltingPivotGroup.position.set(hingePinX, hingePinY, 0);
+    this.tiltingMountGroup.position.set(-hingePinX, -hingePinY, 0);
 
     // 4. Aplica rotações (sem pistões a gás no baú)
     this.setTiltAngle(this.config.tiltAngle || 0);
@@ -310,6 +320,7 @@ export class CargoBoxSystem {
     this.clearGroup(this.subchassisGroup);
     this.clearGroup(this.boxGroup);
     this.clearGroup(this.boxLidGroup);
+    this.clearGroup(this.hingeUpperLeavesGroup);
     this.clearGroup(this.gasStrutsGroup);
     this.clearGroup(this.tiltingPivotGroup);
     this.clearGroup(this.tiltingMountGroup);

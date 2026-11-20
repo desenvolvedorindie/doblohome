@@ -61,20 +61,18 @@ export function useInternalBoxesManager(
   const [rulerState, setRulerState] = useState<RulerLiveState>(INITIAL_RULER_STATE);
 
   const toggleCabinetsOpenPreview = (forceState?: boolean) => {
-    setIsCabinetsOpenPreview((prev) => {
-      const allCabinets = internalBoxes.filter((b) => b.upperCabinet);
+    setInternalBoxesState((boxes) => {
+      const allCabinets = boxes.filter((b) => b.upperCabinet);
       const areAllOpen = allCabinets.length > 0 && allCabinets.every((b) => Boolean(b.isUpperCabinetOpen));
       const next = forceState !== undefined ? forceState : !areAllOpen;
-
-      setInternalBoxesState((boxes) => {
-        const nextBoxes = boxes.map((b) => (b.upperCabinet ? { ...b, isUpperCabinetOpen: next } : b));
-        if (isDbLoaded) {
-          dbSet('doblo_internal_boxes', nextBoxes);
-        }
-        return nextBoxes;
-      });
-      return next;
+      const nextBoxes = boxes.map((b) => (b.upperCabinet ? { ...b, isUpperCabinetOpen: next } : b));
+      if (isDbLoaded) {
+        dbSet('doblo_internal_boxes', nextBoxes);
+      }
+      return nextBoxes;
     });
+    // Mantém o override global desligado para que cada armário aéreo possa abrir/fechar individualmente
+    setIsCabinetsOpenPreview(false);
   };
 
   const setRulerActive = (active: boolean) => {
@@ -334,12 +332,45 @@ export function useInternalBoxesManager(
 
   const updateInternalBox = (id: string, updates: Partial<InternalBoxItem>) => {
     setInternalBoxesState(prev => {
-      const next = prev.map(b => (b.id === id ? { ...b, ...updates } : b));
+      const target = prev.find(b => b.id === id);
+      const isOpeningBed = Boolean(
+        updates.isBedOpen === true ||
+        (target && target.type === 'slat_bed' && updates.isOpen === true)
+      );
+      const isOpeningLift = Boolean(
+        target && target.type === 'vertical_lift' && updates.isOpen === true
+      );
+
+      const next = prev.map(b => {
+        if (b.id === id) {
+          return { ...b, ...updates };
+        }
+        // Ao abrir a cama, recolhe/oculta automaticamente todos os módulos elevatórios verticais
+        if (isOpeningBed && b.type === 'vertical_lift' && b.isOpen) {
+          return { ...b, isOpen: false };
+        }
+        // Ao elevar um módulo vertical, recolhe a cama aberta para evitar sobreposição
+        if (isOpeningLift && (b.type === 'slat_bed' || b.hasBed)) {
+          const bedOpen = Boolean(b.isBedOpen ?? (b.type === 'slat_bed' ? b.isOpen : false));
+          if (bedOpen) {
+            return {
+              ...b,
+              isBedOpen: false,
+              ...(b.type === 'slat_bed' ? { isOpen: false } : {})
+            };
+          }
+        }
+        return b;
+      });
       if (isDbLoaded) {
         dbSet('doblo_internal_boxes', next);
       }
       return next;
     });
+    if (updates.isBedOpen !== undefined) {
+      setIsOpenPreview(false);
+      setIsBedOpenPreview(false);
+    }
   };
 
   const removeInternalBox = (id: string) => {

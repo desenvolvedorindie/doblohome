@@ -25,7 +25,8 @@ import {
 } from '../../../utils/electricalCatalog';
 import {
   recalculateDiagramEdges,
-  syncFuseBoxNodePorts
+  syncFuseBoxNodePorts,
+  validateElectricalConnection
 } from '../../../utils/electricalCalculations';
 import {
   STORAGE_KEY_CUSTOM_TPL,
@@ -47,6 +48,7 @@ export function useElectricalPlanarState() {
   const [nodes, setNodes] = useState<Node<ElectricalNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge<ElectricalEdgeData>[]>([]);
   const [edgeStyle, setEdgeStyle] = useState<ElectricalEdgeStyle>('smoothstep');
+  const [iconScale, setIconScale] = useState<number>(1);
   const [customTemplates, setCustomTemplates] = useState<ElectricalCatalogTemplate[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -63,6 +65,9 @@ export function useElectricalPlanarState() {
         if (mounted && saved && Array.isArray(saved.nodes) && Array.isArray(saved.edges)) {
           const style = saved.edgeStyle || 'smoothstep';
           setEdgeStyle(style);
+          if (typeof saved.iconScale === 'number' && saved.iconScale >= 0.8 && saved.iconScale <= 2.5) {
+            setIconScale(saved.iconScale);
+          }
           const styledEdges = saved.edges.map((e) => ({
             ...e,
             type: 'wire',
@@ -95,8 +100,8 @@ export function useElectricalPlanarState() {
   // Salva automaticamente no IndexedDB sempre que houver alteração
   useEffect(() => {
     if (!isLoaded) return;
-    dbSet(STORAGE_KEY_DIAGRAM, { nodes, edges, edgeStyle });
-  }, [nodes, edges, edgeStyle, isLoaded]);
+    dbSet(STORAGE_KEY_DIAGRAM, { nodes, edges, edgeStyle, iconScale });
+  }, [nodes, edges, edgeStyle, iconScale, isLoaded]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -241,14 +246,24 @@ export function useElectricalPlanarState() {
     });
   }, [nodes]);
 
+  const isValidConnection = useCallback(
+    (connection: Edge | Connection) => {
+      return validateElectricalConnection(connection, nodes).valid;
+    },
+    [nodes]
+  );
+
   const onConnect = useCallback(
     (connection: Connection) => {
-      const sNode = nodes.find((n) => n.id === connection.source);
-      const tNode = nodes.find((n) => n.id === connection.target);
-      const sPort = sNode?.data.ports.find((p) => p.id === connection.sourceHandle);
-      const tPort = tNode?.data.ports.find((p) => p.id === connection.targetHandle);
+      const validation = validateElectricalConnection(connection, nodes);
+      if (!validation.valid) {
+        if (validation.reason) {
+          flashToast(`⚠️ ${validation.reason}`);
+        }
+        return;
+      }
 
-      const polarity = sPort?.polarity || tPort?.polarity || 'pos';
+      const polarity = validation.resolvedPolarity || 'pos';
       const newId = `edge_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
       const newEdge: Edge<ElectricalEdgeData & { edgeStyle?: ElectricalEdgeStyle }> = {
@@ -281,7 +296,7 @@ export function useElectricalPlanarState() {
       setSelectedEdgeId(newId);
       setSelectedNodeId(null);
     },
-    [nodes, edgeStyle]
+    [nodes, edgeStyle, flashToast]
   );
 
   const insertTemplateAt = useCallback(
@@ -333,12 +348,12 @@ export function useElectricalPlanarState() {
         const nextEdges = prevEdges.map((e) =>
           e.id === edgeId
             ? {
-                ...e,
-                data: {
-                  ...updater(e.data as ElectricalEdgeData),
-                  edgeStyle
-                }
+              ...e,
+              data: {
+                ...updater(e.data as ElectricalEdgeData),
+                edgeStyle
               }
+            }
             : e
         );
         return recalculateDiagramEdges(nodes, nextEdges);
@@ -388,6 +403,8 @@ export function useElectricalPlanarState() {
     nodes,
     edges,
     edgeStyle,
+    iconScale,
+    setIconScale,
     customTemplates,
     setCustomTemplates,
     selectedNodeId,
@@ -397,6 +414,7 @@ export function useElectricalPlanarState() {
     confirmClear,
     onNodesChange,
     onEdgesChange,
+    isValidConnection,
     onConnect,
     insertTemplateAt,
     handleUpdateNodeData,

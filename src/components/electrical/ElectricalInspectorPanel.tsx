@@ -154,6 +154,7 @@ export const ElectricalInspectorPanel: React.FC<ElectricalInspectorPanelProps> =
         ) : selectedEdge ? (
           <EdgeInspectorSection
             selectedEdge={selectedEdge}
+            nodes={nodes}
             onUpdateEdgeData={onUpdateEdgeData}
             onDeleteEdge={onDeleteEdge}
           />

@@ -1,14 +1,102 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
+  Position,
   getBezierPath,
   getSmoothStepPath,
   getStraightPath,
   type Edge,
   type EdgeProps
 } from '@xyflow/react';
-import { ElectricalEdgeData, ElectricalEdgeStyle, POLARITY_META } from '../../types/electricalPlanar';
+import {
+  CONNECTOR_META,
+  ElectricalConnectorType,
+  ElectricalEdgeData,
+  ElectricalEdgeStyle,
+  POLARITY_META
+} from '../../types/electricalPlanar';
+import { ConnectorIllustration } from './schematic/ConnectorIllustration';
+
+function getEndpointOffset(pos: Position, dist = 28): { dx: number; dy: number } {
+  switch (pos) {
+    case Position.Right:
+      return { dx: dist, dy: 0 };
+    case Position.Left:
+      return { dx: -dist, dy: 0 };
+    case Position.Top:
+      return { dx: 0, dy: -dist };
+    case Position.Bottom:
+      return { dx: 0, dy: dist };
+    default:
+      return { dx: dist, dy: 0 };
+  }
+}
+
+const EndpointConnectorBadge: React.FC<{
+  x: number;
+  y: number;
+  position: Position;
+  connectorType: ElectricalConnectorType;
+  gaugeMm2: number;
+  accentColor: string;
+}> = ({ x, y, position, connectorType, gaugeMm2, accentColor }) => {
+  const meta = CONNECTOR_META[connectorType];
+  if (!meta) return null;
+  const { dx, dy } = getEndpointOffset(position, 32);
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        transform: `translate(-50%, -50%) translate(${x + dx}px, ${y + dy}px)`,
+        pointerEvents: 'none',
+        zIndex: 60
+      }}
+      className="nodrag nopan"
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '5px',
+          padding: '3px 6px 3px 4px',
+          borderRadius: '7px',
+          background: 'rgba(15, 23, 42, 0.96)',
+          border: `1.5px solid ${accentColor}`,
+          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.65)',
+          whiteSpace: 'nowrap'
+        }}
+      >
+        <ConnectorIllustration type={connectorType} size={22} />
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+          <span
+            style={{
+              fontSize: '9.5px',
+              fontWeight: 800,
+              color: '#f8fafc',
+              fontFamily: 'var(--font-sans)'
+            }}
+          >
+            {meta.shortLabel}
+          </span>
+          {meta.usesGauge && (
+            <span
+              style={{
+                fontSize: '8.5px',
+                fontWeight: 700,
+                color: '#94a3b8',
+                fontFamily: 'var(--font-mono)'
+              }}
+            >
+              {gaugeMm2} mm²
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 type WireEdgeType = Edge<
   ElectricalEdgeData & { edgeStyle?: ElectricalEdgeStyle },
@@ -35,6 +123,7 @@ export const WireEdge: React.FC<EdgeProps<WireEdgeType>> = ({
   data,
   selected
 }) => {
+  const [hovered, setHovered] = useState(false);
   const edgeStyle = data?.edgeStyle || 'smoothstep';
 
   const pathParams = {
@@ -66,32 +155,74 @@ export const WireEdge: React.FC<EdgeProps<WireEdgeType>> = ({
   const lengthMeters = data?.lengthMeters ?? 1.5;
   const isOverloaded = Boolean(data?.isOverloaded);
 
+  const sourceConnLabel = data?.sourceConnector
+    ? CONNECTOR_META[data.sourceConnector]?.shortLabel
+    : undefined;
+  const targetConnLabel = data?.targetConnector
+    ? CONNECTOR_META[data.targetConnector]?.shortLabel
+    : undefined;
+  const connectorsSummary =
+    sourceConnLabel || targetConnLabel
+      ? ` • Conectores: ${sourceConnLabel || '?'} ➔ ${targetConnLabel || '?'}`
+      : '';
+
+  const showEndpointConnectors = hovered || Boolean(selected);
+  const sourceConn = data?.sourceConnector;
+  const targetConn = data?.targetConnector;
   const strokeWidth = getStrokeWidthFromGauge(gaugeMm2);
 
   return (
     <>
-      {selected && (
-        <path
-          d={edgePath}
-          fill="none"
-          stroke="#ffffff"
-          strokeOpacity={0.35}
-          strokeWidth={strokeWidth + 5}
-          strokeLinecap="round"
+      <g
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {(selected || hovered) && (
+          <path
+            d={edgePath}
+            fill="none"
+            stroke="#ffffff"
+            strokeOpacity={selected ? 0.35 : 0.2}
+            strokeWidth={strokeWidth + 5}
+            strokeLinecap="round"
+            style={{ pointerEvents: 'none' }}
+          />
+        )}
+        <BaseEdge
+          id={id}
+          path={edgePath}
+          style={{
+            stroke: isOverloaded ? '#ef4444' : displayStroke,
+            strokeWidth: selected || hovered ? strokeWidth + 1.2 : strokeWidth,
+            strokeDasharray: polarity === 'signal' ? '5 4' : isOverloaded ? '7 4' : undefined,
+            filter: selected || hovered ? `drop-shadow(0 0 6px ${displayStroke})` : undefined
+          }}
         />
-      )}
-      <BaseEdge
-        id={id}
-        path={edgePath}
-        style={{
-          stroke: isOverloaded ? '#ef4444' : displayStroke,
-          strokeWidth: selected ? strokeWidth + 1.2 : strokeWidth,
-          strokeDasharray: polarity === 'signal' ? '5 4' : isOverloaded ? '7 4' : undefined,
-          filter: selected ? `drop-shadow(0 0 6px ${displayStroke})` : undefined
-        }}
-      />
+      </g>
       <EdgeLabelRenderer>
+        {showEndpointConnectors && sourceConn && sourceConn !== 'none' && (
+          <EndpointConnectorBadge
+            x={sourceX}
+            y={sourceY}
+            position={sourcePosition}
+            connectorType={sourceConn}
+            gaugeMm2={gaugeMm2}
+            accentColor={displayStroke}
+          />
+        )}
+        {showEndpointConnectors && targetConn && targetConn !== 'none' && (
+          <EndpointConnectorBadge
+            x={targetX}
+            y={targetY}
+            position={targetPosition}
+            connectorType={targetConn}
+            gaugeMm2={gaugeMm2}
+            accentColor={displayStroke}
+          />
+        )}
         <div
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
           style={{
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
@@ -104,7 +235,7 @@ export const WireEdge: React.FC<EdgeProps<WireEdgeType>> = ({
             title={
               isOverloaded
                 ? data?.overloadWarning || 'Sobrecarga detectada! Clique para inspecionar.'
-                : `Cabo ${POLARITY_META[polarity]?.label || polarity} • Queda: ${data?.voltageDropPercent ?? 0}% • Clique para editar`
+                : `Cabo ${POLARITY_META[polarity]?.label || polarity}${connectorsSummary} • Queda: ${data?.voltageDropPercent ?? 0}% • Clique para editar`
             }
             style={{
               background: isOverloaded

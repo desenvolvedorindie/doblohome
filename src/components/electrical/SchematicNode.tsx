@@ -1,6 +1,6 @@
 import React from 'react';
 import { type NodeProps, type Node } from '@xyflow/react';
-import { ElectricalNodeData } from '../../types/electricalPlanar';
+import { CONNECTOR_META, ElectricalNodeData } from '../../types/electricalPlanar';
 import {
   CATEGORY_THEME,
   getSchematicComputedAmps,
@@ -12,6 +12,8 @@ import {
   SchematicSidePorts,
   SchematicTopPorts
 } from './schematic/SchematicPorts';
+import { ConnectorIllustration } from './schematic/ConnectorIllustration';
+import { useElectricalIconScale } from './planar/ElectricalIconScaleContext';
 
 type SchematicNodeType = Node<ElectricalNodeData, 'schematic'>;
 
@@ -19,6 +21,7 @@ export const SchematicNode: React.FC<NodeProps<SchematicNodeType>> = ({
   data,
   selected
 }) => {
+  const iconScale = useElectricalIconScale();
   const theme = CATEGORY_THEME[data.category] || CATEGORY_THEME.custom;
   const ports = data.ports || [];
 
@@ -69,7 +72,13 @@ export const SchematicNode: React.FC<NodeProps<SchematicNodeType>> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
-          <span style={{ fontSize: '15px', lineHeight: 1 }}>{data.icon}</span>
+          {data.kind === 'connector' && data.connectorType ? (
+            <ConnectorIllustration type={data.connectorType} size={26} />
+          ) : (
+            <span style={{ fontSize: `${Math.round(15 * iconScale)}px`, lineHeight: 1 }}>
+              {data.icon}
+            </span>
+          )}
           <div style={{ minWidth: 0 }}>
             <div
               style={{
@@ -113,6 +122,23 @@ export const SchematicNode: React.FC<NodeProps<SchematicNodeType>> = ({
             }}
           >
             {data.breakerAmps}A · {data.breakerPoles || 2}P
+          </span>
+        )}
+        {data.kind === 'connector' && data.connectorType && (
+          <span
+            style={{
+              fontSize: '9.5px',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono)',
+              background: 'rgba(167, 139, 250, 0.2)',
+              border: '1px solid rgba(167, 139, 250, 0.45)',
+              color: '#ddd6fe',
+              padding: '2px 6px',
+              borderRadius: '5px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {CONNECTOR_META[data.connectorType]?.shortLabel || data.connectorType}
           </span>
         )}
       </div>

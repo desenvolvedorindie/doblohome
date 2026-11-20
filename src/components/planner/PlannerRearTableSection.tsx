@@ -8,7 +8,7 @@ interface PlannerRearTableProps {
 }
 
 export const PlannerRearTableSection: React.FC<PlannerRearTableProps> = ({ selectedBox, boxWMm: propBoxWMm }) => {
-  const { internalGrid, updateInternalBox, isOpenPreview } = useSolar();
+  const { internalGrid, updateInternalBox } = useSolar();
 
   const boxHeight = selectedBox.heightMm || 380;
   const cols = Math.max(1, internalGrid?.colsX || 3);
@@ -463,7 +463,7 @@ export const PlannerRearTableSection: React.FC<PlannerRearTableProps> = ({ selec
                 <button
                   type="button"
                   onClick={() => updateInternalBox(selectedBox.id, {
-                    isRearShelfOpen: selectedBox.isRearShelfOpen !== undefined ? !selectedBox.isRearShelfOpen : false
+                    isRearShelfOpen: !Boolean(selectedBox.isRearShelfOpen)
                   })}
                   className="btn-compact"
                   style={{
@@ -471,14 +471,14 @@ export const PlannerRearTableSection: React.FC<PlannerRearTableProps> = ({ selec
                     fontSize: '11px',
                     fontWeight: 700,
                     padding: '5px 10px',
-                    background: (selectedBox.isRearShelfOpen ?? isOpenPreview)
+                    background: Boolean(selectedBox.isRearShelfOpen)
                       ? 'linear-gradient(135deg, #10b981, #059669)'
                       : 'linear-gradient(135deg, #0284c7, #2563eb)',
                     borderColor: 'rgba(255, 255, 255, 0.2)',
                     color: '#ffffff'
                   }}
                 >
-                  {(selectedBox.isRearShelfOpen ?? isOpenPreview)
+                  {Boolean(selectedBox.isRearShelfOpen)
                     ? '🔒 Rebater / Fechar Mesa Traseira'
                     : '🔓 Levantar Mesa p/ Cima (90°)'}
                 </button>

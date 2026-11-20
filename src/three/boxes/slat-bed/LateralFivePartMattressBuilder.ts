@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { SlatBedDirection } from '../../../types';
+import { buildMattressPartitions, getPartitionLabel } from '../../../utils/mattressGrouping';
 import {
+  addGroupJunctionDetailsToCushion,
   buildCushionMesh,
   CushionMeshResult,
   CushionRect
@@ -50,6 +52,8 @@ export function buildLateralFivePartMattress(params: {
   seamMat: THREE.Material;
   cutoutZones: CushionRect[];
   foamName?: string;
+  mergedGroups?: number[][];
+  skipSubpartIndices?: Set<number>;
 }) {
   const {
     container,
@@ -66,7 +70,9 @@ export function buildLateralFivePartMattress(params: {
     mattressMat,
     seamMat,
     cutoutZones,
-    foamName
+    foamName,
+    mergedGroups,
+    skipSubpartIndices
   } = params;
 
   const foamLabel = foamName || 'Espuma D33';
@@ -77,59 +83,49 @@ export function buildLateralFivePartMattress(params: {
   const archW = 0.142; // ~142mm para cada caixa de roda
 
   if (isExtended) {
-    // 1. Aba Caixa de Roda do lado da base (comprimento 100% de l: de -l/2 a +l/2)
+    // 5 intervalos X base: [0] Aba Base, [1..3] Centrais 1..3, [4] Aba Oposta
     const baseArchX = direction === 'left' ? (-w / 2 - archW / 2) : (w / 2 + archW / 2);
-    const baseArchRes = buildCushionMesh(
-      { minX: baseArchX - archW / 2, maxX: baseArchX + archW / 2, minZ: -cushionL / 2, maxZ: cushionL / 2 },
-      cutoutZones,
-      mattressThickness,
-      mattressY,
-      mattressMat
-    );
-    if (baseArchRes) {
-      baseArchRes.mesh.castShadow = true;
-      baseArchRes.mesh.receiveShadow = true;
-      const curW = baseArchRes.actualMaxX - baseArchRes.actualMinX;
-      const curL = baseArchRes.actualMaxZ - baseArchRes.actualMinZ;
-      baseArchRes.mesh.userData = {
-        isWoodPart: false,
-        isUpholstery: true,
-        dimW: curW,
-        dimH: mattressThickness,
-        dimL: curL,
-        thicknessMm: Math.round(mattressThickness * 1000),
-        partLabel: `Almofada Aba Caixa de Roda Base${baseArchRes.labelSuffix}`,
-        material: upholsteryMat,
-        woodMaterial: upholsteryWoodMat,
-        category: '🛏️ Estofaria Campervan',
-        hasCabinetCutout: baseArchRes.isCutout,
-        moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
-        partType: 'upholstery'
-      };
-      container.add(baseArchRes.mesh);
-    }
-
-    // 2. Três almofadas centrais cobrindo 100% da largura útil sem gaps
-    const centralResults: Array<CushionMeshResult | null> = [];
+    const farArchX = direction === 'left' ? (-w / 2 + 3 * cellW + archW / 2) : (w / 2 - 3 * cellW - archW / 2);
+    const baseIntervals: Array<{ minX: number; maxX: number }> = [
+      { minX: baseArchX - archW / 2, maxX: baseArchX + archW / 2 }
+    ];
     for (let i = 0; i < 3; i++) {
       const pieceCenterX = direction === 'left'
         ? (-w / 2 + (i + 0.5) * cellW)
         : (w / 2 - (i + 0.5) * cellW);
+      baseIntervals.push({ minX: pieceCenterX - cushionW / 2, maxX: pieceCenterX + cushionW / 2 });
+    }
+    baseIntervals.push({ minX: farArchX - archW / 2, maxX: farArchX + archW / 2 });
+
+    const partitions = buildMattressPartitions(5, mergedGroups);
+    const partitionResults: Array<CushionMeshResult | null> = [];
+    const partitionBounds: Array<{ minX: number; maxX: number }> = [];
+
+    partitions.forEach((partition) => {
+      if (skipSubpartIndices && partition.indices.every((idx) => skipSubpartIndices.has(idx))) {
+        partitionBounds.push({ minX: 0, maxX: 0 });
+        partitionResults.push(null);
+        return;
+      }
+      const minX = Math.min(...partition.indices.map((idx) => baseIntervals[idx].minX));
+      const maxX = Math.max(...partition.indices.map((idx) => baseIntervals[idx].maxX));
+      partitionBounds.push({ minX, maxX });
 
       const cRes = buildCushionMesh(
-        { minX: pieceCenterX - cushionW / 2, maxX: pieceCenterX + cushionW / 2, minZ: -cushionL / 2, maxZ: cushionL / 2 },
+        { minX, maxX, minZ: -cushionL / 2, maxZ: cushionL / 2 },
         cutoutZones,
         mattressThickness,
         mattressY,
         mattressMat
       );
-      centralResults.push(cRes);
+      partitionResults.push(cRes);
 
       if (cRes) {
         cRes.mesh.castShadow = true;
         cRes.mesh.receiveShadow = true;
         const curW = cRes.actualMaxX - cRes.actualMinX;
         const curL = cRes.actualMaxZ - cRes.actualMinZ;
+        const baseLabel = getPartitionLabel(partition, 5, direction, '5 Partes (Total c/ Caixas de Roda)');
         cRes.mesh.userData = {
           isWoodPart: false,
           isUpholstery: true,
@@ -137,42 +133,35 @@ export function buildLateralFivePartMattress(params: {
           dimH: mattressThickness,
           dimL: curL,
           thicknessMm: Math.round(mattressThickness * 1000),
-          partLabel: `Almofada Central ${i + 1}/3${cRes.labelSuffix}`,
+          partLabel: `${baseLabel}${cRes.labelSuffix}`,
           material: upholsteryMat,
           woodMaterial: upholsteryWoodMat,
           category: '🛏️ Estofaria Campervan',
           hasCabinetCutout: cRes.isCutout,
           moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
-          partType: 'upholstery'
+          partType: 'upholstery',
+          mattressSubpartIndices: partition.indices,
+          isMergedMattressGroup: partition.isMerged
         };
+        if (partition.isMerged) {
+          const memberRects = partition.indices.map((idx) => ({
+            minX: baseIntervals[idx].minX,
+            maxX: baseIntervals[idx].maxX,
+            minZ: -cushionL / 2,
+            maxZ: cushionL / 2
+          }));
+          addGroupJunctionDetailsToCushion(cRes, memberRects, cutoutZones, mattressThickness);
+        }
         container.add(cRes.mesh);
       }
-    }
+    });
 
-    // Costura com a 1ª coluna
-    if (baseArchRes && centralResults[0]) {
-      const baseSeamX = direction === 'left' ? -w / 2 : w / 2;
-      const seamMinZ = Math.max(baseArchRes.actualMinZ, centralResults[0].actualMinZ);
-      const seamMaxZ = Math.min(baseArchRes.actualMaxZ, centralResults[0].actualMinZ);
-      for (const seg of getUncutSeamIntervalsZ(baseSeamX, seamMinZ, seamMaxZ, cutoutZones)) {
-        const seamL = seg.maxZ - seg.minZ;
-        if (seamL > 0.01) {
-          const baseSeamGeo = new THREE.BoxGeometry(0.004, mattressThickness + 0.002, seamL);
-          const baseSeamMesh = new THREE.Mesh(baseSeamGeo, seamMat);
-          baseSeamMesh.position.set(baseSeamX, mattressY, (seg.minZ + seg.maxZ) / 2);
-          container.add(baseSeamMesh);
-        }
-      }
-    }
-
-    // Costuras entre almofadas centrais
-    for (let i = 0; i < 2; i++) {
-      const cA = centralResults[i];
-      const cB = centralResults[i + 1];
+    // Costuras apenas entre partições separadas (sem costura interna dentro de grupos conectados)
+    for (let p = 0; p < partitions.length - 1; p++) {
+      const cA = partitionResults[p];
+      const cB = partitionResults[p + 1];
       if (cA && cB) {
-        const seamX = direction === 'left'
-          ? (-w / 2 + (i + 1) * cellW)
-          : (w / 2 - (i + 1) * cellW);
+        const seamX = direction === 'left' ? partitionBounds[p].maxX : partitionBounds[p].minX;
         const seamMinZ = Math.max(cA.actualMinZ, cB.actualMinZ);
         const seamMaxZ = Math.min(cA.actualMaxZ, cB.actualMaxZ);
         for (const seg of getUncutSeamIntervalsZ(seamX, seamMinZ, seamMaxZ, cutoutZones)) {
@@ -183,54 +172,6 @@ export function buildLateralFivePartMattress(params: {
             seamMesh.position.set(seamX, mattressY, (seg.minZ + seg.maxZ) / 2);
             container.add(seamMesh);
           }
-        }
-      }
-    }
-
-    // 3. Aba Caixa de Roda do lado oposto
-    const farArchX = direction === 'left' ? (-w / 2 + 3 * cellW + archW / 2) : (w / 2 - 3 * cellW - archW / 2);
-    const farArchRes = buildCushionMesh(
-      { minX: farArchX - archW / 2, maxX: farArchX + archW / 2, minZ: -cushionL / 2, maxZ: cushionL / 2 },
-      cutoutZones,
-      mattressThickness,
-      mattressY,
-      mattressMat
-    );
-    if (farArchRes) {
-      farArchRes.mesh.castShadow = true;
-      farArchRes.mesh.receiveShadow = true;
-      const curW = farArchRes.actualMaxX - farArchRes.actualMinX;
-      const curL = farArchRes.actualMaxZ - farArchRes.actualMinZ;
-      farArchRes.mesh.userData = {
-        isWoodPart: false,
-        isUpholstery: true,
-        dimW: curW,
-        dimH: mattressThickness,
-        dimL: curL,
-        thicknessMm: Math.round(mattressThickness * 1000),
-        partLabel: `Almofada Aba Caixa de Roda Oposta${farArchRes.labelSuffix}`,
-        material: upholsteryMat,
-        woodMaterial: upholsteryWoodMat,
-        category: '🛏️ Estofaria Campervan',
-        hasCabinetCutout: farArchRes.isCutout,
-        moduleName: '🛏️ Cama Retrátil / Sofá-Cama',
-        partType: 'upholstery'
-      };
-      container.add(farArchRes.mesh);
-    }
-
-    // Costura com a 3ª coluna
-    if (farArchRes && centralResults[2]) {
-      const farSeamX = direction === 'left' ? (-w / 2 + 3 * cellW) : (w / 2 - 3 * cellW);
-      const seamMinZ = Math.max(farArchRes.actualMinZ, centralResults[2].actualMinZ);
-      const seamMaxZ = Math.min(farArchRes.actualMaxZ, centralResults[2].actualMinZ);
-      for (const seg of getUncutSeamIntervalsZ(farSeamX, seamMinZ, seamMaxZ, cutoutZones)) {
-        const seamL = seg.maxZ - seg.minZ;
-        if (seamL > 0.01) {
-          const farSeamGeo = new THREE.BoxGeometry(0.004, mattressThickness + 0.002, seamL);
-          const farSeamMesh = new THREE.Mesh(farSeamGeo, seamMat);
-          farSeamMesh.position.set(farSeamX, mattressY, (seg.minZ + seg.maxZ) / 2);
-          container.add(farSeamMesh);
         }
       }
     }

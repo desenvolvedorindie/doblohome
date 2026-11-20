@@ -125,7 +125,7 @@ export function getUpperCabinetExclusionZones(
   activeSides.forEach(side => {
     if (side === 'rear' || side === 'front') {
       const maxDepthMm = Math.max(Math.round(boxLM * 1000), 1200);
-      const depthMm = Math.max(100, Math.min(maxDepthMm, box.upperCabinetDepthMm ?? 250));
+      const depthMm = Math.max(50, Math.min(maxDepthMm, box.upperCabinetDepthMm ?? 250));
       const cabinetDepthM = depthMm / 1000;
 
       const maxWMm = Math.max(Math.round(boxWM * 1000), 1600);
@@ -163,7 +163,7 @@ export function getUpperCabinetExclusionZones(
       });
     } else {
       const maxDepthMm = Math.max(Math.round(boxWM * 1000), 800);
-      const depthMm = Math.max(100, Math.min(maxDepthMm, box.upperCabinetDepthMm ?? 250));
+      const depthMm = Math.max(50, Math.min(maxDepthMm, box.upperCabinetDepthMm ?? 250));
       const cabinetDepthM = depthMm / 1000;
 
       const maxLMm = Math.max(Math.round(boxLM * 1000), 2000);

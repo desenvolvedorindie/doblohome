@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MaterialLibrary } from './Materials';
+import { attachEndCapsToMesh } from './metalon/MetalonRectGeometry';
 
 /**
  * Fábrica de Perfis de Alumínio Estrutural (Aluminium Extrusion Factory)
@@ -159,7 +160,7 @@ export class AluminumExtrusionFactory {
   static createProfileMesh(
     length: number,
     material: THREE.Material,
-    options: { axis?: 'x' | 'y' | 'z'; size?: number; showCutFace?: boolean } = {}
+    options: { axis?: 'x' | 'y' | 'z'; size?: number; showCutFace?: boolean; addCaps?: boolean; capMaterial?: THREE.Material } = {}
   ): THREE.Mesh {
     const axis = options.axis || 'z';
     const size = options.size || 0.040;
@@ -210,6 +211,10 @@ export class AluminumExtrusionFactory {
         endBottom.position.set(0, -length / 2 - 0.0002, 0);
         mesh.add(endBottom);
       }
+    }
+
+    if (options.addCaps) {
+      attachEndCapsToMesh(mesh, length, size, size, 0.0020, axis, options.capMaterial);
     }
 
     return mesh;

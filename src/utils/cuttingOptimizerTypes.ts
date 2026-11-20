@@ -16,6 +16,7 @@ export interface CutPieceInput {
   partType?: string;
   isUpholstery?: boolean;
   hasCabinetCutout?: boolean;
+  cutOutlineNorm?: Array<{ u: number; v: number }>;
 }
 
 export interface CutHole {
@@ -47,6 +48,7 @@ export interface PlacedPiece {
   partType?: string;
   isUpholstery?: boolean;
   hasCabinetCutout?: boolean;
+  cutOutlineNorm?: Array<{ u: number; v: number }>;
 }
 
 export interface SheetPlan {

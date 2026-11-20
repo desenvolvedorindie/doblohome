@@ -370,9 +370,10 @@ export const CuttingPlanSidePanel: React.FC<CuttingPlanSidePanelProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <a
             href={`${API_URL}/cutting/pdf`}
-            download="plano_de_corte_doblo_solar.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
             className="btn-compact"
-            title="Baixar Plano de Corte Completo em PDF (14 Páginas c/ Desenho dos Cortes, Espuma, Perfis do Rack, PVC e Toldo)"
+            title="Abrir Plano de Corte Completo em PDF em nova aba (14 Páginas c/ Desenho dos Cortes, Espuma, Perfis do Rack, PVC e Toldo)"
             style={{
               fontSize: '11px',
               padding: '4px 8px',

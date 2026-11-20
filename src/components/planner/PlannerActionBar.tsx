@@ -18,11 +18,10 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
     internalGrid,
     setInternalGrid,
     internalBoxes,
+    setInternalBoxes,
     isolatedBoxId,
     setIsolatedBoxId,
-    isOpenPreview,
     setIsOpenPreview,
-    isCabinetsOpenPreview,
     setIsCabinetsOpenPreview,
     toggleCabinetsOpenPreview,
     updateInternalBox,
@@ -135,25 +134,118 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
             💡 LED Rodapé: {(internalGrid.ledBaseboard?.enabled ?? true) ? 'Ligado' : 'Desligado'}
           </button>
 
+          {/* Botão Mestre: Expandir Tudo / Recolher Tudo */}
+          {(() => {
+            const hasExpandable = internalBoxes.some(
+              (b) =>
+                b.type === 'slat_bed' ||
+                b.hasBed ||
+                b.rearFoldShelf ||
+                b.type === 'drawer' ||
+                b.type === 'slide_tray' ||
+                b.type === 'chest' ||
+                b.type === 'vertical_lift' ||
+                b.upperCabinet
+            );
+            if (!hasExpandable) return null;
+
+            const isAnyExpanded = internalBoxes.some(
+              (b) =>
+                Boolean(b.isBedOpen) ||
+                Boolean(b.isRearShelfOpen) ||
+                Boolean(b.isUpperCabinetOpen) ||
+                ((b.type === 'slat_bed' || b.type === 'drawer' || b.type === 'slide_tray' || b.type === 'chest' || b.type === 'vertical_lift') && Boolean(b.isOpen))
+            );
+            const hasAnyBed = internalBoxes.some((b) => b.type === 'slat_bed' || b.hasBed);
+
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  const nextOpen = !isAnyExpanded;
+                  setIsOpenPreview(false);
+                  setIsCabinetsOpenPreview(false);
+                  setInternalBoxes((prev) =>
+                    prev.map((b) => {
+                      const updated = { ...b };
+                      if (b.type === 'slat_bed' || b.hasBed) {
+                        updated.isBedOpen = nextOpen;
+                        if (b.type === 'slat_bed') updated.isOpen = nextOpen;
+                        if (nextOpen) {
+                          updated.slatExtensionPercent = 100;
+                          if (b.mattressParts === 1) updated.mattressParts = 2;
+                        }
+                      }
+                      if (b.rearFoldShelf) {
+                        updated.isRearShelfOpen = nextOpen;
+                      }
+                      if (b.type === 'drawer' || b.type === 'slide_tray' || b.type === 'chest') {
+                        updated.isOpen = nextOpen;
+                      }
+                      if (b.type === 'vertical_lift') {
+                        // Se houver cama e estiver abrindo tudo, elevatório fica recolhido pela regra da cama
+                        updated.isOpen = nextOpen && !hasAnyBed;
+                      }
+                      if (b.upperCabinet) {
+                        updated.isUpperCabinetOpen = nextOpen;
+                      }
+                      return updated;
+                    })
+                  );
+                }}
+                className="btn-compact"
+                style={{
+                  width: '100%',
+                  fontSize: '11.5px',
+                  padding: '8px 12px',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: isAnyExpanded
+                    ? 'linear-gradient(135deg, #059669, #047857)'
+                    : 'linear-gradient(135deg, #0284c7, #1d4ed8)',
+                  borderColor: isAnyExpanded ? '#34d399' : '#38bdf8',
+                  color: '#ffffff'
+                }}
+                title={isAnyExpanded ? 'Recolher/fechar todos os módulos expansíveis de uma vez' : 'Expandir/abrir todos os módulos expansíveis de uma vez'}
+              >
+                <span>{isAnyExpanded ? '🔒' : '🔓'}</span>
+                <span>{isAnyExpanded ? 'Recolher / Fechar Tudo' : 'Expandir / Abrir Tudo'}</span>
+              </button>
+            );
+          })()}
+
           {(() => {
             const slatBeds = internalBoxes.filter((b) => b.type === 'slat_bed' || b.hasBed);
             if (slatBeds.length === 0) return null;
-            const isBedOpen = isOpenPreview || slatBeds.some((b) => Boolean(b.isBedOpen ?? (b.type === 'slat_bed' ? b.isOpen : false)));
+            const isBedOpen = slatBeds.every((b) => Boolean(b.isBedOpen ?? (b.type === 'slat_bed' ? b.isOpen : false)));
             return (
               <button
                 type="button"
                 onClick={() => {
                   const next = !isBedOpen;
-                  setIsOpenPreview(next);
-                  slatBeds.forEach((b) => {
-                    const nextParts = next && b.mattressParts === 1 ? 2 : b.mattressParts;
-                    updateInternalBox(b.id, {
-                      ...(b.type === 'slat_bed' ? { isOpen: next } : {}),
-                      isBedOpen: next,
-                      slatExtensionPercent: 100,
-                      ...(nextParts !== undefined ? { mattressParts: nextParts } : {})
-                    });
-                  });
+                  setIsOpenPreview(false);
+                  setInternalBoxes((prev) =>
+                    prev.map((b) => {
+                      if (b.type === 'slat_bed' || b.hasBed) {
+                        const nextParts = next && b.mattressParts === 1 ? 2 : b.mattressParts;
+                        return {
+                          ...b,
+                          ...(b.type === 'slat_bed' ? { isOpen: next } : {}),
+                          isBedOpen: next,
+                          slatExtensionPercent: 100,
+                          ...(nextParts !== undefined ? { mattressParts: nextParts } : {})
+                        };
+                      }
+                      // Ao abrir a cama, oculta/recolhe automaticamente os elevatórios verticais
+                      if (next && b.type === 'vertical_lift' && b.isOpen) {
+                        return { ...b, isOpen: false };
+                      }
+                      return b;
+                    })
+                  );
                 }}
                 className="btn-compact primary"
                 style={{
@@ -169,7 +261,7 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
                     ? 'linear-gradient(135deg, #10b981, #059669)'
                     : 'linear-gradient(135deg, #0284c7, #2563eb)'
                 }}
-                title="Estende ou recolhe exclusivamente a cama retrátil (100%)"
+                title="Estende ou recolhe todas as camas retráteis (recolhe os elevatórios automaticamente ao abrir)"
               >
                 {isBedOpen ? '🛋️ Modo Sofá / Fechar Cama' : '🛌 Abrir Toda a Cama (100%)'}
               </button>
@@ -179,12 +271,15 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
           {(() => {
             const tableBoxes = internalBoxes.filter((b) => b.rearFoldShelf);
             if (tableBoxes.length === 0) return null;
-            const allOpen = tableBoxes.every((b) => b.isRearShelfOpen ?? isOpenPreview);
+            const allOpen = tableBoxes.every((b) => Boolean(b.isRearShelfOpen));
             return (
               <button
                 type="button"
                 onClick={() => {
-                  tableBoxes.forEach((b) => updateInternalBox(b.id, { isRearShelfOpen: !allOpen }));
+                  const next = !allOpen;
+                  setInternalBoxes((prev) =>
+                    prev.map((b) => (b.rearFoldShelf ? { ...b, isRearShelfOpen: next } : b))
+                  );
                 }}
                 className="btn-compact"
                 style={{
@@ -218,7 +313,10 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  slideBoxes.forEach((b) => updateInternalBox(b.id, { isOpen: !allOpen }));
+                  const next = !allOpen;
+                  setInternalBoxes((prev) =>
+                    prev.map((b) => (b.type === 'drawer' || b.type === 'slide_tray' ? { ...b, isOpen: next } : b))
+                  );
                 }}
                 className="btn-compact"
                 style={{
@@ -245,6 +343,43 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
           })()}
 
           {(() => {
+            const chestBoxes = internalBoxes.filter((b) => b.type === 'chest');
+            if (chestBoxes.length === 0) return null;
+            const allOpen = chestBoxes.every((b) => Boolean(b.isOpen));
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !allOpen;
+                  setInternalBoxes((prev) =>
+                    prev.map((b) => (b.type === 'chest' ? { ...b, isOpen: next } : b))
+                  );
+                }}
+                className="btn-compact"
+                style={{
+                  width: '100%',
+                  fontSize: '11.5px',
+                  padding: '8px 12px',
+                  fontWeight: 700,
+                  background: allOpen
+                    ? 'linear-gradient(135deg, #10b981, #059669)'
+                    : 'linear-gradient(135deg, #d97706, #b45309)',
+                  borderColor: allOpen ? '#34d399' : '#fbbf24',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+                title="Abrir ou fechar as tampas de todos os baús"
+              >
+                <span>{allOpen ? '🔓' : '🧰'}</span>
+                <span>{allOpen ? 'Baús: Abertos (Fechar Todos)' : 'Abrir Todos os Baús'}</span>
+              </button>
+            );
+          })()}
+
+          {(() => {
             const liftBoxes = internalBoxes.filter((b) => b.type === 'vertical_lift');
             if (liftBoxes.length === 0) return null;
             const allOpen = liftBoxes.every((b) => Boolean(b.isOpen));
@@ -252,7 +387,24 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  liftBoxes.forEach((b) => updateInternalBox(b.id, { isOpen: !allOpen }));
+                  const next = !allOpen;
+                  setIsOpenPreview(false);
+                  setInternalBoxes((prev) =>
+                    prev.map((b) => {
+                      if (b.type === 'vertical_lift') {
+                        return { ...b, isOpen: next };
+                      }
+                      // Ao elevar os módulos verticais, recolhe eventuais camas abertas
+                      if (next && (b.type === 'slat_bed' || b.hasBed)) {
+                        return {
+                          ...b,
+                          isBedOpen: false,
+                          ...(b.type === 'slat_bed' ? { isOpen: false } : {})
+                        };
+                      }
+                      return b;
+                    })
+                  );
                 }}
                 className="btn-compact"
                 style={{
@@ -279,21 +431,22 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
           })()}
 
           {hasUpperCabinets && (() => {
-            const areCabinetsOpen = isCabinetsOpenPreview || internalBoxes.some((b) => b.upperCabinet && b.isUpperCabinetOpen);
+            const cabinetBoxes = internalBoxes.filter((b) => b.upperCabinet);
+            const allCabinetsOpen = cabinetBoxes.length > 0 && cabinetBoxes.every((b) => Boolean(b.isUpperCabinetOpen));
             return (
               <button
                 type="button"
-                onClick={() => toggleCabinetsOpenPreview()}
+                onClick={() => toggleCabinetsOpenPreview(!allCabinetsOpen)}
                 className="btn-compact"
                 style={{
                   width: '100%',
                   fontSize: '11.5px',
                   padding: '8px 12px',
                   fontWeight: 700,
-                  background: areCabinetsOpen
+                  background: allCabinetsOpen
                     ? 'linear-gradient(135deg, #10b981, #059669)'
                     : 'linear-gradient(135deg, #0284c7, #2563eb)',
-                  borderColor: areCabinetsOpen ? '#34d399' : '#38bdf8',
+                  borderColor: allCabinetsOpen ? '#34d399' : '#38bdf8',
                   color: '#ffffff',
                   display: 'flex',
                   alignItems: 'center',
@@ -302,8 +455,8 @@ export const PlannerActionBar: React.FC<PlannerActionBarProps> = ({
                 }}
                 title="Abrir ou fechar as portas de todos os armários aéreos no modelo 3D"
               >
-                <span>{areCabinetsOpen ? '🔓' : '🚪'}</span>
-                <span>{areCabinetsOpen ? 'Aéreos: Abertos (Fechar Todos)' : 'Abrir Armários Aéreos'}</span>
+                <span>{allCabinetsOpen ? '🔓' : '🚪'}</span>
+                <span>{allCabinetsOpen ? 'Aéreos: Abertos (Fechar Todos)' : 'Abrir Armários Aéreos'}</span>
               </button>
             );
           })()}

@@ -94,6 +94,7 @@ export function useCuttingPlan(
           partType: g.partType,
           isUpholstery: g.isUpholstery,
           hasCabinetCutout: g.hasCabinetCutout,
+          cutOutlineNorm: g.cutOutlineNorm,
           canRotate: true
         });
         group.totalPieces += 1;

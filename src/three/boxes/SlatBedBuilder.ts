@@ -12,6 +12,100 @@ import {
 import { SlatBedMattressBuilder } from './SlatBedMattressBuilder';
 
 export class SlatBedBuilder {
+  /**
+   * Calcula o vão livre físico disponível (em metros) na direção de abertura da cama
+   * até o módulo vizinho mais próximo ou a borda do assoalho da van, impedindo que
+   * as ripas ou o painel móvel invadam outros módulos ou ultrapassem a largura útil.
+   */
+  private computeAvailableExtensionSpan(
+    box: InternalBoxItem,
+    w: number,
+    l: number,
+    direction: SlatBedDirection,
+    allBoxes?: InternalBoxItem[],
+    grid?: InternalGridConfig
+  ): number {
+    if (!grid) return Infinity;
+
+    const cols = Math.max(1, grid.colsX || 3);
+    const rows = Math.max(1, grid.rowsZ || 4);
+    const widthM = (grid.widthMm || 1200) / 1000;
+    const lengthM = (grid.lengthMm || 1700) / 1000;
+    const cellWM = widthM / cols;
+    const cellLM = lengthM / rows;
+
+    const bedColStart = Math.min(cols - 1, Math.max(0, box.colStart));
+    const bedColSpan = Math.min(cols - bedColStart, Math.max(1, box.colSpan));
+    const bedRowStart = Math.min(rows - 1, Math.max(0, box.rowStart));
+    const bedRowSpan = Math.min(rows - bedRowStart, Math.max(1, box.rowSpan));
+
+    const bedPosX = widthM / 2 - (bedColStart + bedColSpan / 2) * cellWM + (box.offsetXMm || 0) / 1000;
+    const bedPosZ = -(bedRowStart + bedRowSpan / 2) * cellLM + (box.offsetZMm || 0) / 1000;
+    const bedMinX = bedPosX - w / 2;
+    const bedMaxX = bedPosX + w / 2;
+    const bedMinZ = bedPosZ - l / 2;
+    const bedMaxZ = bedPosZ + l / 2;
+
+    // 1. Limite inicial pelo contorno do assoalho da van
+    let freeSpan: number;
+    if (direction === 'left') {
+      freeSpan = Math.max(0, widthM / 2 - bedMaxX);
+    } else if (direction === 'right') {
+      freeSpan = Math.max(0, bedMinX - (-widthM / 2));
+    } else if (direction === 'front') {
+      freeSpan = Math.max(0, 0 - bedMaxZ);
+    } else {
+      freeSpan = Math.max(0, bedMinZ - (-lengthM));
+    }
+
+    // 2. Limite pelos módulos vizinhos que ficam diretamente no trajeto de abertura
+    if (allBoxes && allBoxes.length > 0) {
+      const overlapTol = 0.015; // mínimo 15mm de sobreposição perpendicular para bloquear
+      const edgeTol = 0.02;
+
+      for (const other of allBoxes) {
+        if (other.id === box.id) continue;
+
+        const oColStart = Math.min(cols - 1, Math.max(0, other.colStart));
+        const oColSpan = Math.min(cols - oColStart, Math.max(1, other.colSpan));
+        const oRowStart = Math.min(rows - 1, Math.max(0, other.rowStart));
+        const oRowSpan = Math.min(rows - oRowStart, Math.max(1, other.rowSpan));
+
+        const oW = Math.max(0.05, oColSpan * cellWM + (other.extraWidthMm || 0) / 1000);
+        const oL = Math.max(0.05, oRowSpan * cellLM + (other.extraLengthMm || 0) / 1000);
+        const oPosX = widthM / 2 - (oColStart + oColSpan / 2) * cellWM + (other.offsetXMm || 0) / 1000;
+        const oPosZ = -(oRowStart + oRowSpan / 2) * cellLM + (other.offsetZMm || 0) / 1000;
+
+        const oMinX = oPosX - oW / 2;
+        const oMaxX = oPosX + oW / 2;
+        const oMinZ = oPosZ - oL / 2;
+        const oMaxZ = oPosZ + oL / 2;
+
+        if (direction === 'left' || direction === 'right') {
+          const overlapZ = Math.min(bedMaxZ, oMaxZ) - Math.max(bedMinZ, oMinZ);
+          if (overlapZ <= overlapTol) continue;
+
+          if (direction === 'left' && oMinX >= bedMaxX - edgeTol) {
+            freeSpan = Math.min(freeSpan, Math.max(0, oMinX - bedMaxX));
+          } else if (direction === 'right' && oMaxX <= bedMinX + edgeTol) {
+            freeSpan = Math.min(freeSpan, Math.max(0, bedMinX - oMaxX));
+          }
+        } else {
+          const overlapX = Math.min(bedMaxX, oMaxX) - Math.max(bedMinX, oMinX);
+          if (overlapX <= overlapTol) continue;
+
+          if (direction === 'front' && oMinZ >= bedMaxZ - edgeTol) {
+            freeSpan = Math.min(freeSpan, Math.max(0, oMinZ - bedMaxZ));
+          } else if (direction === 'rear' && oMaxZ <= bedMinZ + edgeTol) {
+            freeSpan = Math.min(freeSpan, Math.max(0, bedMinZ - oMaxZ));
+          }
+        }
+      }
+    }
+
+    return freeSpan;
+  }
+
   private buildHingedBedPanels(
     container: THREE.Group,
     w: number,
@@ -200,8 +294,8 @@ export class SlatBedBuilder {
           edgeMat,
           box.id,
           container,
-          `${box.name} • Cama Dobradiça - Pé de Apoio Traseiro (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
-          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', material: `${legWoodMat} ${slatTMm}mm` }
+          `${box.name} • Cama Dobradiça - Pé Articulado Traseiro (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
+          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', isHingedBed: true, material: `${legWoodMat} ${slatTMm}mm` }
         );
         addPanel(
           hingePivot,
@@ -215,8 +309,8 @@ export class SlatBedBuilder {
           edgeMat,
           box.id,
           container,
-          `${box.name} • Cama Dobradiça - Pé de Apoio Dianteiro (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
-          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', material: `${legWoodMat} ${slatTMm}mm` }
+          `${box.name} • Cama Dobradiça - Pé Articulado Dianteiro (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
+          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', isHingedBed: true, material: `${legWoodMat} ${slatTMm}mm` }
         );
       } else {
         // Modo fechado: pés articulados rebatidos planos ao longo da quina da folha
@@ -237,8 +331,8 @@ export class SlatBedBuilder {
           edgeMat,
           box.id,
           container,
-          `${box.name} • Cama Dobradiça - Pé de Apoio Traseiro (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
-          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', material: `${legWoodMat} ${slatTMm}mm` }
+          `${box.name} • Cama Dobradiça - Pé Articulado Traseiro (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
+          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', isHingedBed: true, material: `${legWoodMat} ${slatTMm}mm` }
         );
         addPanel(
           foldedLegGroup,
@@ -252,8 +346,8 @@ export class SlatBedBuilder {
           edgeMat,
           box.id,
           container,
-          `${box.name} • Cama Dobradiça - Pé de Apoio Dianteiro (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
-          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', material: `${legWoodMat} ${slatTMm}mm` }
+          `${box.name} • Cama Dobradiça - Pé Articulado Dianteiro (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
+          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', isHingedBed: true, material: `${legWoodMat} ${slatTMm}mm` }
         );
         hingePivot.add(foldedLegGroup);
       }
@@ -357,7 +451,7 @@ export class SlatBedBuilder {
           box.id,
           container,
           `${box.name} • Cama Dobradiça - Pé Articulado Esq. (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
-          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', material: `${legWoodMat} ${slatTMm}mm` }
+          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', isHingedBed: true, material: `${legWoodMat} ${slatTMm}mm` }
         );
         addPanel(
           hingePivot,
@@ -372,7 +466,7 @@ export class SlatBedBuilder {
           box.id,
           container,
           `${box.name} • Cama Dobradiça - Pé Articulado Dir. (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
-          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', material: `${legWoodMat} ${slatTMm}mm` }
+          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', isHingedBed: true, material: `${legWoodMat} ${slatTMm}mm` }
         );
       } else {
         const foldedLegGroup = new THREE.Group();
@@ -392,7 +486,7 @@ export class SlatBedBuilder {
           box.id,
           container,
           `${box.name} • Cama Dobradiça - Pé Articulado Esq. (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
-          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', material: `${legWoodMat} ${slatTMm}mm` }
+          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', isHingedBed: true, material: `${legWoodMat} ${slatTMm}mm` }
         );
         addPanel(
           foldedLegGroup,
@@ -407,7 +501,7 @@ export class SlatBedBuilder {
           box.id,
           container,
           `${box.name} • Cama Dobradiça - Pé Articulado Dir. (${Math.round(legH * 1000)}×35×${slatTMm}mm)`,
-          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', material: `${legWoodMat} ${slatTMm}mm` }
+          { thicknessMm: slatTMm, woodMaterial: legWoodMat, moduleName: box.name, partType: 'leg', isHingedBed: true, material: `${legWoodMat} ${slatTMm}mm` }
         );
         hingePivot.add(foldedLegGroup);
       }
@@ -549,9 +643,11 @@ export class SlatBedBuilder {
       // O quadro móvel forma um "L de cabeça para baixo" (Г):
       // - Parte horizontal superior: ripas móveis de largura w intercaladas com as ripas fixas.
       // - Parte vertical (perna do L): painel frontal/lateral na extremidade que desce até o assoalho.
-      // Ao puxar a cama (100%), o quadro móvel SEMPRE desliza por (w - t), dobrando a área da cama (2 * w)
-      // e mantendo a extremidade interna das ripas móveis apoiada sobre o sarrafo da caixa base!
-      const strokeMax = Math.max(0, w - t);
+      // Ao puxar a cama (100%), o quadro móvel desliza até o menor limite entre:
+      // - (w - t) (dobro da base, mantendo apoio no sarrafo da caixa base)
+      // - (freeSpanX - t) (para encostar rente no módulo vizinho ou borda da van sem invadir!)
+      const freeSpanX = this.computeAvailableExtensionSpan(box, w, l, direction, allBoxes, grid);
+      const strokeMax = Math.max(0, Math.min(w - t, freeSpanX - t));
       const targetExtM = box.hingedBedLeafSizeMm !== undefined
         ? Math.min(strokeMax, Math.max(Math.min(0.10, strokeMax), box.hingedBedLeafSizeMm / 1000))
         : strokeMax * extRatio;
@@ -765,8 +861,9 @@ export class SlatBedBuilder {
       }
     } else {
       // --- ABERTURA LONGITUDINAL (Eixo Z: Frente ou Trás) ---
-      // Curso máximo limitado ao dobro do próprio módulo (strokeMaxZ = l - t) formando um L invertido
-      const strokeMaxZ = Math.max(0, l - t);
+      // Curso máximo limitado ao dobro do próprio módulo (l - t) e ao vão livre até módulos vizinhos/borda da van
+      const freeSpanZ = this.computeAvailableExtensionSpan(box, w, l, direction, allBoxes, grid);
+      const strokeMaxZ = Math.max(0, Math.min(l - t, freeSpanZ - t));
       const targetExtZ = box.hingedBedLeafSizeMm !== undefined
         ? Math.min(strokeMaxZ, Math.max(Math.min(0.10, strokeMaxZ), box.hingedBedLeafSizeMm / 1000))
         : strokeMaxZ * extRatio;

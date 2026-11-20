@@ -93,6 +93,7 @@ export function buildTargetHoverPayload(target: THREE.Object3D): BarMeasurementD
     return {
       name: d.name || 'Peça da Bancada',
       category: d.category || (d.isWoodPart ? '🪵 Madeira 15mm' : '🔩 Perfil Metálico'),
+      isMetalonCap: d.isMetalonCap,
       barLength: d.barLength,
       barWidth: d.barWidth,
       barProfile: d.profileSpec,

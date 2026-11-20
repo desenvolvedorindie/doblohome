@@ -1,6 +1,8 @@
 import React from 'react';
 import type { Edge, Node } from '@xyflow/react';
 import {
+  CONNECTOR_META,
+  ElectricalConnectorType,
   ElectricalEdgeData,
   ElectricalNodeData,
   FUSE_COLOR_TABLE,
@@ -11,6 +13,7 @@ import {
   suggestBladeFuseAmps
 } from '../../../types/electricalPlanar';
 import { STANDARD_PROTECTION_RATINGS } from '../../../utils/electricalCalculations';
+import { ConnectorIllustration } from '../schematic/ConnectorIllustration';
 
 interface NodeProtectionConfigProps {
   selectedNode: Node<ElectricalNodeData>;
@@ -28,6 +31,68 @@ export const NodeProtectionConfig: React.FC<NodeProtectionConfigProps> = ({
 }) => {
   return (
     <>
+      {/* Config específica: Conector / Emenda */}
+      {selectedNode.data.kind === 'connector' && (
+        <div
+          style={{
+            padding: '7px',
+            borderRadius: '6px',
+            background: 'rgba(2, 6, 23, 0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px'
+          }}
+        >
+          <div style={{ fontSize: '10px', fontWeight: 800, color: '#a78bfa' }}>
+            🔌 Tipo de Conector
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ConnectorIllustration
+              type={selectedNode.data.connectorType || 'anderson'}
+              size={38}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <select
+                value={selectedNode.data.connectorType || 'anderson'}
+                onChange={(e) => {
+                  const nextType = e.target.value as ElectricalConnectorType;
+                  const meta = CONNECTOR_META[nextType];
+                  onUpdateNodeData(selectedNode.id, (prev) => ({
+                    ...prev,
+                    connectorType: nextType,
+                    subtitle: meta ? `${meta.label}` : prev.subtitle,
+                    ports: prev.ports.map((p) => ({
+                      ...p,
+                      connectorType: nextType
+                    }))
+                  }));
+                }}
+                style={{
+                  width: '100%',
+                  padding: '5px 6px',
+                  borderRadius: '5px',
+                  background: 'rgba(15, 23, 42, 0.9)',
+                  border: '1px solid rgba(148, 163, 184, 0.25)',
+                  color: '#fff',
+                  fontSize: '11px'
+                }}
+              >
+                {Object.values(CONNECTOR_META)
+                  .filter((c) => c.id !== 'none')
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+              </select>
+              <div style={{ fontSize: '8.5px', color: '#94a3b8', marginTop: '3px' }}>
+                {CONNECTOR_META[selectedNode.data.connectorType || 'anderson']?.description}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Config específica: Caixa de Disjuntor */}
       {selectedNode.data.kind === 'breaker' && (
         <div

@@ -223,6 +223,7 @@ export function templateToNodeData(
     busbarTermCount: tpl.busbarTermCount,
     breakerAmps: tpl.breakerAmps,
     breakerPoles: tpl.breakerPoles,
+    connectorType: tpl.connectorType,
     ports: tpl.ports.map((p) => ({ ...p })),
     ...extra
   };

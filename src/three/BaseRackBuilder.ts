@@ -52,11 +52,11 @@ export class BaseRackBuilder {
     // 1. Longarinas Principais (2.20m ao longo do teto)
     let barLeft, barRight;
     if (isTSlot) {
-      barLeft = AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true });
-      barRight = AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true });
+      barLeft = AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true, addCaps: true });
+      barRight = AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true, addCaps: true });
     } else {
-      barLeft = MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: profileSize, thickness: thicknessM, showCutFace: true });
-      barRight = MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: profileSize, thickness: thicknessM, showCutFace: true });
+      barLeft = MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: profileSize, thickness: thicknessM, showCutFace: true, addCaps: true });
+      barRight = MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: profileSize, thickness: thicknessM, showCutFace: true, addCaps: true });
     }
 
     barLeft.position.set(-width / 2 + profileSize / 2, curBaseY, zCenter);
@@ -131,26 +131,14 @@ export class BaseRackBuilder {
       });
     });
 
-    // 3. Cantoneiras com parafusos Allen
+    // 3. Cantoneiras com parafusos Allen (apenas para perfil T-Slot)
     if (isTSlot) {
       AluminumExtrusionFactory.addRackBrackets(aluminumBracketsGroup, width, length, zCenter, curBaseY, profileSize, [zMidFront, zMidRear]);
       aluminumBracketsGroup.visible = true;
       weldGussetsGroup.visible = false;
     } else {
       aluminumBracketsGroup.visible = false;
-      weldGussetsGroup.visible = true;
-      const gussetGeo = new THREE.BoxGeometry(0.06, 0.008, 0.06);
-      const gussetCorners = [
-        [-width / 2 + 0.04, zCenter + length / 2 - 0.04],
-        [width / 2 - 0.04, zCenter + length / 2 - 0.04],
-        [-width / 2 + 0.04, zCenter - length / 2 + 0.04],
-        [width / 2 - 0.04, zCenter - length / 2 + 0.04]
-      ];
-      gussetCorners.forEach(([gx, gz]) => {
-        const gusset = new THREE.Mesh(gussetGeo, mats.weldedSteelMetalon);
-        gusset.position.set(gx, curBaseY + 0.02, gz);
-        weldGussetsGroup.add(gusset);
-      });
+      weldGussetsGroup.visible = false;
     }
 
     // 4. Sapatas de elevação para as calhas da Doblò (apenas quando sem baú)

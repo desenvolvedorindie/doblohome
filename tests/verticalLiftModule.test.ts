@@ -264,4 +264,47 @@ describe('Vertical Lift Module (Extensível para Cima c/ Barras de Ferro)', () =
       expect(cylinders.length).toBeGreaterThan(0);
     });
   });
+
+  it('retracts vertical lift automatically when any bed is open', () => {
+    const builder = new InternalBoxesBuilder();
+    const liftBox: InternalBoxItem = {
+      ...baseBox,
+      id: 'lift_1',
+      heightMm: 400,
+      liftHeightMm: 220,
+      isOpen: true
+    };
+    const bedBox: InternalBoxItem = {
+      ...baseBox,
+      id: 'bed_1',
+      name: 'Sofá-Cama',
+      type: 'slat_bed',
+      colStart: 1,
+      colSpan: 2,
+      rowStart: 0,
+      rowSpan: 2,
+      heightMm: 400,
+      isOpen: true,
+      isBedOpen: true
+    };
+
+    // Com a cama aberta, o elevatório deve ficar recolhido na altura fechada (sem elevação +Y)
+    builder.update(DEFAULT_INTERNAL_GRID, [liftBox, bedBox]);
+    const liftContainerOpenBed = builder.boxesGroup.children.find(
+      (c) => c.name === 'BoxContainer_lift_1'
+    ) as THREE.Group;
+    expect(liftContainerOpenBed).toBeDefined();
+    const lidClosedByBed = liftContainerOpenBed.getObjectByName('VerticalLiftLidGroup');
+    expect(lidClosedByBed).toBeDefined();
+    expect(lidClosedByBed!.position.y).toBeCloseTo(0.4 / 2 - 0.015 / 2, 3);
+
+    // Quando a cama fecha, o elevatório volta a elevar normalmente
+    builder.update(DEFAULT_INTERNAL_GRID, [liftBox, { ...bedBox, isOpen: false, isBedOpen: false }]);
+    const liftContainerClosedBed = builder.boxesGroup.children.find(
+      (c) => c.name === 'BoxContainer_lift_1'
+    ) as THREE.Group;
+    const lidElevated = liftContainerClosedBed.getObjectByName('VerticalLiftLidGroup');
+    expect(lidElevated).toBeDefined();
+    expect(lidElevated!.position.y).toBeGreaterThan(0.4 / 2 + 0.15);
+  });
 });

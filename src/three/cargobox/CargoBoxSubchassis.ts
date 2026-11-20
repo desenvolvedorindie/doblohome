@@ -25,6 +25,7 @@ export interface SubchassisBuildParams {
   subchassisLength: number;
   profileSize: number;
   targetGroup: THREE.Group;
+  hingeUpperLeavesGroup?: THREE.Group;
 }
 
 export class CargoBoxSubchassis {
@@ -47,7 +48,8 @@ export class CargoBoxSubchassis {
       subchassisWidth: width,
       subchassisLength: length,
       profileSize: pSize,
-      targetGroup
+      targetGroup,
+      hingeUpperLeavesGroup
     } = params;
 
     const mats = MaterialLibrary.materials;
@@ -82,16 +84,16 @@ export class CargoBoxSubchassis {
 
     // 1. Longarinas do Subchassi (2.20m em Z)
     const longLeft = isTSlot
-      ? AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true })
-      : MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: pSize, thickness: thickness40M, showCutFace: true });
+      ? AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true, addCaps: true })
+      : MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: pSize, thickness: thickness40M, showCutFace: true, addCaps: true });
     longLeft.position.set(-width / 2 + pSize / 2, yBase, zCenter);
     longLeft.castShadow = true;
     longLeft.userData = { isBar: true, barLength: length, barLabel: 'Longarina do Subchassi Base (Esquerda)', profileSpec: profileSpec40 };
     targetGroup.add(longLeft);
 
     const longRight = isTSlot
-      ? AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true })
-      : MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: pSize, thickness: thickness40M, showCutFace: true });
+      ? AluminumExtrusionFactory.createProfileMesh(length, frameMat, { axis: 'z', showCutFace: true, addCaps: true })
+      : MetalonTubeFactory.createTubeMesh(length, frameMat, { axis: 'z', size: pSize, thickness: thickness40M, showCutFace: true, addCaps: true });
     longRight.position.set(width / 2 - pSize / 2, yBase, zCenter);
     longRight.castShadow = true;
     longRight.userData = { isBar: true, barLength: length, barLabel: 'Longarina do Subchassi Base (Direita)', profileSpec: profileSpec40 };
@@ -245,16 +247,16 @@ export class CargoBoxSubchassis {
     };
 
     towerZCoords.forEach(tz => {
-      buildTower(hingeX, tz, 'Dobradiça', isDriverHinge ? -1 : 1);
-      CargoBoxHardware.buildStainlessHinge(hingeX, pivotElevationY, tz, targetGroup);
+      const hingeOutwardSign = isDriverHinge ? -1 : 1;
+      buildTower(hingeX, tz, 'Dobradiça', hingeOutwardSign);
+      CargoBoxHardware.buildStainlessHinge(hingeX, pivotElevationY, tz, targetGroup, {
+        outwardSign: hingeOutwardSign,
+        profileSize: pSize,
+        isTelescopic,
+        upperTargetGroup: hingeUpperLeavesGroup
+      });
 
-      buildTower(latchX, tz, 'Trava Rápida', isDriverHinge ? 1 : -1);
-
-      const restPad = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.015, 16), mats.rubberRestPad);
-      restPad.position.set(latchX, pivotElevationY - 0.0075, tz);
-      targetGroup.add(restPad);
-
-      CargoBoxHardware.buildToggleClamp(latchX, pivotElevationY, tz, isDriverHinge ? 1 : -1, targetGroup);
+      buildTower(latchX, tz, 'Apoio / Cadeado', -hingeOutwardSign);
     });
   }
 }

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { SlatBedBuilder } from '../src/three/boxes/SlatBedBuilder';
 import { InternalBoxItem } from '../src/types';
+import { extractWoodCutGroups } from '../src/utils/woodUtils';
 
 describe('Suporte aos 2 modos de Cama: Retrátil com Ripas vs Articulada com Dobradiça', () => {
   const w = 0.40;
@@ -573,6 +574,7 @@ describe('Suporte aos 2 modos de Cama: Retrátil com Ripas vs Articulada com Dob
     const legsHinged = statsHinged.cutGroups.filter((g) => g.partType === 'leg');
     expect(legsHinged.length).toBeGreaterThan(0);
     expect(legsHinged.reduce((sum, g) => sum + g.qty, 0)).toBe(2);
+    expect(legsHinged[0].label).toContain('Cama Dobradiça - Pé Articulado');
 
     // 2. Cama retrátil com ripas fechada: deve ter ripas fixas (12), ripas móveis (12) e pés de apoio (2)
     const containerSlat = new THREE.Group();
@@ -652,5 +654,63 @@ describe('Suporte aos 2 modos de Cama: Retrátil com Ripas vs Articulada com Dob
 
     // Não há sobreposição em X: a tampa frontal está do lado de fora da viga!
     expect(frontPanelBox.min.x).toBeGreaterThanOrEqual(cleatBox.max.x - 0.001);
+  });
+
+  it('15. Plano de corte e BOM: extração de pés articulados de cama dobradiça nos sentidos lateral e longitudinal', () => {
+    const builder = new SlatBedBuilder();
+
+    // Teste no sentido lateral (abertura esquerda/direita)
+    const containerLateral = new THREE.Group();
+    const boxLateral: InternalBoxItem = {
+      id: 'box_hinged_lateral',
+      name: 'Sofá Lateral',
+      type: 'slat_bed',
+      bedMode: 'hinged',
+      slatBedDirection: 'left',
+      colStart: 0,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 4,
+      heightMm: 400,
+      thicknessMm: 15,
+      isOpen: false
+    };
+    builder.buildSlatBedModule(containerLateral, 0.4, 1.7, 0.4, mat, boxLateral, false, false);
+    const statsLateral = extractWoodCutGroups({ internalBoxesBuilder: { group: containerLateral } });
+    const legsLateral = statsLateral.cutGroups.filter((g) => g.partType === 'leg');
+
+    expect(legsLateral.length).toBeGreaterThan(0);
+    expect(legsLateral.reduce((sum, g) => sum + g.qty, 0)).toBe(2);
+    expect(legsLateral[0].label).toContain('Cama Dobradiça - Pé Articulado');
+    expect(legsLateral[0].lengthMm).toBe(385); // 400 - 15
+    expect(legsLateral[0].widthMm).toBe(35);
+    expect(legsLateral[0].thicknessMm).toBe(15);
+
+    // Teste no sentido longitudinal (abertura frontal/traseira)
+    const containerLongitudinal = new THREE.Group();
+    const boxLongitudinal: InternalBoxItem = {
+      id: 'box_hinged_longitudinal',
+      name: 'Sofá Longitudinal',
+      type: 'slat_bed',
+      bedMode: 'hinged',
+      slatBedDirection: 'front',
+      colStart: 0,
+      colSpan: 1,
+      rowStart: 0,
+      rowSpan: 4,
+      heightMm: 450,
+      thicknessMm: 15,
+      isOpen: true
+    };
+    builder.buildSlatBedModule(containerLongitudinal, 0.4, 1.7, 0.45, mat, boxLongitudinal, false, true);
+    const statsLongitudinal = extractWoodCutGroups({ internalBoxesBuilder: { group: containerLongitudinal } });
+    const legsLongitudinal = statsLongitudinal.cutGroups.filter((g) => g.partType === 'leg');
+
+    expect(legsLongitudinal.length).toBeGreaterThan(0);
+    expect(legsLongitudinal.reduce((sum, g) => sum + g.qty, 0)).toBe(2);
+    expect(legsLongitudinal[0].label).toContain('Cama Dobradiça - Pé Articulado');
+    expect(legsLongitudinal[0].lengthMm).toBe(435); // 450 - 15
+    expect(legsLongitudinal[0].widthMm).toBe(35);
+    expect(legsLongitudinal[0].thicknessMm).toBe(15);
   });
 });

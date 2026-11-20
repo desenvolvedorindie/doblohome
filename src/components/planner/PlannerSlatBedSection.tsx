@@ -9,7 +9,7 @@ interface PlannerSlatBedProps {
 }
 
 export const PlannerSlatBedSection: React.FC<PlannerSlatBedProps> = ({ selectedBox, cols, rows }) => {
-  const { updateInternalBox, internalGrid, isOpenPreview, setIsOpenPreview } = useSolar();
+  const { updateInternalBox, internalGrid } = useSolar();
 
   const isBedActive = selectedBox.type === 'slat_bed' || Boolean(selectedBox.hasBed);
 
@@ -58,7 +58,7 @@ export const PlannerSlatBedSection: React.FC<PlannerSlatBedProps> = ({ selectedB
     );
   }
 
-  const isBedCurrentlyOpen = isOpenPreview || Boolean(selectedBox.isBedOpen ?? (selectedBox.type === 'slat_bed' ? selectedBox.isOpen : false));
+  const isBedCurrentlyOpen = Boolean(selectedBox.isBedOpen ?? (selectedBox.type === 'slat_bed' ? selectedBox.isOpen : false));
   const isLateral = (selectedBox.slatBedDirection || 'left') === 'left' || selectedBox.slatBedDirection === 'right';
   const baseDimMm = Math.max(50, Math.round(isLateral
     ? selectedBox.colSpan * (internalGrid.widthMm / cols) + (selectedBox.extraWidthMm || 0)
@@ -196,8 +196,11 @@ export const PlannerSlatBedSection: React.FC<PlannerSlatBedProps> = ({ selectedB
             value={selectedBox.slatBedDirection || 'left'}
             onChange={(e) => {
               const newDir = e.target.value as SlatBedDirection;
-              updateInternalBox(selectedBox.id, { slatBedDirection: newDir });
-              setIsOpenPreview(true);
+              updateInternalBox(selectedBox.id, {
+                slatBedDirection: newDir,
+                ...(selectedBox.type === 'slat_bed' ? { isOpen: true } : {}),
+                isBedOpen: true
+              });
             }}
             style={{
               width: '100%',
@@ -231,12 +234,13 @@ export const PlannerSlatBedSection: React.FC<PlannerSlatBedProps> = ({ selectedB
             type="button"
             onClick={() => {
               const nextOpen = !isBedCurrentlyOpen;
+              const nextParts = nextOpen && selectedBox.mattressParts === 1 ? 2 : selectedBox.mattressParts;
               updateInternalBox(selectedBox.id, {
                 ...(selectedBox.type === 'slat_bed' ? { isOpen: nextOpen } : {}),
                 isBedOpen: nextOpen,
-                slatExtensionPercent: 100
+                slatExtensionPercent: 100,
+                ...(nextParts !== undefined ? { mattressParts: nextParts } : {})
               });
-              setIsOpenPreview(nextOpen);
             }}
             style={{
               padding: '5px 10px',
@@ -367,7 +371,10 @@ export const PlannerSlatBedSection: React.FC<PlannerSlatBedProps> = ({ selectedB
               </label>
               <select
                 value={selectedBox.mattressParts === 4 ? 3 : (selectedBox.mattressParts ?? 2)}
-                onChange={(e) => updateInternalBox(selectedBox.id, { mattressParts: parseInt(e.target.value) as any })}
+                onChange={(e) => updateInternalBox(selectedBox.id, {
+                  mattressParts: parseInt(e.target.value) as any,
+                  mattressMergedGroups: undefined
+                })}
                 style={{
                   width: '100%',
                   background: 'rgba(30, 41, 59, 0.9)',

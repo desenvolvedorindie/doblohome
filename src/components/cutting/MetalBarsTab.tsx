@@ -145,6 +145,55 @@ export const MetalBarsTab: React.FC<MetalBarsTabProps> = ({
         ))}
       </div>
 
+      {/* Resumo de CAPs / Ponteiras Plásticas */}
+      {barStats.metalonCaps && barStats.metalonCaps.length > 0 && (
+        <div
+          style={{
+            background: 'rgba(15, 23, 42, 0.75)',
+            border: '1px solid rgba(56, 189, 248, 0.3)',
+            borderRadius: '8px',
+            padding: '10px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <strong style={{ fontSize: '11.5px', color: '#38bdf8' }}>
+              🛡️ CAPs / Ponteiras Plásticas dos Perfis (Alumínio / Ferro)
+            </strong>
+            <span style={{ fontSize: '10px', color: '#4ade80', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+              Total: {barStats.totalCaps} un
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '6px' }}>
+            {barStats.metalonCaps.map((cap) => (
+              <div
+                key={cap.sizeSpec}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '5px',
+                  background: 'rgba(30, 41, 59, 0.55)',
+                  border: '1px solid rgba(148, 163, 184, 0.2)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#f8fafc' }}>
+                    CAP {cap.sizeSpec.replace('x', '×')} mm
+                  </span>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>
+                    {cap.qty} un
+                  </span>
+                </div>
+                <div style={{ fontSize: '9px', color: '#94a3b8', marginTop: '2px', lineHeight: 1.35 }}>
+                  {cap.purpose}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Tabela de Cortes de Perfis Agrupada por Espessura */}
       <div
         style={{

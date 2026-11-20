@@ -7,7 +7,7 @@ interface PlannerUpperCabinetProps {
 }
 
 export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({ selectedBox }) => {
-  const { updateInternalBox, isCabinetsOpenPreview, setIsCabinetsOpenPreview, toggleCabinetsOpenPreview, internalBoxes, internalGrid } = useSolar();
+  const { updateInternalBox, internalBoxes, internalGrid } = useSolar();
   const rows = Math.max(1, internalGrid.rowsZ);
 
   return (
@@ -104,9 +104,9 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
               </div>
               <input
                 type="range"
-                min="150"
+                min="50"
                 max={Math.max(200, Math.round(selectedBox.rowSpan * (internalGrid.lengthMm / rows) + (selectedBox.extraLengthMm || 0) - 50))}
-                step="10"
+                step="5"
                 value={selectedBox.upperCabinetDepthMm || 250}
                 onChange={(e) => updateInternalBox(selectedBox.id, { upperCabinetDepthMm: parseInt(e.target.value) })}
                 style={{ width: '100%' }}
@@ -118,34 +118,36 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
               const bedBox = internalBoxes.find((b) => b.type === 'slat_bed' || b.hasBed) || selectedBox;
               const mattressThickMm = bedBox.mattressThicknessMm ?? 80;
               const mattressTopMm = (bedBox.heightMm ?? internalGrid.heightMm ?? 400) + mattressThickMm;
-              const gapMm = selectedBox.upperCabinetBottomGapMm ?? 0;
-              const cabBottomMm = (selectedBox.heightMm ?? internalGrid.heightMm ?? 400) + gapMm;
-              const cutsMattress = cabBottomMm < mattressTopMm || gapMm <= mattressThickMm;
+              const boxH = selectedBox.heightMm ?? internalGrid.heightMm ?? 400;
+              const maxGapMm = Math.max(350, Math.round((1220 - boxH - 150) / 5) * 5);
+              const gapMm = Math.max(0, Math.min(maxGapMm, selectedBox.upperCabinetBottomGapMm ?? 0));
+              const cabBottomMm = boxH + gapMm;
+              const cutsMattress = cabBottomMm < mattressTopMm - 1;
               return (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8', marginBottom: '3px' }}>
                     <span style={{ fontWeight: 700 }}>Vão Livre Inferior (Espaçamento da Base/Cama):</span>
                     <span style={{ fontWeight: 800, color: cutsMattress ? '#38bdf8' : '#10b981' }}>
                       {gapMm === 0
-                        ? '0 mm (Encostado na Base • Recorte Ativo do Colchão)'
+                        ? `0 mm (Encostado no Topo do Módulo${cutsMattress ? ' • Recorte Ativo' : ''})`
                         : cutsMattress
-                          ? `${gapMm} mm (Passa da Altura do Colchão • Recorte Ativo)`
-                          : `${gapMm} mm (Suspenso Alto • Colchão Livre por Baixo)`}
+                          ? `${gapMm} mm (Entra no Colchão • Recorte Ativo)`
+                          : `${gapMm} mm (Acima do Colchão • Sem Recorte)`}
                     </span>
                   </div>
                   <input
                     type="range"
                     min="0"
-                    max="350"
-                    step="10"
+                    max={maxGapMm}
+                    step="5"
                     value={gapMm}
-                    onChange={(e) => updateInternalBox(selectedBox.id, { upperCabinetBottomGapMm: parseInt(e.target.value) })}
+                    onChange={(e) => updateInternalBox(selectedBox.id, { upperCabinetBottomGapMm: Math.max(0, parseInt(e.target.value)) })}
                     style={{ width: '100%' }}
                   />
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.5px', color: '#64748b', marginTop: '2px' }}>
-                    <span>0mm (Encostado na Base)</span>
-                    <span>{mattressThickMm}mm (Altura Colchão)</span>
-                    <span>350mm (Suspenso)</span>
+                    <span>0mm (Topo do Módulo)</span>
+                    <span>+{mattressThickMm}mm (Colchão)</span>
+                    <span>+{maxGapMm}mm (Suspenso)</span>
                   </div>
                 </div>
               );
@@ -479,7 +481,7 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      const isCurrentlyOpen = isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen);
+                      const isCurrentlyOpen = Boolean(selectedBox.isUpperCabinetOpen);
                       updateInternalBox(selectedBox.id, { isUpperCabinetOpen: !isCurrentlyOpen });
                     }}
                     className="btn-compact"
@@ -487,36 +489,17 @@ export const PlannerUpperCabinetSection: React.FC<PlannerUpperCabinetProps> = ({
                       fontSize: '10.5px',
                       fontWeight: 700,
                       padding: '4px 10px',
-                      background: (isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen))
+                      background: Boolean(selectedBox.isUpperCabinetOpen)
                         ? 'linear-gradient(135deg, #10b981, #059669)'
                         : 'linear-gradient(135deg, #0284c7, #2563eb)',
-                      borderColor: (isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen)) ? '#34d399' : '#38bdf8',
+                      borderColor: Boolean(selectedBox.isUpperCabinetOpen) ? '#34d399' : '#38bdf8',
                       color: '#ffffff'
                     }}
-                    title="Alternar abertura das portas deste armário aéreo"
+                    title="Alternar abertura das portas apenas deste armário aéreo"
                   >
-                    {(isCabinetsOpenPreview || Boolean(selectedBox.isUpperCabinetOpen))
+                    {Boolean(selectedBox.isUpperCabinetOpen)
                       ? (getUpperCabinetClosure(selectedBox) === 'sliding_doors' ? '🔒 Fechar Portas de Correr' : '🔓 Fechar Porta')
                       : (getUpperCabinetClosure(selectedBox) === 'sliding_doors' ? '🪟 Deslizar Portas (Abrir)' : '🚪 Abrir Porta')}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => toggleCabinetsOpenPreview()}
-                    className="btn-compact"
-                    style={{
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      padding: '4px 8px',
-                      background: 'rgba(30, 41, 59, 0.85)',
-                      border: '1px solid #38bdf8',
-                      color: '#38bdf8'
-                    }}
-                    title="Abrir ou fechar as portas de todos os armários aéreos do veículo simultaneamente"
-                  >
-                    {(isCabinetsOpenPreview || internalBoxes.some((b) => b.upperCabinet && b.isUpperCabinetOpen))
-                      ? '🔒 Fechar Todos'
-                      : '🚪 Abrir Todos'}
                   </button>
                 </div>
               </div>

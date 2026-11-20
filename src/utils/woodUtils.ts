@@ -23,6 +23,7 @@ export interface WoodCutGroup {
   isRearShelf?: boolean;
   isUpholstery?: boolean;
   hasCabinetCutout?: boolean;
+  cutOutlineNorm?: Array<{ u: number; v: number }>;
 }
 
 export interface WoodGroupByCategory {
@@ -179,7 +180,21 @@ export function extractWoodCutGroups(sceneManager: any): {
       } else if (partType === 'slat' && (rawLabel.includes('Ripa Móvel') || rawLabel.includes('ripa móvel') || rawLabel.includes('Ripa Movel'))) {
         rawLabel = moduleName ? `${moduleName} • Ripa Móvel do Estrado (${lengthMm}×${widthMm}×${thicknessMm}mm)` : `Ripa Móvel do Estrado (${lengthMm}×${widthMm}×${thicknessMm}mm)`;
       } else if (partType === 'leg') {
-        rawLabel = moduleName ? `${moduleName} • Pé de Apoio Articulado (${lengthMm}×${widthMm}×${thicknessMm}mm)` : `Pé de Apoio Articulado (${lengthMm}×${widthMm}×${thicknessMm}mm)`;
+        const isHinged = Boolean(obj.userData.isHingedBed) ||
+          rawLabel.includes('Cama Dobradiça') ||
+          rawLabel.includes('Dobradiça') ||
+          String(obj.userData.partLabel || '').includes('Cama Dobradiça') ||
+          String(obj.userData.partLabel || '').includes('Dobradiça');
+
+        if (isHinged) {
+          rawLabel = moduleName
+            ? `${moduleName} • Cama Dobradiça - Pé Articulado (${lengthMm}×${widthMm}×${thicknessMm}mm)`
+            : `Cama Dobradiça - Pé Articulado (${lengthMm}×${widthMm}×${thicknessMm}mm)`;
+        } else {
+          rawLabel = moduleName
+            ? `${moduleName} • Pé de Apoio Articulado (${lengthMm}×${widthMm}×${thicknessMm}mm)`
+            : `Pé de Apoio Articulado (${lengthMm}×${widthMm}×${thicknessMm}mm)`;
+        }
       }
       const label = isUpholstery ? sanitizeUpholsteryLabel(rawLabel) : rawLabel;
       const material = isUpholstery
@@ -217,7 +232,8 @@ export function extractWoodCutGroups(sceneManager: any): {
           hasCabinetExclusion,
           isRearShelf,
           isUpholstery,
-          hasCabinetCutout
+          hasCabinetCutout,
+          cutOutlineNorm: obj.userData.cutOutlineNorm
         });
       }
     });
@@ -519,8 +535,16 @@ export function extractUpholsteryStats(cutGroups: WoodCutGroup[]): UpholsterySta
   };
 }
 
+export interface MetalonCapSummary {
+  sizeSpec: '40x40' | '30x30';
+  sizeMm: number;
+  label: string;
+  qty: number;
+  purpose: string;
+}
+
 /**
- * Extrai todas as barras metálicas estruturais (Perfis T-Slot / Metalon)
+ * Extrai todas as barras metálicas estruturais (Perfis T-Slot / Metalon) e seus CAPs / Ponteiras
  */
 export function extractBarStats(sceneManager: any): {
   totalPieces: number;
@@ -530,9 +554,12 @@ export function extractBarStats(sceneManager: any): {
   profileSummaries: ProfileSummary[];
   thicknessGroups: ProfileThicknessGroup[];
   cutThicknessGroups: CutGroupThicknessSection[];
+  metalonCaps: MetalonCapSummary[];
+  totalCaps: number;
 } {
   const groupsMap = new Map<string, BarCutGroup>();
   const profileMap = new Map<string, ProfileSummary>();
+  const capCounts: Record<'40x40' | '30x30', number> = { '40x40': 0, '30x30': 0 };
   let totalPieces = 0;
   let totalMeters = 0;
 
@@ -557,6 +584,17 @@ export function extractBarStats(sceneManager: any): {
         .replace(/\s*\(#\d+\)/g, '')
         .trim();
       const profileSpec = String(obj.userData.profileSpec || 'Perfil Estrutural');
+
+      // Conta CAPs/Ponteiras anexados diretamente neste perfil 3D
+      if (Array.isArray(obj.children)) {
+        obj.children.forEach((child: any) => {
+          if (child?.name === 'MetalonCapMesh' || child?.userData?.isMetalonCap) {
+            const capSizeMm = Number(child.userData?.capSizeMm) || (profileSpec.includes('40') || profileSpec.includes('1 ½') ? 40 : 30);
+            const sizeKey: '40x40' | '30x30' = capSizeMm >= 35 ? '40x40' : '30x30';
+            capCounts[sizeKey] += 1;
+          }
+        });
+      }
 
       totalPieces += 1;
       totalMeters += lengthM;
@@ -618,6 +656,27 @@ export function extractBarStats(sceneManager: any): {
 
   const { thicknessGroups, cutThicknessGroups } = groupProfilesByThickness(profileSummaries, cutGroups);
 
+  const metalonCaps: MetalonCapSummary[] = [];
+  if (capCounts['40x40'] > 0) {
+    metalonCaps.push({
+      sizeSpec: '40x40',
+      sizeMm: 40,
+      label: 'CAP / Ponteira Plástica 40×40 mm (PEAD Preto c/ Aletas)',
+      qty: capCounts['40x40'],
+      purpose: 'Vedação e acabamento das pontas abertas das longarinas 40×40 (rack base e subchassi)'
+    });
+  }
+  if (capCounts['30x30'] > 0) {
+    metalonCaps.push({
+      sizeSpec: '30x30',
+      sizeMm: 30,
+      label: 'CAP / Ponteira Plástica 30×30 mm (PEAD Preto c/ Aletas)',
+      qty: capCounts['30x30'],
+      purpose: 'Vedação e acabamento das pontas abertas das bandejas solares e travessas superiores 30×30'
+    });
+  }
+  const totalCaps = capCounts['40x40'] + capCounts['30x30'];
+
   return {
     totalPieces,
     totalMeters,
@@ -625,6 +684,8 @@ export function extractBarStats(sceneManager: any): {
     cutGroups,
     profileSummaries,
     thicknessGroups,
-    cutThicknessGroups
+    cutThicknessGroups,
+    metalonCaps,
+    totalCaps
   };
 }

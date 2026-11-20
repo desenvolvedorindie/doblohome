@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { Edge, Node } from '@xyflow/react';
 import {
+  CONNECTOR_META,
+  ElectricalConnectorType,
   ElectricalEdgeData,
   ElectricalNodeData,
   ElectricalPort,
@@ -9,8 +11,9 @@ import {
   ElectricalPortSide,
   POLARITY_META
 } from '../../../types/electricalPlanar';
-import { COPPER_WIRE_TABLE } from '../../../utils/electricalCalculations';
+import { COPPER_WIRE_TABLE, suggestConnectorForPort } from '../../../utils/electricalCalculations';
 import { NodeProtectionConfig } from './NodeProtectionConfig';
+import { ConnectorIllustration } from '../schematic/ConnectorIllustration';
 
 interface NodeInspectorSectionProps {
   selectedNode: Node<ElectricalNodeData>;
@@ -528,6 +531,21 @@ export const NodeInspectorSection: React.FC<NodeInspectorSectionProps> = ({
                         }}
                       />
                       <span style={{ color: '#e2e8f0', fontWeight: isEditing ? 700 : 500 }}>{port.label}</span>
+                      {port.connectorType && (
+                        <span
+                          style={{
+                            color: '#c4b5fd',
+                            background: 'rgba(167, 139, 250, 0.14)',
+                            border: '1px solid rgba(167, 139, 250, 0.3)',
+                            borderRadius: '3px',
+                            padding: '0 4px',
+                            fontSize: '8.5px',
+                            fontWeight: 700
+                          }}
+                        >
+                          {CONNECTOR_META[port.connectorType]?.shortLabel || port.connectorType}
+                        </span>
+                      )}
                       {!isBusbar && (
                         <span style={{ color: '#64748b', fontSize: '9px' }}>
                           ({port.side} · {port.direction === 'in' ? 'IN' : port.direction === 'out' ? 'OUT' : 'Bi'})
@@ -696,6 +714,41 @@ export const NodeInspectorSection: React.FC<NodeInspectorSectionProps> = ({
                           </select>
                         )}
                       </div>
+                      <label style={{ fontSize: '9px', color: '#94a3b8' }}>
+                        Tipo de Conector do Terminal
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                          <ConnectorIllustration
+                            type={port.connectorType || suggestConnectorForPort(selectedNode, port)}
+                            size={26}
+                          />
+                          <select
+                            value={port.connectorType || 'auto'}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              handleUpdatePort(port.id, {
+                                connectorType:
+                                  raw === 'auto' ? undefined : (raw as ElectricalConnectorType)
+                              });
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '3px',
+                              borderRadius: '4px',
+                              background: 'rgba(2, 6, 23, 0.9)',
+                              border: '1px solid rgba(148, 163, 184, 0.25)',
+                              color: '#e2e8f0',
+                              fontSize: '9.5px'
+                            }}
+                          >
+                            <option value="auto">⚡ Automático (Padrão do Componente)</option>
+                            {Object.values(CONNECTOR_META).map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </label>
                     </div>
                   )}
                 </div>

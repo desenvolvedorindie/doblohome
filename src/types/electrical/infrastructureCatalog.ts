@@ -246,5 +246,41 @@ export const INFRASTRUCTURE_CATALOG: ElectricalCatalogTemplate[] = [
       { id: 'load_neg', label: 'P- (Cargas)', polarity: 'neg', side: 'right', direction: 'out', maxAmps: 500 },
       { id: 'sig_pos', label: '+ Sensor V', polarity: 'signal', side: 'top', direction: 'in' }
     ]
+  },
+  {
+    catalogId: 'connector_dc_quick',
+    label: 'Conector Engate Rápido DC',
+    subtitle: 'Anderson SB50 / XT60 · + e -',
+    category: 'distribution_protection',
+    kind: 'connector',
+    icon: '🔗',
+    voltage: 12.8,
+    watts: 0,
+    amps: 0,
+    connectorType: 'anderson',
+    ports: [
+      { id: 'in_pos', label: '+ IN', polarity: 'pos', side: 'left', direction: 'in', connectorType: 'anderson', maxAmps: 120 },
+      { id: 'in_neg', label: '- IN', polarity: 'neg', side: 'left', direction: 'in', connectorType: 'anderson', maxAmps: 120 },
+      { id: 'out_pos', label: '+ OUT', polarity: 'pos', side: 'right', direction: 'out', connectorType: 'anderson', maxAmps: 120 },
+      { id: 'out_neg', label: '- OUT', polarity: 'neg', side: 'right', direction: 'out', connectorType: 'anderson', maxAmps: 120 }
+    ]
+  },
+  {
+    catalogId: 'connector_wago',
+    label: 'Conector de Emenda (Wago)',
+    subtitle: 'Alavanca 221 · 32A',
+    category: 'distribution_protection',
+    kind: 'connector',
+    icon: '📎',
+    voltage: 12.8,
+    watts: 0,
+    amps: 0,
+    connectorType: 'wago',
+    ports: [
+      { id: 'in_pos', label: '+ IN', polarity: 'pos', side: 'left', direction: 'in', connectorType: 'wago', maxAmps: 32 },
+      { id: 'in_neg', label: '- IN', polarity: 'neg', side: 'left', direction: 'in', connectorType: 'wago', maxAmps: 32 },
+      { id: 'out_pos', label: '+ OUT', polarity: 'pos', side: 'right', direction: 'out', connectorType: 'wago', maxAmps: 32 },
+      { id: 'out_neg', label: '- OUT', polarity: 'neg', side: 'right', direction: 'out', connectorType: 'wago', maxAmps: 32 }
+    ]
   }
 ];

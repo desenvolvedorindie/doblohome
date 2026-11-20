@@ -45,7 +45,7 @@ export class UpperCabinetTransverseBuilder {
 
         // --- ARMARIO TRANSVERSAL (FRENTE OU TRASEIRA) ---
         const maxDepthMm = Math.max(Math.round(boxLM * 1000), 1200);
-        const depthMm = Math.max(100, Math.min(maxDepthMm, box.upperCabinetDepthMm ?? 250));
+        const depthMm = Math.max(50, Math.min(maxDepthMm, box.upperCabinetDepthMm ?? 250));
         const cabinetDepthM = depthMm / 1000;
 
         const maxWMm = Math.max(Math.round(boxWM * 1000), 1600);

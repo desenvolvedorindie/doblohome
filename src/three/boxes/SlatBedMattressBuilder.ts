@@ -4,6 +4,10 @@ import { collectMattressCutoutZones } from './slat-bed/MattressCushionGeometry';
 import { buildLateralFivePartMattress } from './slat-bed/LateralFivePartMattressBuilder';
 import { buildLateralStandardMattress } from './slat-bed/LateralStandardMattressBuilder';
 import { buildLongitudinalMattress } from './slat-bed/LongitudinalMattressBuilder';
+import {
+  collectEffectiveGlobalGroups,
+  computeAllVehicleMattressSubparts
+} from '../../utils/mattressGrouping';
 
 export interface SlatMattressParams {
   showMattress?: boolean;
@@ -69,6 +73,37 @@ export class SlatBedMattressBuilder {
     });
     const seamMat = new THREE.MeshBasicMaterial({ color: 0x1e293b });
 
+    // Resolve grupos conectados globais (grid.mattressMergedGroups) + legados (box.mattressMergedGroups):
+    // - Grupos totalmente dentro deste módulo são fundidos aqui
+    // - Subpartes pertencentes a grupos cross-módulo são puladas aqui e construídas unificadas pelo InternalBoxesBuilder
+    let effectiveMergedGroups: number[][] | undefined = box.mattressMergedGroups;
+    const skipSubpartIndices = new Set<number>();
+
+    if (isExtended && grid?.mattressMergedGroups && grid.mattressMergedGroups.length > 0 && allBoxes && allBoxes.length > 0) {
+      const allSubparts = computeAllVehicleMattressSubparts(grid, allBoxes, 0);
+      const effectiveGlobal = collectEffectiveGlobalGroups(allSubparts, grid.mattressMergedGroups, allBoxes);
+      const sameBoxGroups: number[][] = [];
+      for (const grp of effectiveGlobal) {
+        const parsed = grp.map((id) => {
+          const sep = id.lastIndexOf('::');
+          return { boxId: id.slice(0, sep), idx: parseInt(id.slice(sep + 2), 10) };
+        });
+        const involvesThisBox = parsed.some((p) => p.boxId === box.id);
+        if (!involvesThisBox) continue;
+        const allSameBox = parsed.every((p) => p.boxId === box.id);
+        if (allSameBox) {
+          sameBoxGroups.push(parsed.map((p) => p.idx).sort((a, b) => a - b));
+        } else {
+          parsed.filter((p) => p.boxId === box.id).forEach((p) => skipSubpartIndices.add(p.idx));
+        }
+      }
+      effectiveMergedGroups = sameBoxGroups.length > 0 ? sameBoxGroups : undefined;
+    }
+
+    const effectiveBox = effectiveMergedGroups !== box.mattressMergedGroups
+      ? { ...box, mattressMergedGroups: effectiveMergedGroups }
+      : box;
+
     if (direction === 'left' || direction === 'right') {
       const gridWidthM = grid ? grid.widthMm / 1000 : (cellWM ? cellWM * 3 : w * 2);
       const cellW =
@@ -98,14 +133,16 @@ export class SlatBedMattressBuilder {
           mattressMat,
           seamMat,
           cutoutZones,
-          foamName
+          foamName,
+          mergedGroups: effectiveBox.mattressMergedGroups,
+          skipSubpartIndices
         });
       } else {
         buildLateralStandardMattress({
           container,
           w,
           l,
-          box,
+          box: effectiveBox,
           direction,
           isExtended,
           parts,
@@ -119,7 +156,8 @@ export class SlatBedMattressBuilder {
           mattressMat,
           seamMat,
           cutoutZones,
-          foamName
+          foamName,
+          skipSubpartIndices
         });
       }
     } else {
@@ -135,7 +173,7 @@ export class SlatBedMattressBuilder {
         container,
         w,
         l,
-        box,
+        box: effectiveBox,
         direction,
         isExtended,
         parts,
@@ -147,7 +185,8 @@ export class SlatBedMattressBuilder {
         mattressMat,
         seamMat,
         cutoutZones,
-        foamName
+        foamName,
+        skipSubpartIndices
       });
     }
   }

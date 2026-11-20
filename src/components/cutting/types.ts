@@ -19,6 +19,7 @@ export interface WoodCutGroupInput {
   partType?: string;
   isUpholstery?: boolean;
   hasCabinetCutout?: boolean;
+  cutOutlineNorm?: Array<{ u: number; v: number }>;
 }
 
 export interface CuttingPlanPanelProps {

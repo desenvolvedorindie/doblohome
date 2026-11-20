@@ -245,69 +245,126 @@ export class BarsLineupCollector {
       row.subtitle = `${row.items.length} barras do rack • ${totalMeters.toFixed(1)} m`;
     });
 
-    // 4.0 COLETA DOS CAPS PLÁSTICOS DE METALON (PONTEIRAS DE PROTEÇÃO)
+    // 4.0 COLETA DOS CAPS PLÁSTICOS DE METALON / PERFIL DE ALUMÍNIO (PONTEIRAS DE PROTEÇÃO)
     const metalonCapItems: LineupItem[] = [];
-    for (let i = 0; i < 4; i++) {
-      metalonCapItems.push({
-        sourceMesh: null,
-        type: 'metal',
-        length: 0.020,
-        width: 0.040,
-        thickness: 0.040,
-        thicknessMm: 40,
-        area: 0.040 * 0.040,
-        name: `CAP Plástico 40x40mm (Ponteira Rack Base ${i + 1})`,
-        profileSpec: 'Metalon Cap 40x40',
-        material: 'Polietileno de Alta Densidade (PEAD Preto)',
-        isMetalonCap: true,
-        capProfileSize: 40
+    const cargoDisabledForCaps = !solarSystem?.cargoBoxConfig?.enabled;
+    const cargoGroupForCaps = solarSystem?.cargoBoxSystem?.group;
+
+    if (solarSystem?.group) {
+      let capIdx = 0;
+      solarSystem.group.traverse((obj: any) => {
+        if (!obj.isMesh || !obj.userData || !obj.userData.isBar || !Array.isArray(obj.children)) return;
+
+        if (cargoDisabledForCaps && cargoGroupForCaps) {
+          let p = obj.parent;
+          while (p) {
+            if (p === cargoGroupForCaps) return;
+            p = p.parent;
+          }
+        }
+
+        const barLabel = String(obj.userData.barLabel || 'Perfil Estrutural');
+        const barProfileSpec = String(obj.userData.profileSpec || '');
+
+        obj.children.forEach((child: any) => {
+          if (child?.name === 'MetalonCapMesh' || child?.userData?.isMetalonCap) {
+            capIdx += 1;
+            const rawSizeMm = Number(child.userData?.capSizeMm) || (barProfileSpec.includes('40') || barProfileSpec.includes('1 ½') ? 40 : 30);
+            const sizeMm: 30 | 40 = rawSizeMm >= 35 ? 40 : 30;
+            const sizeM = sizeMm / 1000;
+            metalonCapItems.push({
+              sourceMesh: null,
+              type: 'metal',
+              length: 0.020,
+              width: sizeM,
+              thickness: sizeM,
+              thicknessMm: sizeMm,
+              area: sizeM * sizeM,
+              name: `CAP Plástico ${sizeMm}x${sizeMm}mm (${barLabel} #${capIdx})`,
+              profileSpec: `Metalon Cap ${sizeMm}x${sizeMm}`,
+              material: 'Polietileno de Alta Densidade (PEAD Preto)',
+              isMetalonCap: true,
+              capProfileSize: sizeMm
+            });
+          }
+        });
       });
     }
 
-    if (solarSystem?.cargoBoxConfig?.enabled) {
+    // Fallback quando a cena 3D ainda não foi populada com barras (ex: mocks de teste)
+    if (metalonCapItems.length === 0) {
       for (let i = 0; i < 4; i++) {
         metalonCapItems.push({
           sourceMesh: null,
           type: 'metal',
           length: 0.020,
-          width: 0.030,
-          thickness: 0.030,
-          thicknessMm: 30,
-          area: 0.030 * 0.030,
-          name: `CAP Plástico 30x30mm (Ponteira Subchassi Baú ${i + 1})`,
-          profileSpec: 'Metalon Cap 30x30',
+          width: 0.040,
+          thickness: 0.040,
+          thicknessMm: 40,
+          area: 0.040 * 0.040,
+          name: `CAP Plástico 40x40mm (Ponteira Rack Base ${i + 1})`,
+          profileSpec: 'Metalon Cap 40x40',
           material: 'Polietileno de Alta Densidade (PEAD Preto)',
           isMetalonCap: true,
-          capProfileSize: 30
+          capProfileSize: 40
         });
       }
-    }
 
-    if (solarSystem?.stackLevels === 2) {
-      for (let i = 0; i < 4; i++) {
-        metalonCapItems.push({
-          sourceMesh: null,
-          type: 'metal',
-          length: 0.020,
-          width: 0.030,
-          thickness: 0.030,
-          thicknessMm: 30,
-          area: 0.030 * 0.030,
-          name: `CAP Plástico 30x30mm (Ponteira Nível Superior ${i + 1})`,
-          profileSpec: 'Metalon Cap 30x30',
-          material: 'Polietileno de Alta Densidade (PEAD Preto)',
-          isMetalonCap: true,
-          capProfileSize: 30
-        });
+      if (solarSystem?.cargoBoxConfig?.enabled) {
+        for (let i = 0; i < 4; i++) {
+          metalonCapItems.push({
+            sourceMesh: null,
+            type: 'metal',
+            length: 0.020,
+            width: 0.040,
+            thickness: 0.040,
+            thicknessMm: 40,
+            area: 0.040 * 0.040,
+            name: `CAP Plástico 40x40mm (Ponteira Subchassi Baú ${i + 1})`,
+            profileSpec: 'Metalon Cap 40x40',
+            material: 'Polietileno de Alta Densidade (PEAD Preto)',
+            isMetalonCap: true,
+            capProfileSize: 40
+          });
+        }
       }
+
+      if (solarSystem?.stackLevels === 2) {
+        for (let i = 0; i < 4; i++) {
+          metalonCapItems.push({
+            sourceMesh: null,
+            type: 'metal',
+            length: 0.020,
+            width: 0.030,
+            thickness: 0.030,
+            thicknessMm: 30,
+            area: 0.030 * 0.030,
+            name: `CAP Plástico 30x30mm (Ponteira Nível Superior ${i + 1})`,
+            profileSpec: 'Metalon Cap 30x30',
+            material: 'Polietileno de Alta Densidade (PEAD Preto)',
+            isMetalonCap: true,
+            capProfileSize: 30
+          });
+        }
+      }
+    } else {
+      // Ordena 40x40 primeiro, depois 30x30
+      metalonCapItems.sort((a, b) => (b.capProfileSize || 0) - (a.capProfileSize || 0));
     }
 
     if (metalonCapItems.length > 0) {
+      const count40 = metalonCapItems.filter(c => (c.capProfileSize || 0) >= 35).length;
+      const count30 = metalonCapItems.length - count40;
+      const breakdown = [
+        count40 > 0 ? `${count40}× 40×40mm` : null,
+        count30 > 0 ? `${count30}× 30×30mm` : null
+      ].filter(Boolean).join(' • ');
+
       sortedMetalRows.push({
         key: 'metalon_caps_row',
         type: 'metal',
-        title: '🛡️ CAPS PROTETORES DO RACK',
-        subtitle: `${metalonCapItems.length} ponteiras plásticas do rack de acabamento e proteção`,
+        title: '🛡️ CAPS PROTETORES DOS PERFIS',
+        subtitle: `${metalonCapItems.length} ponteiras plásticas (${breakdown})`,
         profileSpec: 'CAP Plástico',
         colorHex: 0x38bdf8,
         items: metalonCapItems

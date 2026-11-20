@@ -25,6 +25,7 @@ import {
   getPlanarMiniMapNodeColor
 } from './planar/PlanarCanvasToolbar';
 import { useElectricalPlanarState } from './planar/useElectricalPlanarState';
+import { ElectricalIconScaleProvider } from './planar/ElectricalIconScaleContext';
 
 const nodeTypes = {
   schematic: SchematicNode
@@ -55,6 +56,8 @@ const ElectricalPlanarWorkspace: React.FC<PlanarSidebarControlProps> = ({
     nodes,
     edges,
     edgeStyle,
+    iconScale,
+    setIconScale,
     customTemplates,
     setCustomTemplates,
     selectedNodeId,
@@ -64,6 +67,7 @@ const ElectricalPlanarWorkspace: React.FC<PlanarSidebarControlProps> = ({
     confirmClear,
     onNodesChange,
     onEdgesChange,
+    isValidConnection,
     onConnect,
     insertTemplateAt,
     handleUpdateNodeData,
@@ -129,7 +133,8 @@ const ElectricalPlanarWorkspace: React.FC<PlanarSidebarControlProps> = ({
   const bomSummary = useMemo(() => calculateElectricalBom(nodes, edges), [nodes, edges]);
 
   return (
-    <PlanarIdeLayout
+    <ElectricalIconScaleProvider scale={iconScale}>
+      <PlanarIdeLayout
       leftSidebarVisible={leftSidebarVisible}
       rightSidebarVisible={rightSidebarVisible}
       onToggleLeftSidebar={onToggleLeftSidebar}
@@ -191,8 +196,10 @@ const ElectricalPlanarWorkspace: React.FC<PlanarSidebarControlProps> = ({
             edgesCount={edges.length}
             bomSummary={bomSummary}
             edgeStyle={edgeStyle}
+            iconScale={iconScale}
             confirmClear={confirmClear}
             onEdgeStyleChange={handleEdgeStyleChange}
+            onIconScaleChange={setIconScale}
             onFitView={() => fitView({ padding: 0.22, duration: 300 })}
             onClearCanvas={handleClearCanvas}
           />
@@ -204,6 +211,7 @@ const ElectricalPlanarWorkspace: React.FC<PlanarSidebarControlProps> = ({
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
+            isValidConnection={isValidConnection}
             onConnect={onConnect}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
@@ -239,6 +247,7 @@ const ElectricalPlanarWorkspace: React.FC<PlanarSidebarControlProps> = ({
         </div>
       }
     />
+    </ElectricalIconScaleProvider>
   );
 };
 

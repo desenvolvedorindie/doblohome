@@ -413,8 +413,12 @@ class CuttingPlanPdfService
 
             // Nome
             $lbl = $p['label'] ?? '';
-            if (mb_strlen($lbl) > 38) {
-                $lbl = mb_substr($lbl, 0, 36) . '..';
+            if (str_contains($lbl, '•')) {
+                $parts = explode('•', $lbl);
+                $lbl = trim(end($parts));
+            }
+            if (mb_strlen($lbl) > 42) {
+                $lbl = mb_substr($lbl, 0, 40) . '..';
             }
             $pdf->SetFont('dejavusans', 'B', 7);
             $pdf->SetTextColor(...$this->cTextMain);
@@ -603,9 +607,22 @@ class CuttingPlanPdfService
                     // Rótulos e dimensões dentro da peça
                     if ($pw > 35 && $ph > 18) {
                         $lbl = $piece['label'] ?? '';
-                        $maxChars = max(5, (int)($pw / 5.2));
-                        if (mb_strlen($lbl) > $maxChars) {
-                            $lbl = mb_substr($lbl, 0, $maxChars - 2) . '..';
+                        if (str_contains($lbl, '•')) {
+                            $parts = explode('•', $lbl);
+                            $partName = trim(end($parts));
+                            $partName = preg_replace('/\s*\(\d+.*?\)$/', '', $partName);
+                            if (str_contains($partName, 'Dobradiça') && str_contains($partName, 'Pé')) {
+                                $lbl = 'Pé Articulado';
+                            } elseif (mb_strlen($partName) <= 24) {
+                                $lbl = $partName;
+                            } else {
+                                $lbl = mb_substr($partName, 0, 22) . '..';
+                            }
+                        } else {
+                            $maxChars = max(5, (int)($pw / 5.2));
+                            if (mb_strlen($lbl) > $maxChars) {
+                                $lbl = mb_substr($lbl, 0, $maxChars - 2) . '..';
+                            }
                         }
                         $fSize = min(8.5, max(6.0, $pw / 15.0));
 
@@ -628,7 +645,16 @@ class CuttingPlanPdfService
                         }
                     } elseif ($pw >= 20 && $ph >= 8) {
                         $lbl = $piece['label'] ?? '';
-                        if (mb_strlen($lbl) > 18) {
+                        if (str_contains($lbl, '•')) {
+                            $parts = explode('•', $lbl);
+                            $lbl = trim(end($parts));
+                            $lbl = preg_replace('/\s*\(\d+.*?\)$/', '', $lbl);
+                        }
+                        if (str_contains($lbl, 'Dobradiça') || str_contains($lbl, 'Articulado')) {
+                            $lbl = 'Pé Articulado';
+                        } elseif (str_contains($lbl, 'Ripa')) {
+                            $lbl = 'Ripa ' . (str_contains($lbl, 'Fixa') ? 'Fixa' : 'Móvel');
+                        } elseif (mb_strlen($lbl) > 18) {
                             $lbl = mb_substr($lbl, 0, 16) . '..';
                         }
                         $dimStr = "{$piece['w']}×{$piece['h']}";
@@ -640,7 +666,14 @@ class CuttingPlanPdfService
                         $dimStr = "{$piece['w']}×{$piece['h']}";
                         $fSize = min(5.5, max(4.2, $pw * 0.44));
                         $shortLbl = $piece['label'] ?? '';
-                        if (str_contains($shortLbl, 'Ripa')) {
+                        if (str_contains($shortLbl, '•')) {
+                            $parts = explode('•', $shortLbl);
+                            $shortLbl = trim(end($parts));
+                            $shortLbl = preg_replace('/\s*\(\d+.*?\)$/', '', $shortLbl);
+                        }
+                        if (str_contains($shortLbl, 'Dobradiça') || str_contains($shortLbl, 'Articulado')) {
+                            $shortLbl = 'Pé Articulado';
+                        } elseif (str_contains($shortLbl, 'Ripa')) {
                             $shortLbl = 'Ripa ' . (str_contains($shortLbl, 'Fixa') ? 'Fixa' : 'Móvel');
                         } elseif (str_contains($shortLbl, 'Pé') || str_contains($shortLbl, 'Pe')) {
                             $shortLbl = 'Pé Apoio';
@@ -712,7 +745,14 @@ class CuttingPlanPdfService
                     $pdf->SetTextColor(...($p['qty'] > 1 ? $this->cAmber : $this->cTextMuted));
                     $pdf->Text(42, $rY + 3.5, $qtyStr);
 
-                    $lbl = mb_substr($p['label'] ?? '', 0, 36);
+                    $lbl = $p['label'] ?? '';
+                    if (str_contains($lbl, '•')) {
+                        $parts = explode('•', $lbl);
+                        $lbl = trim(end($parts));
+                    }
+                    if (mb_strlen($lbl) > 42) {
+                        $lbl = mb_substr($lbl, 0, 40) . '..';
+                    }
                     $pdf->SetTextColor(...$this->cTextMain);
                     $pdf->Text(65, $rY + 3.5, $lbl);
 
